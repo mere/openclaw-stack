@@ -335,3 +335,6 @@ Break-glass stop (return to normal):
 ```bash
 sudo /opt/openclaw-stack/stop.sh
 ```
+
+
+Note: `start.sh` always recreates the gateway container to ensure any prior break-glass mounts (repo/docker.sock) are removed.
