@@ -17,11 +17,10 @@ printf "Browser container IP: %s\n" "$BIP"
 printf "CDP URL: %s\n" "$URL"
 
 # Chromium CDP is picky about Host headers; use IP explicitly.
-JSON=$(docker exec "$GATEWAY_CONTAINER" sh -lc "curl -sS --max-time 3 $URL")
-
-python3 - <<PY
+docker exec "$GATEWAY_CONTAINER" sh -lc "curl -sS --max-time 3 $URL" \
+  | python3 - <<PY
 import json,sys
-j=json.loads(sys.argv[1])
+j=json.load(sys.stdin)
 need=["Browser","Protocol-Version","webSocketDebuggerUrl"]
 missing=[k for k in need if k not in j]
 if missing:
@@ -29,4 +28,4 @@ if missing:
 print("OK: CDP reachable")
 print("Browser:", j.get("Browser"))
 print("WS:", j.get("webSocketDebuggerUrl"))
-PY "${JSON//"/\\\"}"
+PY
