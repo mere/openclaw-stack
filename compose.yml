@@ -8,15 +8,29 @@ services:
       - TZ=UTC
     volumes:
       - ${BROWSER_CONFIG_DIR:-/var/lib/openclaw/browser}:/config
-    # Expose noVNC on host loopback only; access via SSH tunnel.
     ports:
       - "${NOVNC_HOST:-127.0.0.1}:${NOVNC_PORT:-6080}:3000"
     shm_size: "1gb"
     restart: unless-stopped
 
-  openclaw:
-    # placeholder for now; we will wire the OpenClaw container once repo skeleton is ready
-    image: alpine:3.20
-    container_name: ${INSTANCE:-chloe}-openclaw
-    command: ["sh","-lc","echo openclaw placeholder && sleep 3600"]
+  openclaw-gateway:
+    build:
+      context: ./vendor/openclaw
+      dockerfile: Dockerfile
+    image: openclaw:local
+    container_name: ${INSTANCE:-chloe}-openclaw-gateway
+    environment:
+      HOME: /home/node
+      TERM: xterm-256color
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
+      NPM_CONFIG_PREFIX: /home/node/.openclaw/npm-global
+      # Ensure npm global installs are writable for uid 1000
+      PATH: /home/node/.openclaw/npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    volumes:
+      - ${OPENCLAW_STATE_DIR:-/var/lib/openclaw/state}:/home/node/.openclaw
+      - ${OPENCLAW_WORKSPACE_DIR:-/var/lib/openclaw/workspace}:/home/node/.openclaw/workspace
+    ports:
+      - "${GATEWAY_HOST:-127.0.0.1}:${GATEWAY_PORT:-18789}:18789"
+    init: true
     restart: unless-stopped
+    command: ["node","dist/index.js","gateway","--bind","lan","--port","18789"]
