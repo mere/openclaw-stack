@@ -149,3 +149,31 @@ docker ps -a
 docker compose -f /opt/openclaw-stack/compose.yml logs --tail=200
 ```
 
+
+## Phone access via Tailscale HTTPS (recommended)
+
+Many mobile browsers (especially iOS) require a secure origin (HTTPS) for noVNC and the OpenClaw Control UI.
+
+Use Tailscale + Tailscale Serve to expose HTTPS endpoints inside your tailnet (not publicly on the internet):
+
+1) Install + connect Tailscale (VPS):
+
+```bash
+curl -fsSL https://tailscale.com/install.sh | sh
+tailscale up --hostname chloe-<name>
+```
+
+2) If Tailscale says Serve is not enabled, open the provided admin URL and enable it.
+
+3) Configure Serve (VPS):
+
+```bash
+tailscale serve reset
+tailscale serve --bg --set-path /novnc http://127.0.0.1:6080
+tailscale serve --bg --set-path /openclaw http://127.0.0.1:18789
+tailscale serve status
+```
+
+4) On your phone (with Tailscale on):
+- `https://<magicdns>/novnc`
+- `https://<magicdns>/openclaw`
