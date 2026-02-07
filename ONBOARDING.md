@@ -296,12 +296,12 @@ Stop:
 sudo /opt/openclaw-stack/stop.sh
 ```
 
-Break-glass start (repo mount for quick fixes):
+Break-glass start (repo + Docker host control):
 ```bash
 sudo /opt/openclaw-stack/start-breakglass.sh
 ```
 
-Optional (dangerous): break-glass with Docker host control (docker.sock):
+Break-glass stop (return to normal):
 ```bash
-sudo BREAKGLASS_DOCKER_SOCK=1 /opt/openclaw-stack/start-breakglass.sh
+sudo /opt/openclaw-stack/stop-breakglass.sh
 ```

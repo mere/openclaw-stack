@@ -14,7 +14,7 @@ echo "[breakglass] enabling breakglass mode"
 echo "[breakglass] starting gateway with repo mount"
 docker compose --env-file "$ENV_FILE" -f "$BASE" -f "$REPO_OVR" up -d --force-recreate openclaw-gateway
 
-if [ "${BREAKGLASS_DOCKER_SOCK:-0}" = "1" ]; then
+if [ "${BREAKGLASS_DOCKER_SOCK:-1}" = "1" ]; then
   echo "[breakglass] DANGER: enabling docker.sock mount"
   docker compose --env-file "$ENV_FILE" -f "$BASE" -f "$REPO_OVR" -f "$DOCKER_OVR" up -d --force-recreate openclaw-gateway
 fi
@@ -26,7 +26,7 @@ cat <<MSG
 
 Breakglass is ON.
 - Repo mount enabled: /opt/openclaw-stack -> /opt/openclaw-stack (inside gateway)
-- docker.sock mount: ${BREAKGLASS_DOCKER_SOCK:-0} (set BREAKGLASS_DOCKER_SOCK=1 to enable; high risk)
+- docker.sock mount: ${BREAKGLASS_DOCKER_SOCK:-1} (set BREAKGLASS_DOCKER_SOCK=1 to enable; high risk)
 
 To return to normal:
   $STACK_DIR/start.sh
