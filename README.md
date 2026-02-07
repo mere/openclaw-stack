@@ -150,6 +150,23 @@ docker compose -f /opt/openclaw-stack/compose.yml logs --tail=200
 ```
 
 
+
+## Initial onboarding requires SSH (recommended)
+
+Even if you plan to access everything via Tailscale HTTPS on your phone, do the first-run configuration via an SSH terminal.
+
+Why: the interactive onboarding wizard (TUI) is the most reliable way to set up **Codex OAuth** and chat channels (Telegram/WhatsApp). Web terminals (e.g., Hetzner console) can make it difficult to copy the OAuth URL and redirect/callback URL.
+
+Run:
+
+```bash
+ssh root@<VPS_IP>
+
+docker exec -it chloe-openclaw-gateway ./openclaw.mjs onboard
+```
+
+Note: in our current gateway image the CLI entrypoint is `./openclaw.mjs` (not `openclaw`).
+
 ## Phone access via Tailscale HTTPS (recommended)
 
 Many mobile browsers (especially iOS) require a secure origin (HTTPS) for noVNC and the OpenClaw Control UI.

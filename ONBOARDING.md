@@ -7,6 +7,28 @@ Opinionated assumptions:
 - Ubuntu 24.04 LTS
 - No public exposure; access via Tailscale (phone-friendly) or SSH tunnel
 
+
+## Required: SSH access (for onboarding wizard + channel setup)
+
+Even if you plan to use the phone-only Tailscale HTTPS URLs day-to-day, **initial setup requires an SSH terminal**.
+
+Reason: model OAuth (Codex), Telegram bot tokens, WhatsApp pairing/QR, and other channel setup steps are handled by the **interactive onboarding wizard (TUI)**. Trying to run this from phone-only web terminals (Hetzner web console / iOS) makes it hard or impossible to copy OAuth URLs and tokens.
+
+### Run the wizard (on the VPS host)
+
+SSH to the VPS, then run the wizard inside the gateway container:
+
+```bash
+ssh root@<VPS_IP>
+
+docker exec -it chloe-openclaw-gateway ./openclaw.mjs onboard
+```
+
+Notes:
+- In our current gateway image, the CLI entrypoint is **`./openclaw.mjs`** inside the container (there is no `openclaw` binary on `$PATH`).
+- For Codex OAuth, the wizard prints a login URL. Open it on your laptop/phone and then paste the resulting redirect URL back into the wizard.
+- The final redirect is usually `http://localhost:1455/auth/callback?...` and may show a "page not found". **That is expected** — copy the URL from the address bar.
+
 ## What the user does (Hetzner)
 1) Create a new Hetzner VPS (Ubuntu 24.04).
 2) Collect:
@@ -131,3 +153,12 @@ Example MagicDNS:
 ## After setup
 - User changes the VPS root password.
 - (Recommended) Switch to SSH key auth and disable password auth.
+
+
+## Wizard selections (Codex OAuth)
+
+For OpenAI Codex OAuth we used:
+- Onboarding mode: **Quick start**
+- Config handling: **Use existing values**
+- Auth choice: **OpenAI (Codex OAuth)**
+- Provider: **OpenAI Codex (ChatGPT OAuth)**
