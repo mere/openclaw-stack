@@ -1,0 +1,16 @@
+[Unit]
+Description=OpenClaw Stack (Compose)
+After=network-online.target docker.service
+Wants=network-online.target docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/openclaw-stack
+EnvironmentFile=-/etc/openclaw/stack.env
+ExecStart=/usr/bin/docker compose -f /opt/openclaw-stack/compose.yml up -d
+ExecStop=/usr/bin/docker compose -f /opt/openclaw-stack/compose.yml down
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,22 @@
+services:
+  browser:
+    image: lscr.io/linuxserver/webtop:ubuntu-xfce
+    container_name: ${INSTANCE:-chloe}-browser
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=UTC
+    volumes:
+      - ${BROWSER_CONFIG_DIR:-/var/lib/openclaw/browser}:/config
+    # Expose noVNC on host loopback only; access via SSH tunnel.
+    ports:
+      - "${NOVNC_HOST:-127.0.0.1}:${NOVNC_PORT:-6080}:3000"
+    shm_size: "1gb"
+    restart: unless-stopped
+
+  openclaw:
+    # placeholder for now; we will wire the OpenClaw container once repo skeleton is ready
+    image: alpine:3.20
+    container_name: ${INSTANCE:-chloe}-openclaw
+    command: ["sh","-lc","echo openclaw placeholder && sleep 3600"]
+    restart: unless-stopped
