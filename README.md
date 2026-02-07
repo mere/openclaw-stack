@@ -242,3 +242,27 @@ Run this on the VPS host:
 ```bash
 /opt/openclaw-stack/scripts/cdp-smoke-test.sh
 ```
+
+
+### Pin the webtop container IP (recommended)
+
+To avoid the webtop container IP changing across recreates, set a static IP via Docker network IPAM. This stack supports:
+
+- `DOCKER_SUBNET` (default `172.31.0.0/24`)
+- `BROWSER_IPV4` (default `172.31.0.10`)
+
+Add them to `/etc/openclaw/stack.env`:
+
+```bash
+DOCKER_SUBNET=172.31.0.0/24
+BROWSER_IPV4=172.31.0.10
+```
+
+Then recreate the stack:
+
+```bash
+cd /opt/openclaw-stack
+docker compose --env-file /etc/openclaw/stack.env -f compose.yml up -d --force-recreate
+```
+
+Once pinned, `browser.profiles.webtop.cdpUrl` can stay `http://172.31.0.10:9223` permanently.
