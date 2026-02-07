@@ -18,10 +18,7 @@ services:
         ipv4_address: ${BROWSER_IPV4:-172.31.0.10}
 
   openclaw-gateway:
-    build:
-      context: ./vendor/openclaw
-      dockerfile: Dockerfile
-    image: openclaw:local
+    image: ${OPENCLAW_IMAGE:-ghcr.io/openclaw/openclaw:main}
     container_name: ${INSTANCE:-chloe}-openclaw-gateway
     environment:
       HOME: /home/node
