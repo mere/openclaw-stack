@@ -271,3 +271,37 @@ Once pinned, `browser.profiles.webtop.cdpUrl` can stay `http://172.31.0.10:9223`
 ### Source of truth for CDP
 
 This stack does **not** rely on a `BROWSER_CDP_URL` env var. The gateway reads `browser.profiles.webtop.cdpUrl` from `/var/lib/openclaw/state/openclaw.json`. With the pinned browser IP, that value can stay stable (e.g. `http://172.31.0.10:9223`).
+
+
+## Operations: health check + watchdog
+
+### Quick health check
+
+```bash
+/opt/openclaw-stack/scripts/stack-health.sh
+```
+
+### CDP watchdog (auto-recovery)
+
+A systemd timer runs every ~2 minutes and restarts the browser + gateway if CDP stops responding.
+
+Check status:
+
+```bash
+systemctl status openclaw-cdp-watchdog.timer
+journalctl -u openclaw-cdp-watchdog.service -n 50 --no-pager
+```
+
+Disable:
+
+```bash
+systemctl disable --now openclaw-cdp-watchdog.timer
+```
+
+## Cleanup (optional)
+
+If you used the webtop Desktop helper files during onboarding (gateway token / OAuth URL launcher), you can remove them:
+
+- `/var/lib/openclaw/browser/Desktop/OPENCLAW_GATEWAY_TOKEN.txt`
+- `/var/lib/openclaw/browser/Desktop/CODEX_OAUTH_URL.txt`
+- `/var/lib/openclaw/browser/Desktop/OpenAI-Codex-OAuth.desktop`

@@ -1,0 +1,8 @@
+[Unit]
+Description=OpenClaw CDP watchdog (restart webtop browser if CDP is down)
+Wants=network-online.target docker.service
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/openclaw-stack/scripts/cdp-watchdog.sh
