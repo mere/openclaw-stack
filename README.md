@@ -233,3 +233,12 @@ If the webtop container IP changes after restart, run:
 ```bash
 /opt/openclaw-stack/scripts/update-webtop-cdp-url.sh
 ```
+
+
+### CDP smoke test
+
+Run this on the VPS host:
+
+```bash
+/opt/openclaw-stack/scripts/cdp-smoke-test.sh
+```

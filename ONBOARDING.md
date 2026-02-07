@@ -176,6 +176,10 @@ Chromium CDP in this webtop image tends to bind to localhost (127.0.0.1). To mak
 - socat: `0.0.0.0:9223 -> 127.0.0.1:9222`
 
 ### Important: Host header restriction
+
+Note: `BROWSER_CDP_URL` in `/etc/openclaw/stack.env` is a convenience value, but in practice Chromium CDP may reject hostnames. Our helper script writes the IP-based `cdpUrl` into `openclaw.json`, which is what the gateway actually uses.
+
+### Important: Host header restriction
 Chromium rejects CDP requests when the `Host:` header is not `localhost` or an IP. That means `http://browser:9223` may fail.
 
 So we set `cdpUrl` using the **container IP**, e.g. `http://172.18.0.2:9223`.
@@ -200,4 +204,13 @@ If the webtop container IP changes after restart, run:
 
 ```bash
 /opt/openclaw-stack/scripts/update-webtop-cdp-url.sh
+```
+
+
+### CDP smoke test
+
+Run this on the VPS host:
+
+```bash
+/opt/openclaw-stack/scripts/cdp-smoke-test.sh
 ```
