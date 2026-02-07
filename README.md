@@ -305,3 +305,33 @@ If you used the webtop Desktop helper files during onboarding (gateway token / O
 - `/var/lib/openclaw/browser/Desktop/OPENCLAW_GATEWAY_TOKEN.txt`
 - `/var/lib/openclaw/browser/Desktop/CODEX_OAUTH_URL.txt`
 - `/var/lib/openclaw/browser/Desktop/OpenAI-Codex-OAuth.desktop`
+
+
+## Handy commands (mobile-friendly)
+
+These wrappers keep commands short for phone SSH.
+
+Start:
+```bash
+sudo /opt/openclaw-stack/start.sh
+```
+
+Health check:
+```bash
+sudo /opt/openclaw-stack/healthcheck.sh
+```
+
+Stop:
+```bash
+sudo /opt/openclaw-stack/stop.sh
+```
+
+Break-glass start (repo mount for quick fixes):
+```bash
+sudo /opt/openclaw-stack/start-breakglass.sh
+```
+
+Optional (dangerous): break-glass with Docker host control (docker.sock):
+```bash
+sudo BREAKGLASS_DOCKER_SOCK=1 /opt/openclaw-stack/start-breakglass.sh
+```

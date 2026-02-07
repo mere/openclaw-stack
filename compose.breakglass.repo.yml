@@ -1,0 +1,5 @@
+services:
+  openclaw-gateway:
+    volumes:
+      # Mount the stack repo read-write so the agent can edit + commit fixes.
+      - /opt/openclaw-stack:/opt/openclaw-stack
