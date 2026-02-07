@@ -8,10 +8,14 @@ services:
       - TZ=UTC
     volumes:
       - ${BROWSER_CONFIG_DIR:-/var/lib/openclaw/browser}:/config
+      - ${BROWSER_CONFIG_DIR:-/var/lib/openclaw/browser}/custom-cont-init.d:/custom-cont-init.d
     ports:
       - "${NOVNC_HOST:-127.0.0.1}:${NOVNC_PORT:-6080}:3000"
     shm_size: "1gb"
     restart: unless-stopped
+    networks:
+      openclaw_net:
+        ipv4_address: ${BROWSER_IPV4:-172.31.0.10}
 
   openclaw-gateway:
     build:
@@ -34,3 +38,13 @@ services:
     init: true
     restart: unless-stopped
     command: ["node","dist/index.js","gateway","--bind","lan","--port","18789"]
+    networks:
+      - openclaw_net
+
+networks:
+  openclaw_net:
+    name: ${INSTANCE:-chloe}-net
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${DOCKER_SUBNET:-172.31.0.0/24}
