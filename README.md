@@ -333,5 +333,5 @@ sudo /opt/openclaw-stack/start-breakglass.sh
 
 Break-glass stop (return to normal):
 ```bash
-sudo MODE=breakglass /opt/openclaw-stack/stop.sh
+sudo /opt/openclaw-stack/stop.sh
 ```
