@@ -162,3 +162,42 @@ For OpenAI Codex OAuth we used:
 - Config handling: **Use existing values**
 - Auth choice: **OpenAI (Codex OAuth)**
 - Provider: **OpenAI Codex (ChatGPT OAuth)**
+
+
+
+## Browser automation (CDP) using Webtop + socat
+
+We want OpenClaw to automate the **same** logged-in Chromium that you use manually in webtop.
+
+### Why socat?
+Chromium CDP in this webtop image tends to bind to localhost (127.0.0.1). To make it reachable from the OpenClaw gateway container, we proxy it:
+
+- Chromium: `127.0.0.1:9222`
+- socat: `0.0.0.0:9223 -> 127.0.0.1:9222`
+
+### Important: Host header restriction
+Chromium rejects CDP requests when the `Host:` header is not `localhost` or an IP. That means `http://browser:9223` may fail.
+
+So we set `cdpUrl` using the **container IP**, e.g. `http://172.18.0.2:9223`.
+
+### Setup (container boot)
+We install two init scripts into the webtop config volume (so they persist):
+
+- `/config/custom-cont-init.d/20-start-chromium-cdp`
+- `/config/custom-cont-init.d/30-start-socat-cdp-proxy`
+
+They start chromium (with CDP enabled) and socat on container boot.
+
+### Verify
+From the gateway container:
+
+```bash
+docker exec chloe-openclaw-gateway curl -sS http://<WEBTOP_IP>:9223/json/version
+```
+
+### Keep `cdpUrl` up to date
+If the webtop container IP changes after restart, run:
+
+```bash
+/opt/openclaw-stack/scripts/update-webtop-cdp-url.sh
+```
