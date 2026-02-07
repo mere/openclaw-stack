@@ -266,3 +266,8 @@ docker compose --env-file /etc/openclaw/stack.env -f compose.yml up -d --force-r
 ```
 
 Once pinned, `browser.profiles.webtop.cdpUrl` can stay `http://172.31.0.10:9223` permanently.
+
+
+### Source of truth for CDP
+
+This stack does **not** rely on a `BROWSER_CDP_URL` env var. The gateway reads `browser.profiles.webtop.cdpUrl` from `/var/lib/openclaw/state/openclaw.json`. With the pinned browser IP, that value can stay stable (e.g. `http://172.31.0.10:9223`).

@@ -85,7 +85,7 @@ OPENCLAW_GATEWAY_TOKEN=<random>
 OPENCLAW_STATE_DIR=/var/lib/openclaw/state
 OPENCLAW_WORKSPACE_DIR=/var/lib/openclaw/workspace
 BROWSER_CONFIG_DIR=/var/lib/openclaw/browser
-BROWSER_CDP_URL=http://browser:9222
+(removed) BROWSER_CDP_URL=http://browser:9222
 ```
 
 ### 6) Start stack
@@ -177,8 +177,6 @@ Chromium CDP in this webtop image tends to bind to localhost (127.0.0.1). To mak
 
 ### Important: Host header restriction
 
-Note: `BROWSER_CDP_URL` in `/etc/openclaw/stack.env` is a convenience value, but in practice Chromium CDP may reject hostnames. Our helper script writes the IP-based `cdpUrl` into `openclaw.json`, which is what the gateway actually uses.
-
 ### Important: Host header restriction
 Chromium rejects CDP requests when the `Host:` header is not `localhost` or an IP. That means `http://browser:9223` may fail.
 
@@ -238,3 +236,8 @@ docker compose --env-file /etc/openclaw/stack.env -f compose.yml up -d --force-r
 ```
 
 Once pinned, `browser.profiles.webtop.cdpUrl` can stay `http://172.31.0.10:9223` permanently.
+
+
+### Source of truth for CDP
+
+This stack does **not** rely on a `BROWSER_CDP_URL` env var. The gateway reads `browser.profiles.webtop.cdpUrl` from `/var/lib/openclaw/state/openclaw.json`. With the pinned browser IP, that value can stay stable (e.g. `http://172.31.0.10:9223`).

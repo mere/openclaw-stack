@@ -7,13 +7,19 @@ BROWSER_CONTAINER=${BROWSER_CONTAINER:-chloe-browser}
 CDP_PORT=${CDP_PORT:-9223}
 PROFILE_NAME=${PROFILE_NAME:-webtop}
 
-BIP=$(docker inspect -f "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}" "$BROWSER_CONTAINER")
+# If the stack pins a static IP, prefer it.
+if [ -n "${BROWSER_IPV4:-}" ]; then
+  BIP="$BROWSER_IPV4"
+else
+  BIP=$(docker inspect -f "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}" "$BROWSER_CONTAINER")
+fi
+
 if [ -z "$BIP" ]; then
   echo "Could not determine browser container IP for: $BROWSER_CONTAINER" >&2
   exit 1
 fi
 
-echo "Detected browser IP: $BIP"
+echo "Using browser IP: $BIP"
 
 python3 - <<PY
 import json
