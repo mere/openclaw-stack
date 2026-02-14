@@ -297,14 +297,14 @@ run_all(){
 
 menu_once(){
   welcome
-  cat <<EOF
-Dashboards:
-  Local (SSH tunnel):
-    Guard:  http://localhost:18790
-    Worker: http://localhost:18789
-    Webtop: http://localhost:6080
+  echo "Dashboards:"
+  echo "  Local (SSH tunnel):"
+  echo "    Guard:  http://localhost:18790"
+  echo "    Worker: http://localhost:18789"
+  echo "    Webtop: http://localhost:6080"
   if check_done tailscale; then
     TSIP=$(tailscale_ip)
+    TSIP=${TSIP:-unavailable}
     echo "  Tailscale (direct):"
     echo "    Guard:  http://${TSIP}:18790"
     echo "    Worker: http://${TSIP}:18789"
@@ -312,11 +312,12 @@ Dashboards:
   else
     echo "  Tailscale (direct): not connected yet"
   fi
-CLI:
-  ./openclaw-guard <command>
-  ./openclaw-worker <command>
-  e.g. ./openclaw-worker pairing approve telegram <CODE>
-
+  echo "CLI:"
+  echo "  ./openclaw-guard <command>"
+  echo "  ./openclaw-worker <command>"
+  echo "  e.g. ./openclaw-worker pairing approve telegram <CODE>"
+  echo
+  cat <<EOF
 Choose an action:
   1) Run ALL setup steps (recommended)
   2) Run start guard $(status_label "$guard_name")
