@@ -281,9 +281,11 @@ Dashboards:
   Guard:  http://localhost:18790
   Worker: http://localhost:18789
   Webtop: http://localhost:6080
-Helpers:
-  ./openclaw-guard pairing approve telegram <CODE>
-  ./openclaw-worker pairing approve telegram <CODE>
+CLI:
+  ./openclaw-guard <command>
+    e.g. ./openclaw-guard pairing approve telegram <CODE>
+  ./openclaw-worker <command>
+    e.g. ./openclaw-worker pairing approve telegram <CODE>
 
 Choose an action:
   1) Run ALL setup steps (recommended)
