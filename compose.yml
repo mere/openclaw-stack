@@ -30,6 +30,7 @@ services:
     volumes:
       - ${OPENCLAW_STATE_DIR:-/var/lib/openclaw/state}:/home/node/.openclaw
       - ${OPENCLAW_WORKSPACE_DIR:-/var/lib/openclaw/workspace}:/home/node/.openclaw/workspace
+      - /var/lib/openclaw/bridge:/var/lib/openclaw/bridge
     init: true
     restart: unless-stopped
     command: ["node","dist/index.js","gateway","--bind","loopback","--port","18789","--allow-unconfigured"]
