@@ -326,18 +326,6 @@ Stop:
 sudo /opt/openclaw-stack/stop.sh
 ```
 
-Break-glass start (repo + Docker host control):
-```bash
-sudo /opt/openclaw-stack/start-breakglass.sh
-```
-
-Break-glass stop (return to normal):
-```bash
-sudo /opt/openclaw-stack/stop.sh
-```
-
-
-Note: `start.sh` always recreates the gateway container to ensure any prior break-glass mounts (repo/docker.sock) are removed.
 
 
 ## Two-instance architecture (worker + guard)
@@ -352,3 +340,8 @@ Guard-specific mounts:
 -  (host Docker control)
 
 Use guard for explicit, approval-gated admin actions. Keep normal user tasks on the worker instance.
+
+
+### Guard-first privilege model
+
+Worker does **not** have break-glass host access. Privileged actions are handled by the **guard** instance (control-plane) with approval-gated policies.

@@ -1,6 +1,0 @@
-services:
-  openclaw-gateway:
-    volumes:
-      # DANGER: docker.sock grants effectively root-equivalent control of the host.
-      # Only use temporarily.
-      - /var/run/docker.sock:/var/run/docker.sock
