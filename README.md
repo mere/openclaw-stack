@@ -51,4 +51,4 @@ sudo ./stop.sh
 
 ## Privilege Bridge
 
-See [GUARD_BRIDGE.md](./GUARD_BRIDGE.md) for the Worker→Guard bridge model, approval map (), and Telegram decision flow.
+See [GUARD_BRIDGE.md](./GUARD_BRIDGE.md) for the Worker→Guard bridge model, approval map (approved|rejected|ask), and Telegram decision flow. and Telegram decision flow.
