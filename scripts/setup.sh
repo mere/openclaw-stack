@@ -312,11 +312,10 @@ Choose an action:
   5) Run configure guard (openclaw onboard) $(configured_label guard)
   6) Run configure worker (openclaw onboard) $(configured_label worker)
   7) Run Tailscale setup $(simple_status_label "running" "not running" "tailscale")
-  8) Run show dashboards
-  9) Run healthcheck
+  8) Run healthcheck
   0) Exit
 EOF
-  read -r -p "$TIGER Select [0-9]: " pick
+  read -r -p "$TIGER Select [0-8]: " pick
   case "$pick" in
     1) sep; run_all ;;
     2) sep; step_start_guard ;;
@@ -325,8 +324,7 @@ EOF
     5) sep; step_configure_guard ;;
     6) sep; step_configure_worker ;;
     7) sep; step_tailscale ;;
-    8) sep; step_dashboards ;;
-    9) sep; step_verify ;;
+    8) sep; step_verify ;;
     0) say "Exiting setup wizard. See you soon."; return 1 ;;
     *) warn "Invalid choice" ;;
   esac
