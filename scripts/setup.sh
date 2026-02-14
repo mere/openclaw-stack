@@ -254,6 +254,8 @@ title_case_name(){ local n="$1"; echo "${n^}"; }
 step_configure_guard(){
   local pretty
   pretty=$(title_case_name "$INSTANCE")
+  "$STACK_DIR/openclaw-guard" config set gateway.port 18790 >/dev/null 2>&1 || true
+  "$STACK_DIR/openclaw-guard" config set gateway.bind loopback >/dev/null 2>&1 || true
   say "Run configure guard"
   say "Why: guard is the OpenClaw instance that oversees all operations."
   echo
