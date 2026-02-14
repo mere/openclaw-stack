@@ -16,6 +16,7 @@ warn(){ echo "$WARN $*"; }
 
 guard_name="${INSTANCE}-openclaw-guard"
 worker_name="${INSTANCE}-openclaw-gateway"
+browser_name="${INSTANCE}-browser"
 
 welcome(){
 cat <<'EOF'
@@ -119,7 +120,7 @@ step_browser_init(){
 }
 
 step_tailscale(){
-  say "Step 5: Tailscale"
+  say "Step 5: Tailscale setup"
   say "Why: secure private access instead of exposing services publicly."
   if check_done tailscale; then ok "Tailscale already running"; return; fi
   read -r -p "$TIGER Install Tailscale now? [y/N]: " ans
@@ -150,14 +151,24 @@ step_start_worker(){
   ok "Worker started"
 }
 
+step_start_browser(){
+  say "Start browser service"
+  say "Why: webtop hosts the persistent Chromium profile used for automation."
+  if container_running "$browser_name"; then ok "Browser already running"; return; fi
+  cd "$STACK_DIR"
+  docker compose --env-file "$ENV_FILE" -f compose.yml up -d browser
+  ok "Browser started"
+}
+
 step_start_all(){
   say "Start full stack"
+  say "Why: starts browser + worker + guard together in one command."
   STACK_DIR="$STACK_DIR" "$STACK_DIR/start.sh" || true
   ok "Start sequence finished"
 }
 
 step_verify(){
-  say "Healthcheck"
+  say "Run healthcheck"
   say "Why: confirm stack is truly ready for setup/use."
   STACK_DIR="$STACK_DIR" "$STACK_DIR/healthcheck.sh" || true
   ok "Healthcheck executed"
@@ -168,7 +179,7 @@ title_case_name(){ local n="$1"; echo "${n^}"; }
 step_configure_guard(){
   local pretty
   pretty=$(title_case_name "$INSTANCE")
-  say "Configure Guard"
+  say "Run configure guard"
   say "Why: guard is the OpenClaw instance that oversees all operations."
   echo
   echo "Recommended guard setup:"
@@ -189,7 +200,7 @@ step_configure_guard(){
 step_configure_worker(){
   local pretty
   pretty=$(title_case_name "$INSTANCE")
-  say "Configure Worker"
+  say "Run configure worker"
   say "Why: this is the AI instance you'll chat to daily and build tasks with."
   echo
   echo "Recommended worker setup:"
@@ -228,14 +239,14 @@ menu_once(){
   echo
   cat <<EOF
 Choose an action:
-  1) Run ALL (recommended)
-  2) Start guard only $(status_label "$guard_name")
-  3) Start worker only $(status_label "$worker_name")
-  4) Start full stack
-  5) Healthcheck
-  6) Configure guard (openclaw setup)
-  7) Configure worker (openclaw setup)
-  8) Tailscale step
+  1) Run ALL setup steps (recommended)
+  2) Run start guard $(status_label "$guard_name")
+  3) Run start worker $(status_label "$worker_name")
+  4) Run start browser $(status_label "$browser_name")
+  5) Run healthcheck
+  6) Run configure guard (openclaw setup)
+  7) Run configure worker (openclaw setup)
+  8) Run Tailscale setup
   0) Exit
 EOF
   read -r -p "$TIGER Select [0-8]: " pick
@@ -243,7 +254,7 @@ EOF
     1) run_all ;;
     2) step_start_guard ;;
     3) step_start_worker ;;
-    4) step_start_all ;;
+    4) step_start_browser ;;
     5) step_verify ;;
     6) step_configure_guard ;;
     7) step_configure_worker ;;
