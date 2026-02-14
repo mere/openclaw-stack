@@ -306,6 +306,25 @@ step_dashboards(){
   say "If remote, use SSH tunnel first (or Tailscale)."
 }
 
+step_auth_tokens(){
+  say "Step 6: Dashboard authentication"
+  say "Why: control UI requires gateway tokens for Worker and Guard dashboards."
+  echo "  Worker URL uses OPENCLAW_GATEWAY_TOKEN"
+  echo "  Guard URL uses OPENCLAW_GUARD_GATEWAY_TOKEN"
+  echo
+  echo "Copy commands:"
+  echo "  Worker token: grep '^OPENCLAW_GATEWAY_TOKEN=' /etc/openclaw/stack.env | cut -d= -f2-"
+  echo "  Guard token:  grep '^OPENCLAW_GUARD_GATEWAY_TOKEN=' /etc/openclaw/stack.env | cut -d= -f2-"
+  echo
+  read -r -p "$TIGER Reveal tokens now on screen? [y/N]: " reveal
+  if [[ "$reveal" =~ ^[Yy]$ ]]; then
+    echo "Worker token:"; grep '^OPENCLAW_GATEWAY_TOKEN=' /etc/openclaw/stack.env | cut -d= -f2-
+    echo "Guard token:";  grep '^OPENCLAW_GUARD_GATEWAY_TOKEN=' /etc/openclaw/stack.env | cut -d= -f2-
+  else
+    ok "Skipped token reveal"
+  fi
+}
+
 run_all(){
   step_preflight
   step_docker
@@ -313,6 +332,7 @@ run_all(){
   step_browser_init
   step_tailscale
   step_start_all
+  step_auth_tokens
   step_verify
 }
 
@@ -343,9 +363,10 @@ Choose an action:
   6) Run configure worker (openclaw onboard) $(configured_label worker)
   7) Run Tailscale setup $(simple_status_label "running" "not running" "tailscale")
   8) Run healthcheck
+  9) Run dashboard auth step (tokens)
   0) Exit
 EOF
-  read -r -p "$TIGER Select [0-8]: " pick
+  read -r -p "$TIGER Select [0-9]: " pick
   case "$pick" in
     1) sep; run_all ;;
     2) sep; step_start_guard ;;
@@ -355,6 +376,7 @@ EOF
     6) sep; step_configure_worker ;;
     7) sep; step_tailscale ;;
     8) sep; step_verify ;;
+    9) sep; step_auth_tokens ;;
     0) say "Exiting setup wizard. See you soon."; return 1 ;;
     *) warn "Invalid choice" ;;
   esac
