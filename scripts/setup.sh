@@ -319,6 +319,8 @@ step_dashboards(){
   echo ""
   echo "Examples:"
   echo "  ./openclaw-guard pairing approve telegram <CODE>"
+  echo "  ./openclaw-worker config get gateway.auth.token"
+  echo "  ./openclaw-guard config get gateway.auth.token"
   echo "  ./openclaw-worker pairing approve telegram <CODE>"
   echo
   say "If remote, use SSH tunnel first (or Tailscale)."
@@ -342,12 +344,13 @@ step_auth_tokens(){
   echo "CLI:"
   echo "  ./openclaw-guard <command>"
   echo "  ./openclaw-worker <command>"
-  echo "  e.g. ./openclaw-worker pairing approve telegram <CODE>"
   echo
 
   echo "Useful commands:"
   echo "  ./openclaw-worker pairing approve telegram <CODE>"
   echo "  ./openclaw-guard pairing approve telegram <CODE>"
+  echo "  ./openclaw-worker config get gateway.auth.token"
+  echo "  ./openclaw-guard config get gateway.auth.token"
   echo "  ./openclaw-worker doctor --generate-gateway-token"
   echo "  ./openclaw-guard doctor --generate-gateway-token"
 }
