@@ -143,6 +143,52 @@ PY2
   chown 1000:1000 /var/lib/openclaw/state/openclaw.json /var/lib/openclaw/guard-state/openclaw.json 2>/dev/null || true
 }
 
+ensure_role_context(){
+  local worker_ws="/var/lib/openclaw/workspace"
+  local guard_ws="/var/lib/openclaw/guard-workspace"
+  mkdir -p "$worker_ws" "$guard_ws"
+
+  cat > "$worker_ws/ROLE.md" <<'EOF'
+# WORKER ROLE
+
+You are the daily assistant instance.
+- Focus: chat, planning, research, automations, browser workflows.
+- Do NOT perform privileged host/docker/admin actions directly.
+- For privileged actions, ask guard for approval/execution.
+- Keep user interaction friendly and practical.
+EOF
+
+  cat > "$guard_ws/ROLE.md" <<'EOF'
+# GUARD ROLE
+
+You are the control-plane safety instance.
+- Focus: privileged operations, approvals, system changes, secrets access.
+- Keep behavior strict/minimal and security-first.
+- Avoid day-to-day chat tasks unless explicitly requested.
+- When possible, execute sensitive actions only after explicit user confirmation.
+EOF
+
+  chown 1000:1000 "$worker_ws/ROLE.md" "$guard_ws/ROLE.md" 2>/dev/null || true
+}
+
+ensure_guard_bitwarden(){
+  if [ ! -f /var/lib/openclaw/guard-state/secrets/bitwarden.env ]; then
+    warn "Guard Bitwarden env not found at /var/lib/openclaw/guard-state/secrets/bitwarden.env"
+    return
+  fi
+  if docker exec "$guard_name" sh -lc 'command -v bw >/dev/null 2>&1'; then
+    ok "Guard Bitwarden CLI available"
+    return
+  fi
+  say "Installing Bitwarden CLI in guard..."
+  docker exec "$guard_name" sh -lc 'npm i -g @bitwarden/cli --prefix /home/node/.openclaw/npm-global >/dev/null 2>&1 || true'
+  if docker exec "$guard_name" sh -lc 'command -v bw >/dev/null 2>&1'; then
+    ok "Guard Bitwarden CLI installed"
+  else
+    warn "Guard Bitwarden CLI install failed (can retry manually)."
+  fi
+}
+
 check_done(){
   local id="$1"
   case "$id" in
@@ -344,6 +390,8 @@ step_auth_tokens(){
   echo
 
   echo "Useful commands:"
+  echo "  cat /var/lib/openclaw/workspace/ROLE.md"
+  echo "  cat /var/lib/openclaw/guard-workspace/ROLE.md"
   echo "  ./openclaw-worker devices list"
   echo "  ./openclaw-guard devices list"
   echo "  ./openclaw-worker devices approve <requestId>"
