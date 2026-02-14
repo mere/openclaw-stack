@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import json, pathlib, subprocess, re, datetime, sys
+import json, pathlib, subprocess, re, datetime
 
 BRIDGE_ROOT = pathlib.Path('/var/lib/openclaw/bridge')
 INBOX = BRIDGE_ROOT / 'inbox'
@@ -31,12 +31,24 @@ DEFAULT_CMD_POLICY = {
 
 for p in [INBOX, OUTBOX, AUDIT.parent, POLICY_PATH.parent]:
     p.mkdir(parents=True, exist_ok=True)
+
 if not POLICY_PATH.exists():
     POLICY_PATH.write_text(json.dumps(DEFAULT_POLICY, indent=2) + '\n')
+else:
+    cur = json.loads(POLICY_PATH.read_text() or '{}')
+    changed = False
+    for k, v in DEFAULT_POLICY.items():
+        if k not in cur:
+            cur[k] = v
+            changed = True
+    if changed:
+        POLICY_PATH.write_text(json.dumps(cur, indent=2) + '\n')
+
 if not CMD_POLICY_PATH.exists():
     CMD_POLICY_PATH.write_text(json.dumps(DEFAULT_CMD_POLICY, indent=2) + '\n')
 if not PENDING_PATH.exists():
     PENDING_PATH.write_text('{}\n')
+
 subprocess.run(['/root/openclaw-stack/scripts/guard-bridge-catalog.py'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 def now_iso():
@@ -153,12 +165,14 @@ def main():
     files = sorted(INBOX.glob('*.json'), key=lambda p: p.stat().st_mtime)
     if not files:
         print('no_requests'); return
-    f=files[0]
+    f = files[0]
     try:
-        ok=process_one(f)
+        ok = process_one(f)
     finally:
-        try: f.unlink(missing_ok=True)
-        except Exception: pass
+        try:
+            f.unlink(missing_ok=True)
+        except Exception:
+            pass
     print('processed' if ok else 'ignored')
 
 if __name__=='__main__':
