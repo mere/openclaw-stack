@@ -347,6 +347,10 @@ step_auth_tokens(){
   echo
 
   echo "Useful commands:"
+  ./openclaw-worker devices list
+  ./openclaw-guard devices list
+  ./openclaw-worker devices approve <requestId>
+  ./openclaw-guard devices approve <requestId>
   echo "  ./openclaw-worker pairing approve telegram <CODE>"
   echo "  ./openclaw-guard pairing approve telegram <CODE>"
   echo "  ./openclaw-worker config get gateway.auth.token"
