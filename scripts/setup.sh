@@ -266,8 +266,8 @@ Choose an action:
   3) Run start worker $(status_label "$worker_name")
   4) Run start browser $(status_label "$browser_name")
   5) Run healthcheck
-  6) Run configure guard (openclaw setup)
-  7) Run configure worker (openclaw setup)
+  6) Run configure guard (openclaw onboard)
+  7) Run configure worker (openclaw onboard)
   8) Run Tailscale setup
   9) Run show dashboards
   0) Exit
