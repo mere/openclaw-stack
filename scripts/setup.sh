@@ -297,20 +297,15 @@ run_all(){
 
 menu_once(){
   welcome
-  echo "Dashboards:"
-  echo "  Local (SSH tunnel):"
-  echo "    Guard:  http://localhost:18790"
-  echo "    Worker: http://localhost:18789"
-  echo "    Webtop: http://localhost:6080"
+  echo "Dashboards (Tailscale direct):"
   if check_done tailscale; then
     TSIP=$(tailscale_ip)
     TSIP=${TSIP:-unavailable}
-    echo "  Tailscale (direct):"
-    echo "    Guard:  http://${TSIP}:18790"
-    echo "    Worker: http://${TSIP}:18789"
-    echo "    Webtop: http://${TSIP}:6080"
+    echo "  Guard:  http://${TSIP}:18790"
+    echo "  Worker: http://${TSIP}:18789"
+    echo "  Webtop: http://${TSIP}:6080"
   else
-    echo "  Tailscale (direct): not connected yet"
+    echo "  Not available yet — run option 7 (Run Tailscale setup)."
   fi
   echo "CLI:"
   echo "  ./openclaw-guard <command>"
