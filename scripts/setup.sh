@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 STACK_DIR=$(cd "$SCRIPT_DIR/.." && pwd)
 ENV_FILE=${ENV_FILE:-/etc/openclaw/stack.env}
+INSTANCE=${INSTANCE:-chloe}
 
 TIGER="🐯"
 OK="✅"
@@ -14,7 +15,7 @@ ok(){ echo "$OK $*"; }
 warn(){ echo "$WARN $*"; }
 
 welcome(){
-cat <<EOF
+cat <<'EOF'
 ╔══════════════════════════════════════════════════════════════════╗
 ║                  🐯 OpenClaw Hetzner Setup Wizard               ║
 ╠══════════════════════════════════════════════════════════════════╣
@@ -31,7 +32,7 @@ EOF
 
 need_root(){
   if [ "$EUID" -ne 0 ]; then
-    warn "Please run with sudo: sudo ./scripts/setup.sh"
+    warn "Please run with sudo: sudo ./setup.sh"
     exit 1
   fi
 }
@@ -42,7 +43,7 @@ check_done(){
     docker) command -v docker >/dev/null 2>&1 ;;
     env) [ -f "$ENV_FILE" ] ;;
     browser_init) [ -f /var/lib/openclaw/browser/custom-cont-init.d/20-start-chromium-cdp ] && [ -f /var/lib/openclaw/browser/custom-cont-init.d/30-start-socat-cdp-proxy ] ;;
-    running) docker ps --format "{{.Names}}" | grep -q ^chloe-openclaw-gateway$ && docker ps --format "{{.Names}}" | grep -q ^chloe-openclaw-guard$ ;;
+    running) docker ps --format "{{.Names}}" | grep -q "^${INSTANCE}-openclaw-gateway$" && docker ps --format "{{.Names}}" | grep -q "^${INSTANCE}-openclaw-guard$" ;;
     tailscale) tailscale status >/dev/null 2>&1 ;;
     *) return 1 ;;
   esac
@@ -54,7 +55,7 @@ step_preflight(){
   command -v apt-get >/dev/null
   . /etc/os-release
   ok "Host OS: $PRETTY_NAME"
-  ok "Disk: $(df -h / | awk NR==2 {print  free})"
+  ok "Disk free on /: $(df -h / | awk 'NR==2 {print $4}')"
 }
 
 step_docker(){
@@ -126,10 +127,51 @@ step_verify(){
   say "Why: confirm stack is truly ready for setup/use."
   STACK_DIR="$STACK_DIR" "$STACK_DIR/healthcheck.sh" || true
   ok "Healthcheck executed"
+}
+
+title_case_name() {
+  local n="$1"
+  echo "${n^}"
+}
+
+step_configure_guard(){
+  local pretty
+  pretty=$(title_case_name "$INSTANCE")
+  say "Configure Guard"
+  say "Why: guard is the control-plane instance that oversees privileged operations."
   echo
-  say "Manual next step (once):"
-  echo "  docker exec -it chloe-openclaw-guard ./openclaw.mjs setup"
-  echo "  docker exec -it chloe-openclaw-gateway ./openclaw.mjs setup"
+  echo "Recommended guard setup:"
+  echo "  • Keep it minimal: no extra skills unless absolutely needed"
+  echo "  • Add one reliable model (e.g., OpenAI Codex auth)"
+  echo "  • Use a separate Telegram bot for guard approvals"
+  echo "  • Suggested bot name: ${pretty}-guard-bot"
+  echo
+  read -r -p "$TIGER Start guard onboarding now? [Y/n]: " go
+  if [[ ! "$go" =~ ^[Nn]$ ]]; then
+    docker exec -it "${INSTANCE}-openclaw-guard" ./openclaw.mjs setup
+  else
+    ok "Skipped guard onboarding"
+  fi
+}
+
+step_configure_worker(){
+  local pretty
+  pretty=$(title_case_name "$INSTANCE")
+  say "Configure Worker"
+  say "Why: worker is your daily AI companion for chats, tasks, and automations."
+  echo
+  echo "Recommended worker setup:"
+  echo "  • This is the main assistant you'll talk to every day"
+  echo "  • Connect your primary model(s) and tools here"
+  echo "  • Use a separate Telegram bot for daily interaction"
+  echo "  • Suggested bot name: ${pretty}-bot"
+  echo
+  read -r -p "$TIGER Start worker onboarding now? [Y/n]: " go
+  if [[ ! "$go" =~ ^[Nn]$ ]]; then
+    docker exec -it "${INSTANCE}-openclaw-gateway" ./openclaw.mjs setup
+  else
+    ok "Skipped worker onboarding"
+  fi
 }
 
 run_all(){
@@ -157,13 +199,19 @@ Choose an action:
   2) Start stack only
   3) Healthcheck only
   4) Tailscale step only
+  5) Configure guard (openclaw setup)
+  6) Configure worker (openclaw setup)
+  0) Exit
 EOF
-  read -r -p "$TIGER Select [1-4]: " pick
+  read -r -p "$TIGER Select [0-6]: " pick
   case "$pick" in
     1) run_all ;;
     2) step_start ;;
     3) step_verify ;;
     4) step_optional_tailscale ;;
+    5) step_configure_guard ;;
+    6) step_configure_worker ;;
+    0) say "Exiting setup wizard. See you soon." ;;
     *) warn "Invalid choice"; exit 1 ;;
   esac
 }
