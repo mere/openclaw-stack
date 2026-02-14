@@ -326,6 +326,10 @@ step_auth_tokens(){
   echo "  ./openclaw-worker <command>"
   echo "  e.g. ./openclaw-worker pairing approve telegram <CODE>"
   echo
+  echo "If you see: device token mismatch"
+  echo "  • Open the dashboard in a private/incognito window, or clear site data for this URL"
+  echo "  • Then reconnect and paste the current gateway token"
+  echo
   read -r -p "$TIGER Reveal tokens now on screen? [y/N]: " reveal
   if [[ "$reveal" =~ ^[Yy]$ ]]; then
     echo "Worker token:"; grep '^OPENCLAW_GATEWAY_TOKEN=' /etc/openclaw/stack.env | cut -d= -f2-
@@ -357,8 +361,8 @@ Choose an action:
   5) Run configure guard (openclaw onboard) $(configured_label guard)
   6) Run configure worker (openclaw onboard) $(configured_label worker)
   7) Run Tailscale setup $(simple_status_label "running" "not running" "tailscale")
-  8) Run healthcheck
-  9) Access OpenClaw dashboard and CLI
+  8) Access OpenClaw dashboard and CLI
+  9) Run healthcheck
   0) Exit
 EOF
   read -r -p "$TIGER Select [0-9]: " pick
@@ -370,8 +374,8 @@ EOF
     5) sep; step_configure_guard ;;
     6) sep; step_configure_worker ;;
     7) sep; step_tailscale ;;
-    8) sep; step_verify ;;
-    9) sep; step_auth_tokens ;;
+    8) sep; step_auth_tokens ;;
+    9) sep; step_verify ;;
     0) say "Exiting setup wizard. See you soon."; return 1 ;;
     *) warn "Invalid choice" ;;
   esac
