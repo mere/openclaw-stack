@@ -69,3 +69,18 @@ See [GUARD_BRIDGE.md](./GUARD_BRIDGE.md) for the Worker→Guard bridge model, ap
 ./scripts/guard-bridge.sh approve <requestId> once
 ./scripts/guard-bridge.sh reject <requestId> always
 ```
+
+
+### Bridge quick examples
+
+```bash
+# command request with reason
+./scripts/worker-bridge.sh request-run "himalaya envelope list --folder Inbox" "User asked for unread inbox summary"
+
+# process one request on guard
+./scripts/guard-bridge.sh run-once
+
+# inspect pending + policies
+./scripts/guard-bridge.sh pending
+./scripts/guard-bridge.sh command-policy
+```

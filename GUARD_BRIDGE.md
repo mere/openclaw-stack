@@ -2,101 +2,67 @@
 
 ## Purpose
 
-Provide a **safe, narrow privilege bridge** from Worker to Guard without exposing the full Guard API/CLI.
+Safe privileged delegation from Worker to Guard.
 
-- Worker handles day-to-day assistant tasks.
-- Guard handles privileged operations and secrets.
-- Worker must not directly execute arbitrary Guard commands.
+- Worker submits requests.
+- Guard enforces policy.
+- Unknown requests are denied.
 
-## Core Security Boundary
+## Request schema
 
-Worker requests are **untrusted inputs**.
-Guard is the policy decision point.
+All requests require:
+- `requestId`
+- `requestedBy`
+- `reason` (why Worker is asking)
+- one of:
+  - `action` + `args`
+  - `command` (single atomic command string)
 
-Therefore:
-- Guard evaluates approval policy per action from its own map.
-- Guard decides policy from its own rule map.
-- Unknown actions are denied by default.
+## Strict command parser (command requests)
 
-## Bridge Transport (v1)
+Guard rejects non-atomic/malicious command strings, including:
+- shell chaining/operators (`;`, `|`, `&&`, backticks, redirects, newlines)
+- eval-style patterns (`bash -c`, `sh -c`, `python -c`, `node -e`, etc.)
+- common encoding trickery (`base64`, `xxd -r`, `openssl enc`)
 
-Use host-backed JSON queue files (simple + auditable):
+Command execution uses argument parsing + direct subprocess execution (`shell=False`).
+
+## Policy model
+
+### Action policy
+`/var/lib/openclaw/guard-state/bridge/policy.json`
+
+Values: `approved | ask | rejected`
+
+### Command policy (regex rules)
+`/var/lib/openclaw/guard-state/bridge/command-policy.json`
+
+Rule fields:
+- `id`
+- `pattern` (regex)
+- `decision` (`approved|ask|rejected`)
+
+First matching rule wins. No match = rejected.
+
+## Ask flow + wake
+
+When decision is `ask`:
+1. Request is stored in pending map.
+2. Outbox receives `pending_approval`.
+3. Guard runner emits a system event to wake Guard AI immediately:
+   - `openclaw system event --mode now --text "...approval needed..."`
+
+Guard AI then sends Telegram approval buttons (Approve / Reject / Always approve / Always reject).
+
+## Approval persistence
+
+For `always` decisions:
+- action requests update `policy.json`
+- command requests update matching rule decision in `command-policy.json`
+
+## Files
 
 - Inbox: `/var/lib/openclaw/bridge/inbox/*.json`
 - Outbox: `/var/lib/openclaw/bridge/outbox/*.json`
+- Pending: `/var/lib/openclaw/guard-state/bridge/pending.json`
 - Audit: `/var/lib/openclaw/bridge/audit/bridge-audit.jsonl`
-
-Guard runner watches inbox, validates schema, evaluates policy, executes allowed action, writes result to outbox.
-
-## Request Format (Worker → Guard)
-
-```json
-{
-  "requestId": "uuid",
-  "requestedBy": "worker",
-  "action": "email.send",
-  "args": {
-    "account": "icloud",
-    "to": "someone@example.com",
-    "subject": "Hi",
-    "body": "..."
-  },
-  "createdAt": "2026-02-14T22:00:00Z"
-}
-```
-
-If present, Guard ignores/rejects.
-
-## Policy Map (Guard-owned)
-
-Guard stores per-action policy values:
-
-- `approved` → execute automatically
-- `rejected` → deny automatically
-- `ask` → require explicit user decision
-
-Example map:
-
-```json
-{
-  "email.list": "approved",
-  "email.read": "approved",
-  "email.send": "ask"
-}
-```
-
-## Ask Flow (Telegram)
-
-When policy is `ask`, Guard sends 4 inline buttons:
-
-1. Approve
-2. Reject
-3. Always approve
-4. Always reject
-
-Semantics:
-- **Approve**: execute this request only.
-- **Reject**: reject this request only.
-- **Always approve**: set policy map action → `approved`, then execute.
-- **Always reject**: set policy map action → `rejected`, reject now.
-
-The last two persist to Guard policy map.
-
-## Email Access Model
-
-- Bitwarden and email credentials live on Guard only.
-- Himalaya runs on Guard only.
-- Worker never receives raw mailbox credentials.
-- Worker asks via bridge actions only.
-
-Suggested initial actions:
-- `email.list`
-- `email.read`
-- `email.draft`
-- `email.send` (default `ask`)
-
-## Non-goals
-
-- No direct Worker access to `./openclaw-guard`.
-- No generic remote command execution through bridge.
-- No bypass of Guard policy map.
