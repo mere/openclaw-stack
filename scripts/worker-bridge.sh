@@ -58,12 +58,16 @@ PY
     RID=${2:-}; [ -n "$RID" ] || { echo "usage: $0 result <requestId>"; exit 1; }
     cat "$OUTBOX/$RID.json"
     ;;
+  catalog)
+    cat /var/lib/openclaw/bridge/commands.json
+    ;;
   *)
     cat <<EOF
 Usage:
   $0 request <action> '<args-json>' '<reason>'
   $0 request-run '<command>' '<reason>'
   $0 result <requestId>
+  $0 catalog
 EOF
     ;;
 esac

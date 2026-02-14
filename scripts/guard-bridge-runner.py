@@ -13,7 +13,10 @@ DEFAULT_POLICY = {
     'email.list': 'approved',
     'email.read': 'approved',
     'email.draft': 'ask',
-    'email.send': 'ask'
+    'email.send': 'ask',
+    'poems.read': 'approved',
+    'poems.write': 'rejected',
+    'poems.delete': 'ask'
 }
 DEFAULT_CMD_POLICY = {
     'rules': [
@@ -34,6 +37,7 @@ if not CMD_POLICY_PATH.exists():
     CMD_POLICY_PATH.write_text(json.dumps(DEFAULT_CMD_POLICY, indent=2) + '\n')
 if not PENDING_PATH.exists():
     PENDING_PATH.write_text('{}\n')
+subprocess.run(['/root/openclaw-stack/scripts/guard-bridge-catalog.py'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 def now_iso():
     return datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat().replace('+00:00','Z')
@@ -59,7 +63,10 @@ def wake_guard_for_ask(req, matched=None):
     ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 def execute_action(action, args):
-    cmd = ['/root/openclaw-stack/scripts/guard-email.sh', action, json.dumps(args)]
+    if action.startswith('poems.'):
+        cmd = ['/root/openclaw-stack/scripts/guard-poems.sh', action]
+    else:
+        cmd = ['/root/openclaw-stack/scripts/guard-email.sh', action, json.dumps(args)]
     proc = subprocess.run(cmd, capture_output=True, text=True)
     raw = (proc.stdout or '').strip() or (proc.stderr or '').strip()
     try:
