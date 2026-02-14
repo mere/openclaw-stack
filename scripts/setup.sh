@@ -318,13 +318,13 @@ run_all(){
 
 menu_once(){
   welcome
-  echo "Dashboards (Tailscale direct):"
+  echo "Dashboards (Tailscale HTTPS):"
   if check_done tailscale; then
-    TSIP=$(tailscale_ip)
-    TSIP=${TSIP:-unavailable}
-    echo "  Guard:  http://${TSIP}:18790"
-    echo "  Worker: http://${TSIP}:18789"
-    echo "  Webtop: http://${TSIP}:6080"
+    TSDNS=$(tailscale_dns)
+    TSDNS=${TSDNS:-unavailable}
+    echo "  Worker: https://${TSDNS}/"
+    echo "  Guard:  https://${TSDNS}:444/"
+    echo "  Webtop: https://${TSDNS}:445/"
   else
     echo "  Not available yet — run option 7 (Run Tailscale setup)."
   fi
