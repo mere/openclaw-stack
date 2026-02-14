@@ -99,7 +99,7 @@ apply_tailscale_bind(){
   sed -i "s/^GATEWAY_HOST=.*/GATEWAY_HOST=${tsip}/" "$ENV_FILE"
   sed -i "s/^GUARD_GATEWAY_HOST=.*/GUARD_GATEWAY_HOST=${tsip}/" "$ENV_FILE"
   cd "$STACK_DIR"
-  docker compose --env-file "$ENV_FILE" -f compose.yml up -d --force-recreate browser openclaw-gateway openclaw-guard >/dev/null
+  docker compose --env-file "$ENV_FILE" -f compose.yml up -d browser openclaw-gateway openclaw-guard >/dev/null
 }
 
 check_done(){
