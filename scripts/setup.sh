@@ -189,6 +189,12 @@ ensure_guard_bitwarden(){
   fi
 }
 
+ensure_bridge_dirs(){
+  mkdir -p /var/lib/openclaw/bridge/inbox /var/lib/openclaw/bridge/outbox /var/lib/openclaw/bridge/audit
+  mkdir -p /var/lib/openclaw/guard-state/bridge
+  chown -R 1000:1000 /var/lib/openclaw/bridge /var/lib/openclaw/guard-state/bridge 2>/dev/null || true
+}
+
 check_done(){
   local id="$1"
   case "$id" in
@@ -402,6 +408,9 @@ step_auth_tokens(){
   echo "  ./openclaw-guard config get gateway.auth.token"
   echo "  ./openclaw-worker doctor --generate-gateway-token"
   echo "  ./openclaw-guard doctor --generate-gateway-token"
+  echo "  ./scripts/worker-bridge.sh request email.list '{"account":"icloud","limit":10}'"
+  echo "  ./scripts/guard-bridge.sh run-once"
+  echo "  ./scripts/guard-bridge.sh pending"
 }
 
 run_all(){

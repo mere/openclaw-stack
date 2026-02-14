@@ -52,3 +52,20 @@ sudo ./stop.sh
 ## Privilege Bridge
 
 See [GUARD_BRIDGE.md](./GUARD_BRIDGE.md) for the Worker→Guard bridge model, approval map (approved|rejected|ask), and Telegram decision flow. and Telegram decision flow.
+
+## Bridge operations (v1)
+
+```bash
+# Worker submits request
+./scripts/worker-bridge.sh request email.list '{"account":"icloud","limit":10}'
+
+# Guard processes one queued request
+./scripts/guard-bridge.sh run-once
+
+# Guard reviews pending approvals
+./scripts/guard-bridge.sh pending
+
+# Guard approves/rejects a pending request (once or always)
+./scripts/guard-bridge.sh approve <requestId> once
+./scripts/guard-bridge.sh reject <requestId> always
+```
