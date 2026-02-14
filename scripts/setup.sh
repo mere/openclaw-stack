@@ -102,6 +102,23 @@ apply_tailscale_serve(){
   tailscale serve --bg --https=445 http://127.0.0.1:6080 >/dev/null
 }
 
+enable_tokenless_tailscale_auth(){
+  python3 - <<'PY2'
+import json, pathlib
+paths=[pathlib.Path('/var/lib/openclaw/state/openclaw.json'), pathlib.Path('/var/lib/openclaw/guard-state/openclaw.json')]
+for p in paths:
+    if not p.exists() or p.stat().st_size==0:
+        continue
+    d=json.loads(p.read_text())
+    g=d.setdefault('gateway',{})
+    a=g.setdefault('auth',{})
+    a['allowTailscale']=True
+    g['trustedProxies']=['127.0.0.1','::1','172.31.0.1']
+    p.write_text(json.dumps(d,indent=2)+'\n')
+PY2
+  chown 1000:1000 /var/lib/openclaw/state/openclaw.json /var/lib/openclaw/guard-state/openclaw.json 2>/dev/null || true
+}
+
 apply_tailscale_bind(){ :; }
 
 check_done(){
@@ -177,6 +194,7 @@ step_tailscale(){
     ok "Tailscale already running"
     ok "Tailnet IP: ${tsip}"
     apply_tailscale_serve && ok "Configured HTTPS Tailscale dashboard endpoints"
+    enable_tokenless_tailscale_auth && ok "Enabled tokenless Tailscale auth (allowTailscale + trusted proxies)"
     return
   fi
   read -r -p "$TIGER Install Tailscale now? [y/N]: " ans
