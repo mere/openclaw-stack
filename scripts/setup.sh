@@ -194,7 +194,7 @@ step_tailscale(){
     ok "Tailscale already running"
     ok "Tailnet IP: ${tsip}"
     apply_tailscale_serve && ok "Configured HTTPS Tailscale dashboard endpoints"
-    enable_tokenless_tailscale_auth && ok "Enabled tokenless Tailscale auth (allowTailscale + trusted proxies)"
+    enable_tokenless_tailscale_auth && ok "Applied Tailscale auth compatibility settings"
     return
   fi
   read -r -p "$TIGER Install Tailscale now? [y/N]: " ans
@@ -326,7 +326,7 @@ step_dashboards(){
 
 step_auth_tokens(){
   say "Access OpenClaw dashboard and CLI"
-  say "Why: this gives you the exact URLs + helper commands, and lets you reveal tokens when needed."
+  say "Why: this gives you exact URLs + CLI helpers, plus token reveal/rotation for dashboard auth."
   echo
   if check_done tailscale; then
     TSDNS=$(tailscale_dns)
@@ -344,16 +344,27 @@ step_auth_tokens(){
   echo "  ./openclaw-worker <command>"
   echo "  e.g. ./openclaw-worker pairing approve telegram <CODE>"
   echo
-  echo "If you see: device token mismatch"
+  echo "If you see auth errors:"
   echo "  • Open the dashboard in a private/incognito window, or clear site data for this URL"
-  echo "  • Then reconnect and paste the current gateway token"
+  echo "  • Reconnect and use the latest token"
   echo
-  read -r -p "$TIGER Reveal tokens now on screen? [y/N]: " reveal
+  read -r -p "$TIGER Reveal current tokens now? [y/N]: " reveal
   if [[ "$reveal" =~ ^[Yy]$ ]]; then
-    echo "Worker token:"; grep '^OPENCLAW_GATEWAY_TOKEN=' /etc/openclaw/stack.env | cut -d= -f2-
-    echo "Guard token:";  grep '^OPENCLAW_GUARD_GATEWAY_TOKEN=' /etc/openclaw/stack.env | cut -d= -f2-
+    echo "Worker token:"; "$STACK_DIR/openclaw-worker" config get gateway.auth.token || true
+    echo "Guard token:";  "$STACK_DIR/openclaw-guard" config get gateway.auth.token || true
   else
     ok "Skipped token reveal"
+  fi
+  echo
+  read -r -p "$TIGER Rotate tokens now with openclaw doctor --generate-gateway-token? [y/N]: " rot
+  if [[ "$rot" =~ ^[Yy]$ ]]; then
+    say "Rotating worker token..."
+    "$STACK_DIR/openclaw-worker" doctor --generate-gateway-token || true
+    say "Rotating guard token..."
+    "$STACK_DIR/openclaw-guard" doctor --generate-gateway-token || true
+    ok "Token rotation attempted. Re-open dashboards and use newly generated tokens."
+  else
+    ok "Skipped token rotation"
   fi
 }
 
