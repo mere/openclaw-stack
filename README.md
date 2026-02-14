@@ -48,3 +48,7 @@ sudo ./stop.sh
 - Worker has no break-glass path; privileged actions are guard-only.
 - Guard uses docker.sock + repo mount for controlled admin operations.
 - Keep secrets out of git. Use `/var/lib/openclaw/guard-state/secrets/`.
+
+## Privilege Bridge
+
+See [GUARD_BRIDGE.md](./GUARD_BRIDGE.md) for the Worker→Guard bridge model, approval map (), and Telegram decision flow.
