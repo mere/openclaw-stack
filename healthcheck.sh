@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-STACK_DIR=${STACK_DIR:-/opt/openclaw-stack}
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+STACK_DIR=${STACK_DIR:-$SCRIPT_DIR}
 
 "$STACK_DIR/scripts/stack-health.sh"
 
