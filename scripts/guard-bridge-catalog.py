@@ -7,8 +7,8 @@ catalog={
   "generatedBy":"guard",
   "commands":[
     {"name":"poems.read","kind":"action","policy":"approved","reasonRequired":True,"description":"Read poem of the day."},
-    {"name":"poems.write","kind":"action","policy":"rejected","reasonRequired":True,"description":"Write poem of the day (blocked by policy)."},
-    {"name":"poems.delete","kind":"action","policy":"ask","reasonRequired":True,"description":"Delete poem of the day (approval required)."},
+    {"name":"poems.write","kind":"action","policy":"ask","reasonRequired":True,"description":"Write poem of the day (approval required)."},
+    {"name":"poems.delete","kind":"action","policy":"rejected","reasonRequired":True,"description":"Delete poem of the day (blocked by policy)."},
     {"name":"command.run","kind":"command","policy":"regex-map","reasonRequired":True,"description":"Run strict atomic command via regex policy map."}
   ]
 }

@@ -15,8 +15,8 @@ DEFAULT_POLICY = {
     'email.draft': 'ask',
     'email.send': 'ask',
     'poems.read': 'approved',
-    'poems.write': 'rejected',
-    'poems.delete': 'ask'
+    'poems.write': 'ask',
+    'poems.delete': 'rejected'
 }
 DEFAULT_CMD_POLICY = {
     'rules': [
