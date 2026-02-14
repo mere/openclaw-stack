@@ -87,6 +87,10 @@ configured_label(){
   fi
 }
 
+tailscale_ip(){
+  tailscale ip -4 2>/dev/null | head -n1 || true
+}
+
 check_done(){
   local id="$1"
   case "$id" in
@@ -152,9 +156,9 @@ step_browser_init(){
 }
 
 step_tailscale(){
-  say "Step 5: Tailscale setup"
+  say "Step 5: Tailscale setup (opinionated default)"
   say "Why: secure private access instead of exposing services publicly."
-  if check_done tailscale; then ok "Tailscale already running"; return; fi
+  if check_done tailscale; then ok "Tailscale already running"; ok "Tailnet IP: $(tailscale_ip)"; return; fi
   read -r -p "$TIGER Install Tailscale now? [y/N]: " ans
   if [[ "$ans" =~ ^[Yy]$ ]]; then
     curl -fsSL https://tailscale.com/install.sh | sh >/dev/null
@@ -295,9 +299,19 @@ menu_once(){
   welcome
   cat <<EOF
 Dashboards:
-  Guard:  http://localhost:18790
-  Worker: http://localhost:18789
-  Webtop: http://localhost:6080
+  Local (SSH tunnel):
+    Guard:  http://localhost:18790
+    Worker: http://localhost:18789
+    Webtop: http://localhost:6080
+  if check_done tailscale; then
+    TSIP=$(tailscale_ip)
+    echo "  Tailscale (direct):"
+    echo "    Guard:  http://${TSIP}:18790"
+    echo "    Worker: http://${TSIP}:18789"
+    echo "    Webtop: http://${TSIP}:6080"
+  else
+    echo "  Tailscale (direct): not connected yet"
+  fi
 CLI:
   ./openclaw-guard <command>
   ./openclaw-worker <command>
