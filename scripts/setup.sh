@@ -192,7 +192,7 @@ step_configure_guard(){
   echo
   read -r -p "$TIGER Start guard onboarding now? [Y/n]: " go
   if [[ ! "$go" =~ ^[Nn]$ ]]; then
-    docker exec -it "$guard_name" ./openclaw.mjs setup || true
+    docker exec -it "$guard_name" ./openclaw.mjs onboard || true
     ok "Guard setup command finished. If config is already present, this exits quickly — that's normal."
   else
     ok "Skipped guard onboarding"
@@ -214,7 +214,7 @@ step_configure_worker(){
   echo
   read -r -p "$TIGER Start worker onboarding now? [Y/n]: " go
   if [[ ! "$go" =~ ^[Nn]$ ]]; then
-    docker exec -it "$worker_name" ./openclaw.mjs setup || true
+    docker exec -it "$worker_name" ./openclaw.mjs onboard || true
     ok "Worker setup command finished. If config is already present, this exits quickly — that's normal."
   else
     ok "Skipped worker onboarding"
