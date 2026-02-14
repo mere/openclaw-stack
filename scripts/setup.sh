@@ -22,19 +22,16 @@ worker_cfg="/var/lib/openclaw/state/openclaw.json"
 guard_cfg="/var/lib/openclaw/guard-state/openclaw.json"
 
 welcome(){
-cat <<'EOF'
-╔══════════════════════════════════════════════════════════════════╗
-║                  🐯 OpenClaw Hetzner Setup Wizard               ║
-╠══════════════════════════════════════════════════════════════════╣
-║ This wizard sets up an end-to-end OpenClaw stack on your VPS:   ║
-║  🖥️  Webtop browser (Chromium) for persistent logins             ║
-║  👷 Worker OpenClaw instance (daily tasks)                       ║
-║  🛡️  Guard OpenClaw instance (privileged operations)              ║
-║  🔐 Tailscale for private network access                         ║
-║  🔑 Bitwarden env scaffold for secret workflow                   ║
-║  🩺 Healthcheck + watchdog validation                            ║
-╚══════════════════════════════════════════════════════════════════╝
-EOF
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "🐯 OpenClaw Hetzner Setup Wizard"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "Setup includes:"
+  echo "  🖥️ Webtop browser (Chromium) for persistent logins"
+  echo "  👷 Worker OpenClaw instance (daily tasks)"
+  echo "  🛡️ Guard OpenClaw instance (privileged operations)"
+  echo "  🔐 Tailscale for private network access"
+  echo "  🔑 Bitwarden env scaffold for secret workflow"
+  echo "  🩺 Healthcheck + watchdog validation"
 }
 
 need_root(){
@@ -202,7 +199,7 @@ step_tailscale(){
     curl -fsSL https://tailscale.com/install.sh | sh >/dev/null
     ok "Tailscale installed"
     say "Run next: tailscale up"
-    say "After tailscale up, run option 7 again to bind dashboard ports to Tailscale IP."
+    say "After tailscale up, run option 7 again to configure Tailscale HTTPS endpoints."
   else
     ok "Skipped Tailscale install"
   fi
@@ -300,37 +297,9 @@ step_configure_worker(){
 }
 
 
-step_dashboards(){
-  say "Run show dashboards"
-  say "Why: quick local links for worker/guard/webtop access."
-  sep
-  local gw_port guard_port novnc_port
-  gw_port=$(grep -E '^GATEWAY_PORT=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- || true)
-  guard_port=$(grep -E '^GUARD_GATEWAY_PORT=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- || true)
-  novnc_port=$(grep -E '^NOVNC_PORT=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- || true)
-  gw_port=${gw_port:-18789}
-  guard_port=${guard_port:-18790}
-  novnc_port=${novnc_port:-6080}
-  echo "Guard dashboard:  http://localhost:${guard_port}"
-  echo "Worker dashboard: http://localhost:${gw_port}"
-  echo "Webtop (noVNC):   http://localhost:${novnc_port}"
-  echo
-  echo "CLI helpers from repo root:"
-  echo "  ./openclaw-guard <command>   (runs inside guard container)"
-  echo "  ./openclaw-worker <command>  (runs inside worker container)"
-  echo ""
-  echo "Examples:"
-  echo "  ./openclaw-guard pairing approve telegram <CODE>"
-  echo "  ./openclaw-worker config get gateway.auth.token"
-  echo "  ./openclaw-guard config get gateway.auth.token"
-  echo "  ./openclaw-worker pairing approve telegram <CODE>"
-  echo
-  say "If remote, use SSH tunnel first (or Tailscale)."
-}
-
 step_auth_tokens(){
   say "Access OpenClaw dashboard and CLI"
-  say "Why: this gives you exact URLs + CLI helpers, plus token reveal/rotation for dashboard auth."
+  say "Why: this gives you exact dashboard URLs and CLI helpers."
   echo
   if check_done tailscale; then
     TSDNS=$(tailscale_dns)
