@@ -91,16 +91,18 @@ tailscale_ip(){
   tailscale ip -4 2>/dev/null | head -n1 || true
 }
 
-apply_tailscale_bind(){
-  local tsip="$1"
-  [ -n "$tsip" ] || return 1
-  if [ ! -f "$ENV_FILE" ]; then return 1; fi
-  sed -i "s/^NOVNC_HOST=.*/NOVNC_HOST=${tsip}/" "$ENV_FILE"
-  sed -i "s/^GATEWAY_HOST=.*/GATEWAY_HOST=${tsip}/" "$ENV_FILE"
-  sed -i "s/^GUARD_GATEWAY_HOST=.*/GUARD_GATEWAY_HOST=${tsip}/" "$ENV_FILE"
-  cd "$STACK_DIR"
-  docker compose --env-file "$ENV_FILE" -f compose.yml up -d browser openclaw-gateway openclaw-guard >/dev/null
+tailscale_dns(){
+  tailscale status --json 2>/dev/null | python3 -c 'import sys,json; print(json.load(sys.stdin)["Self"]["DNSName"].rstrip("."))' 2>/dev/null || true
 }
+
+apply_tailscale_serve(){
+  tailscale serve reset >/dev/null 2>&1 || true
+  tailscale serve --bg --https=443 http://127.0.0.1:18789 >/dev/null
+  tailscale serve --bg --https=444 http://127.0.0.1:18790 >/dev/null
+  tailscale serve --bg --https=445 http://127.0.0.1:6080 >/dev/null
+}
+
+apply_tailscale_bind(){ :; }
 
 check_done(){
   local id="$1"
@@ -174,7 +176,7 @@ step_tailscale(){
     tsip=$(tailscale_ip)
     ok "Tailscale already running"
     ok "Tailnet IP: ${tsip}"
-    apply_tailscale_bind "$tsip" && ok "Bound dashboard ports to Tailscale IP"
+    apply_tailscale_serve && ok "Configured HTTPS Tailscale dashboard endpoints"
     return
   fi
   read -r -p "$TIGER Install Tailscale now? [y/N]: " ans
