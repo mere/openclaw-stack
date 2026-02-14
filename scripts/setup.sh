@@ -307,14 +307,24 @@ step_dashboards(){
 }
 
 step_auth_tokens(){
-  say "Step 6: Dashboard authentication"
-  say "Why: control UI requires gateway tokens for Worker and Guard dashboards."
-  echo "  Worker URL uses OPENCLAW_GATEWAY_TOKEN"
-  echo "  Guard URL uses OPENCLAW_GUARD_GATEWAY_TOKEN"
+  say "Access OpenClaw dashboard and CLI"
+  say "Why: this gives you the exact URLs + helper commands, and lets you reveal tokens when needed."
   echo
-  echo "Copy commands:"
-  echo "  Worker token: grep '^OPENCLAW_GATEWAY_TOKEN=' /etc/openclaw/stack.env | cut -d= -f2-"
-  echo "  Guard token:  grep '^OPENCLAW_GUARD_GATEWAY_TOKEN=' /etc/openclaw/stack.env | cut -d= -f2-"
+  if check_done tailscale; then
+    TSDNS=$(tailscale_dns)
+    TSDNS=${TSDNS:-unavailable}
+    echo "Dashboards (Tailscale HTTPS):"
+    echo "  Worker: https://${TSDNS}/"
+    echo "  Guard:  https://${TSDNS}:444/"
+    echo "  Webtop: https://${TSDNS}:445/"
+  else
+    echo "Dashboards: not available yet — run option 7 (Run Tailscale setup)."
+  fi
+  echo
+  echo "CLI:"
+  echo "  ./openclaw-guard <command>"
+  echo "  ./openclaw-worker <command>"
+  echo "  e.g. ./openclaw-worker pairing approve telegram <CODE>"
   echo
   read -r -p "$TIGER Reveal tokens now on screen? [y/N]: " reveal
   if [[ "$reveal" =~ ^[Yy]$ ]]; then
@@ -338,21 +348,6 @@ run_all(){
 
 menu_once(){
   welcome
-  echo "Dashboards (Tailscale HTTPS):"
-  if check_done tailscale; then
-    TSDNS=$(tailscale_dns)
-    TSDNS=${TSDNS:-unavailable}
-    echo "  Worker: https://${TSDNS}/"
-    echo "  Guard:  https://${TSDNS}:444/"
-    echo "  Webtop: https://${TSDNS}:445/"
-  else
-    echo "  Not available yet — run option 7 (Run Tailscale setup)."
-  fi
-  echo "CLI:"
-  echo "  ./openclaw-guard <command>"
-  echo "  ./openclaw-worker <command>"
-  echo "  e.g. ./openclaw-worker pairing approve telegram <CODE>"
-  echo
   cat <<EOF
 Choose an action:
   1) Run ALL setup steps (recommended)
@@ -363,7 +358,7 @@ Choose an action:
   6) Run configure worker (openclaw onboard) $(configured_label worker)
   7) Run Tailscale setup $(simple_status_label "running" "not running" "tailscale")
   8) Run healthcheck
-  9) Run dashboard auth step (tokens)
+  9) Access OpenClaw dashboard and CLI
   0) Exit
 EOF
   read -r -p "$TIGER Select [0-9]: " pick
