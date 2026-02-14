@@ -85,7 +85,6 @@ OPENCLAW_GATEWAY_TOKEN=<random>
 OPENCLAW_STATE_DIR=/var/lib/openclaw/state
 OPENCLAW_WORKSPACE_DIR=/var/lib/openclaw/workspace
 BROWSER_CONFIG_DIR=/var/lib/openclaw/browser
-(removed) BROWSER_CDP_URL=http://browser:9222
 ```
 
 ### 6) Start stack
@@ -174,8 +173,6 @@ Chromium CDP in this webtop image tends to bind to localhost (127.0.0.1). To mak
 
 - Chromium: `127.0.0.1:9222`
 - socat: `0.0.0.0:9223 -> 127.0.0.1:9222`
-
-### Important: Host header restriction
 
 ### Important: Host header restriction
 Chromium rejects CDP requests when the `Host:` header is not `localhost` or an IP. That means `http://browser:9223` may fail.

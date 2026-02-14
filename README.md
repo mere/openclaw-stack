@@ -8,7 +8,7 @@ A repeatable, SSH-only OpenClaw deployment on Hetzner with:
 
 - Docker Compose + systemd
 - A visible browser desktop (noVNC) for manual logins
-- CDP reachable **internally** by service name (e.g. `http://browser:9222`)
+- CDP reachable internally via pinned browser IP + socat proxy (`http://<BROWSER_IPV4>:9223`)
 - A simple smoke test: open `https://bbc.co.uk` and summarize headlines
 
 ## Opinionated defaults
@@ -345,3 +345,6 @@ Use guard for explicit, approval-gated admin actions. Keep normal user tasks on 
 ### Guard-first privilege model
 
 Worker does **not** have break-glass host access. Privileged actions are handled by the **guard** instance (control-plane) with approval-gated policies.
+
+
+For diagrams and trust boundaries, see [`ARCHITECTURE.md`](./ARCHITECTURE.md).
