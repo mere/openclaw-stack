@@ -13,6 +13,7 @@ WARN="⚠️"
 say(){ echo "$TIGER $*"; }
 ok(){ echo "$OK $*"; }
 warn(){ echo "$WARN $*"; }
+sep(){ echo "────────────────────────────────────────────────────────"; }
 
 guard_name="${INSTANCE}-openclaw-guard"
 worker_name="${INSTANCE}-openclaw-gateway"
@@ -182,6 +183,7 @@ step_configure_guard(){
   say "Run configure guard"
   say "Why: guard is the OpenClaw instance that oversees all operations."
   echo
+  sep
   echo "Recommended guard setup:"
   echo "  • Keep it minimal (ideally no extra skills)"
   echo "  • Add a reliable model (e.g., OpenAI Codex auth)"
@@ -203,6 +205,7 @@ step_configure_worker(){
   say "Run configure worker"
   say "Why: this is the AI instance you'll chat to daily and build tasks with."
   echo
+  sep
   echo "Recommended worker setup:"
   echo "  • This is your main day-to-day assistant"
   echo "  • Connect your primary model(s) and tools here"
@@ -216,6 +219,25 @@ step_configure_worker(){
   else
     ok "Skipped worker onboarding"
   fi
+}
+
+
+step_dashboards(){
+  say "Run show dashboards"
+  say "Why: quick local links for worker/guard/webtop access."
+  sep
+  local gw_port guard_port novnc_port
+  gw_port=$(grep -E '^GATEWAY_PORT=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- || true)
+  guard_port=$(grep -E '^GUARD_GATEWAY_PORT=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- || true)
+  novnc_port=$(grep -E '^NOVNC_PORT=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- || true)
+  gw_port=${gw_port:-18789}
+  guard_port=${guard_port:-18790}
+  novnc_port=${novnc_port:-6080}
+  echo "Guard dashboard:  http://localhost:${guard_port}"
+  echo "Worker dashboard: http://localhost:${gw_port}"
+  echo "Webtop (noVNC):   http://localhost:${novnc_port}"
+  echo
+  say "If remote, use SSH tunnel first (or Tailscale)."
 }
 
 run_all(){
@@ -247,18 +269,20 @@ Choose an action:
   6) Run configure guard (openclaw setup)
   7) Run configure worker (openclaw setup)
   8) Run Tailscale setup
+  9) Run show dashboards
   0) Exit
 EOF
-  read -r -p "$TIGER Select [0-8]: " pick
+  read -r -p "$TIGER Select [0-9]: " pick
   case "$pick" in
-    1) run_all ;;
-    2) step_start_guard ;;
-    3) step_start_worker ;;
-    4) step_start_browser ;;
-    5) step_verify ;;
-    6) step_configure_guard ;;
-    7) step_configure_worker ;;
-    8) step_tailscale ;;
+    1) sep; run_all ;;
+    2) sep; step_start_guard ;;
+    3) sep; step_start_worker ;;
+    4) sep; step_start_browser ;;
+    5) sep; step_verify ;;
+    6) sep; step_configure_guard ;;
+    7) sep; step_configure_worker ;;
+    8) sep; step_tailscale ;;
+    9) sep; step_dashboards ;;
     0) say "Exiting setup wizard. See you soon."; return 1 ;;
     *) warn "Invalid choice" ;;
   esac
