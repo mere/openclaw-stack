@@ -356,7 +356,7 @@ step_auth_tokens(){
     ok "Skipped token reveal"
   fi
   echo
-  read -r -p "$TIGER Rotate tokens now with openclaw doctor --generate-gateway-token? [y/N]: " rot
+  read -r -p "$TIGER If the tokens above don't work, generate new ones by running ./openclaw-worker doctor --generate-gateway-token and ./openclaw-guard doctor --generate-gateway-token. Rotate now? [y/N]: " rot
   if [[ "$rot" =~ ^[Yy]$ ]]; then
     say "Rotating worker token..."
     "$STACK_DIR/openclaw-worker" doctor --generate-gateway-token || true
