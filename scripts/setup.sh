@@ -118,6 +118,31 @@ PY2
 
 apply_tailscale_bind(){ :; }
 
+ensure_browser_profile(){
+  python3 - <<'PY2'
+import json, pathlib
+worker=pathlib.Path('/var/lib/openclaw/state/openclaw.json')
+guard=pathlib.Path('/var/lib/openclaw/guard-state/openclaw.json')
+if worker.exists() and worker.stat().st_size>0:
+    d=json.loads(worker.read_text())
+    b=d.setdefault('browser',{})
+    b['enabled']=True
+    b['defaultProfile']='vps-chromium'
+    prof=b.setdefault('profiles',{})
+    p=prof.setdefault('vps-chromium',{})
+    p['cdpUrl']='http://172.31.0.10:9223'
+    p.setdefault('color','#00AAFF')
+    worker.write_text(json.dumps(d,indent=2)+'
+')
+if guard.exists() and guard.stat().st_size>0:
+    d=json.loads(guard.read_text())
+    d.setdefault('browser',{})['enabled']=False
+    guard.write_text(json.dumps(d,indent=2)+'
+')
+PY2
+  chown 1000:1000 /var/lib/openclaw/state/openclaw.json /var/lib/openclaw/guard-state/openclaw.json 2>/dev/null || true
+}
+
 check_done(){
   local id="$1"
   case "$id" in
@@ -233,6 +258,7 @@ step_start_browser(){
 }
 
 step_start_all(){
+  ensure_browser_profile
   say "Start full stack"
   say "Why: starts browser + worker + guard together in one command."
   STACK_DIR="$STACK_DIR" "$STACK_DIR/start.sh" || true
@@ -335,6 +361,7 @@ run_all(){
   step_docker
   step_env
   step_browser_init
+  ensure_browser_profile
   step_tailscale
   step_start_all
   step_auth_tokens
