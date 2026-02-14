@@ -14,7 +14,7 @@ Worker requests are **untrusted inputs**.
 Guard is the policy decision point.
 
 Therefore:
-- Worker does **not** declare approval requirements.
+- Guard evaluates approval policy per action from its own map.
 - Guard decides policy from its own rule map.
 - Unknown actions are denied by default.
 
@@ -45,7 +45,6 @@ Guard runner watches inbox, validates schema, evaluates policy, executes allowed
 }
 ```
 
-`requiresApproval` is not accepted from Worker.
 If present, Guard ignores/rejects.
 
 ## Policy Map (Guard-owned)
