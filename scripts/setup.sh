@@ -189,6 +189,7 @@ step_configure_guard(){
   echo "  • Add a reliable model (e.g., OpenAI Codex auth)"
   echo "  • Set up a dedicated Telegram bot for approvals"
   echo "  • Suggested bot name: ${pretty}-guard-bot"
+  echo "  • Use ./openclaw-guard ... for guard-only commands"
   echo
   read -r -p "$TIGER Start guard onboarding now? [Y/n]: " go
   if [[ ! "$go" =~ ^[Nn]$ ]]; then
@@ -211,6 +212,7 @@ step_configure_worker(){
   echo "  • Connect your primary model(s) and tools here"
   echo "  • Set up a dedicated Telegram bot for daily chat"
   echo "  • Suggested bot name: ${pretty}-bot"
+  echo "  • Use ./openclaw-worker ... for worker-only commands"
   echo
   read -r -p "$TIGER Start worker onboarding now? [Y/n]: " go
   if [[ ! "$go" =~ ^[Nn]$ ]]; then
@@ -236,6 +238,14 @@ step_dashboards(){
   echo "Guard dashboard:  http://localhost:${guard_port}"
   echo "Worker dashboard: http://localhost:${gw_port}"
   echo "Webtop (noVNC):   http://localhost:${novnc_port}"
+  echo
+  echo "CLI helpers from repo root:"
+  echo "  ./openclaw-guard <command>   (runs inside guard container)"
+  echo "  ./openclaw-worker <command>  (runs inside worker container)"
+  echo ""
+  echo "Examples:"
+  echo "  ./openclaw-guard pairing approve telegram <CODE>"
+  echo "  ./openclaw-worker pairing approve telegram <CODE>"
   echo
   say "If remote, use SSH tunnel first (or Tailscale)."
 }

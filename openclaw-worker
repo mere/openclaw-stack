@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+INSTANCE=${INSTANCE:-chloe}
+docker exec -it "${INSTANCE}-openclaw-gateway" ./openclaw.mjs "$@"
