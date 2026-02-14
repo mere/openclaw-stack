@@ -300,9 +300,8 @@ Dashboards:
   Webtop: http://localhost:6080
 CLI:
   ./openclaw-guard <command>
-    e.g. ./openclaw-guard pairing approve telegram <CODE>
   ./openclaw-worker <command>
-    e.g. ./openclaw-worker pairing approve telegram <CODE>
+  e.g. ./openclaw-worker pairing approve telegram <CODE>
 
 Choose an action:
   1) Run ALL setup steps (recommended)
