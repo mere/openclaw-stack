@@ -6,7 +6,9 @@ if [ "${EUID}" -ne 0 ]; then
   exit 1
 fi
 
-STACK_DIR=${STACK_DIR:-/opt/openclaw-stack}
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+REPO_DIR=$(cd "$SCRIPT_DIR/.." && pwd)
+STACK_DIR=${STACK_DIR:-$REPO_DIR}
 ENV_FILE=${ENV_FILE:-/etc/openclaw/stack.env}
 
 echo "[bootstrap] preflight"
@@ -41,6 +43,15 @@ if [ ! -f "$ENV_FILE" ]; then
   cp "$STACK_DIR/config/env.example" "$ENV_FILE"
 fi
 
+# install browser init scripts for CDP inside webtop config volume
+# shellcheck source=/etc/openclaw/stack.env
+source "$ENV_FILE" || true
+BROWSER_DIR=${BROWSER_CONFIG_DIR:-/var/lib/openclaw/browser}
+mkdir -p "$BROWSER_DIR/custom-cont-init.d"
+install -m 0755 "$STACK_DIR/scripts/webtop-init/20-start-chromium-cdp" "$BROWSER_DIR/custom-cont-init.d/20-start-chromium-cdp"
+install -m 0755 "$STACK_DIR/scripts/webtop-init/30-start-socat-cdp-proxy" "$BROWSER_DIR/custom-cont-init.d/30-start-socat-cdp-proxy"
+chown -R 1000:1000 "$BROWSER_DIR/custom-cont-init.d"
+
 # generate tokens if placeholders
 if grep -q '^OPENCLAW_GATEWAY_TOKEN=change-me-worker' "$ENV_FILE"; then
   sed -i "s#^OPENCLAW_GATEWAY_TOKEN=.*#OPENCLAW_GATEWAY_TOKEN=$(openssl rand -hex 32)#" "$ENV_FILE"
@@ -49,10 +60,15 @@ if grep -q '^OPENCLAW_GUARD_GATEWAY_TOKEN=change-me-guard' "$ENV_FILE"; then
   sed -i "s#^OPENCLAW_GUARD_GATEWAY_TOKEN=.*#OPENCLAW_GUARD_GATEWAY_TOKEN=$(openssl rand -hex 24)#" "$ENV_FILE"
 fi
 
-# install/update systemd units from repo
-install -m 0644 "$STACK_DIR/systemd/openclaw-stack.service" /etc/systemd/system/openclaw-stack.service
-install -m 0644 "$STACK_DIR/systemd/openclaw-cdp-watchdog.service" /etc/systemd/system/openclaw-cdp-watchdog.service
+# install/update systemd units from repo (path-aware)
+TMP_UNIT=$(mktemp)
+TMP_WATCH=$(mktemp)
+sed "s#/opt/openclaw-stack#${STACK_DIR}#g" "$STACK_DIR/systemd/openclaw-stack.service" > "$TMP_UNIT"
+sed "s#/opt/openclaw-stack#${STACK_DIR}#g" "$STACK_DIR/systemd/openclaw-cdp-watchdog.service" > "$TMP_WATCH"
+install -m 0644 "$TMP_UNIT" /etc/systemd/system/openclaw-stack.service
+install -m 0644 "$TMP_WATCH" /etc/systemd/system/openclaw-cdp-watchdog.service
 install -m 0644 "$STACK_DIR/systemd/openclaw-cdp-watchdog.timer" /etc/systemd/system/openclaw-cdp-watchdog.timer
+rm -f "$TMP_UNIT" "$TMP_WATCH"
 systemctl daemon-reload
 systemctl enable --now openclaw-cdp-watchdog.timer
 

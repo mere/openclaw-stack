@@ -1,0 +1,16 @@
+#!/usr/bin/with-contenv bash
+set -e
+
+touch /config/socat-cdp.log
+chown abc:abc /config/socat-cdp.log || true
+
+if ! command -v socat >/dev/null 2>&1; then
+  apt-get update -qq
+  apt-get install -y -qq socat >/dev/null
+fi
+
+if pgrep -x socat >/dev/null 2>&1; then
+  exit 0
+fi
+
+nohup socat TCP-LISTEN:9223,fork,reuseaddr TCP:127.0.0.1:9222 >>/config/socat-cdp.log 2>&1 &

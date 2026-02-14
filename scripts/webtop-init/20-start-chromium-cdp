@@ -1,0 +1,32 @@
+#!/usr/bin/with-contenv bash
+set -e
+
+(
+  for i in $(seq 1 120); do
+    [ -S /tmp/.X11-unix/X1 ] && break
+    sleep 1
+  done
+
+  if pgrep -f "--remote-debugging-port=9222" >/dev/null 2>&1; then
+    echo "[chromium-cdp] already running" >>/config/chromium-cdp.log
+    exit 0
+  fi
+
+  PROFILE_DIR="/config/chromium-profile"
+  mkdir -p "$PROFILE_DIR"
+  chown -R abc:abc "$PROFILE_DIR" || true
+  rm -f "$PROFILE_DIR"/Singleton* 2>/dev/null || true
+  rm -rf /tmp/org.chromium.Chromium.* 2>/dev/null || true
+
+  touch /config/chromium-cdp.log
+  chown abc:abc /config/chromium-cdp.log || true
+
+  LAUNCH="DISPLAY=:1 /usr/bin/chromium --remote-debugging-address=127.0.0.1 --remote-debugging-port=9222 --user-data-dir=$PROFILE_DIR --no-first-run --no-default-browser-check --disable-dev-shm-usage --disable-gpu --no-sandbox about:blank >> /config/chromium-cdp.log 2>&1 &"
+  if command -v s6-setuidgid >/dev/null 2>&1; then
+    s6-setuidgid abc bash -lc "$LAUNCH"
+  else
+    bash -lc "$LAUNCH"
+  fi
+) >/dev/null 2>&1 &
+
+exit 0
