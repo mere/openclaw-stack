@@ -18,6 +18,8 @@ sep(){ echo "──────────────────────�
 guard_name="${INSTANCE}-openclaw-guard"
 worker_name="${INSTANCE}-openclaw-gateway"
 browser_name="${INSTANCE}-browser"
+worker_cfg="/var/lib/openclaw/state/openclaw.json"
+guard_cfg="/var/lib/openclaw/guard-state/openclaw.json"
 
 welcome(){
 cat <<'EOF'
@@ -68,6 +70,21 @@ simple_status_label(){
   local bad_text="$2"
   local check="$3"
   if check_done "$check"; then echo "(✅ ${ok_text})"; else echo "(⚪ ${bad_text})"; fi
+}
+
+configured_label(){
+  local kind="$1"
+  local file
+  if [ "$kind" = "guard" ]; then file="$guard_cfg"; else file="$worker_cfg"; fi
+  if [ ! -s "$file" ]; then
+    echo "(⚪ Not configured)"
+    return
+  fi
+  if grep -q '"gateway"' "$file" && grep -q '"mode"' "$file"; then
+    echo "(✅ Configured)"
+  else
+    echo "(⚪ Not configured)"
+  fi
 }
 
 check_done(){
@@ -292,8 +309,8 @@ Choose an action:
   2) Run start guard $(status_label "$guard_name")
   3) Run start worker $(status_label "$worker_name")
   4) Run start browser $(browser_status_label)
-  5) Run configure guard (openclaw onboard)
-  6) Run configure worker (openclaw onboard)
+  5) Run configure guard (openclaw onboard) $(configured_label guard)
+  6) Run configure worker (openclaw onboard) $(configured_label worker)
   7) Run Tailscale setup $(simple_status_label "running" "not running" "tailscale")
   8) Run show dashboards
   9) Run healthcheck
