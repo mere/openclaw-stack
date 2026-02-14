@@ -275,24 +275,28 @@ Choose an action:
   2) Run start guard $(status_label "$guard_name")
   3) Run start worker $(status_label "$worker_name")
   4) Run start browser $(status_label "$browser_name")
-  5) Run healthcheck
-  6) Run configure guard (openclaw onboard)
-  7) Run configure worker (openclaw onboard)
-  8) Run Tailscale setup
-  9) Run show dashboards
+  5) Run configure guard (openclaw onboard)
+  6) Run configure worker (openclaw onboard)
+  7) Run Tailscale setup
+  8) Run show dashboards
+  9) Run healthcheck
   0) Exit
 EOF
+  echo
+  echo "Dashboards: guard http://localhost:18790 | worker http://localhost:18789 | webtop http://localhost:6080"
+  echo "Helpers:    ./openclaw-guard pairing approve telegram <CODE>"
+  echo "            ./openclaw-worker pairing approve telegram <CODE>"
   read -r -p "$TIGER Select [0-9]: " pick
   case "$pick" in
     1) sep; run_all ;;
     2) sep; step_start_guard ;;
     3) sep; step_start_worker ;;
     4) sep; step_start_browser ;;
-    5) sep; step_verify ;;
-    6) sep; step_configure_guard ;;
-    7) sep; step_configure_worker ;;
-    8) sep; step_tailscale ;;
-    9) sep; step_dashboards ;;
+    5) sep; step_configure_guard ;;
+    6) sep; step_configure_worker ;;
+    7) sep; step_tailscale ;;
+    8) sep; step_dashboards ;;
+    9) sep; step_verify ;;
     0) say "Exiting setup wizard. See you soon."; return 1 ;;
     *) warn "Invalid choice" ;;
   esac
