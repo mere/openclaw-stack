@@ -25,13 +25,34 @@ services:
       TERM: xterm-256color
       OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
       NPM_CONFIG_PREFIX: /home/node/.openclaw/npm-global
-      # Ensure npm global installs are writable for uid 1000
       PATH: /home/node/.openclaw/npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     volumes:
       - ${OPENCLAW_STATE_DIR:-/var/lib/openclaw/state}:/home/node/.openclaw
       - ${OPENCLAW_WORKSPACE_DIR:-/var/lib/openclaw/workspace}:/home/node/.openclaw/workspace
     ports:
       - "${GATEWAY_HOST:-127.0.0.1}:${GATEWAY_PORT:-18789}:18789"
+    init: true
+    restart: unless-stopped
+    command: ["node","dist/index.js","gateway","--bind","lan","--port","18789"]
+    networks:
+      - openclaw_net
+
+  openclaw-guard:
+    image: ${OPENCLAW_IMAGE:-ghcr.io/openclaw/openclaw:main}
+    container_name: ${INSTANCE:-chloe}-openclaw-guard
+    environment:
+      HOME: /home/node
+      TERM: xterm-256color
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GUARD_GATEWAY_TOKEN}
+      NPM_CONFIG_PREFIX: /home/node/.openclaw/npm-global
+      PATH: /home/node/.openclaw/npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    volumes:
+      - ${OPENCLAW_GUARD_STATE_DIR:-/var/lib/openclaw/guard-state}:/home/node/.openclaw
+      - ${OPENCLAW_GUARD_WORKSPACE_DIR:-/var/lib/openclaw/guard-workspace}:/home/node/.openclaw/workspace
+      - /opt/openclaw-stack:/opt/openclaw-stack
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "${GUARD_GATEWAY_HOST:-127.0.0.1}:${GUARD_GATEWAY_PORT:-18790}:18789"
     init: true
     restart: unless-stopped
     command: ["node","dist/index.js","gateway","--bind","lan","--port","18789"]

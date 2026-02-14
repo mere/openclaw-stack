@@ -338,3 +338,17 @@ sudo /opt/openclaw-stack/stop.sh
 
 
 Note: `start.sh` always recreates the gateway container to ensure any prior break-glass mounts (repo/docker.sock) are removed.
+
+
+## Two-instance architecture (worker + guard)
+
+This stack runs two OpenClaw gateways:
+
+- **Worker** (, port 18789): day-to-day assistant tasks
+- **Guard** (, port 18790): control-plane instance with elevated host access
+
+Guard-specific mounts:
+-  (repo mount)
+-  (host Docker control)
+
+Use guard for explicit, approval-gated admin actions. Keep normal user tasks on the worker instance.
