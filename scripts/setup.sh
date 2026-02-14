@@ -56,6 +56,20 @@ status_label(){
   fi
 }
 
+browser_status_label(){
+  local webtop cdp
+  if container_running "$browser_name"; then webtop="✅ Webtop running"; else webtop="⚪ Webtop stopped"; fi
+  if check_done browser_init; then cdp="✅ CDP installed"; else cdp="⚪ CDP not installed"; fi
+  echo "(${webtop}, ${cdp})"
+}
+
+simple_status_label(){
+  local ok_text="$1"
+  local bad_text="$2"
+  local check="$3"
+  if check_done "$check"; then echo "(✅ ${ok_text})"; else echo "(⚪ ${bad_text})"; fi
+}
+
 check_done(){
   local id="$1"
   case "$id" in
@@ -262,30 +276,27 @@ run_all(){
 
 menu_once(){
   welcome
-  echo "$TIGER Progress snapshot:"
-  check_done docker && ok "Docker installed" || warn "Docker not installed"
-  check_done env && ok "Env file exists" || warn "Env file missing"
-  check_done browser_init && ok "Browser CDP init installed" || warn "Browser CDP init missing"
-  check_done running && ok "Worker + Guard running" || warn "Worker/Guard not both running"
-  check_done tailscale && ok "Tailscale running" || warn "Tailscale not running"
-  echo
   cat <<EOF
+Dashboards:
+  Guard:  http://localhost:18790
+  Worker: http://localhost:18789
+  Webtop: http://localhost:6080
+Helpers:
+  ./openclaw-guard pairing approve telegram <CODE>
+  ./openclaw-worker pairing approve telegram <CODE>
+
 Choose an action:
   1) Run ALL setup steps (recommended)
   2) Run start guard $(status_label "$guard_name")
   3) Run start worker $(status_label "$worker_name")
-  4) Run start browser $(status_label "$browser_name")
+  4) Run start browser $(browser_status_label)
   5) Run configure guard (openclaw onboard)
   6) Run configure worker (openclaw onboard)
-  7) Run Tailscale setup
+  7) Run Tailscale setup $(simple_status_label "running" "not running" "tailscale")
   8) Run show dashboards
   9) Run healthcheck
   0) Exit
 EOF
-  echo
-  echo "Dashboards: guard http://localhost:18790 | worker http://localhost:18789 | webtop http://localhost:6080"
-  echo "Helpers:    ./openclaw-guard pairing approve telegram <CODE>"
-  echo "            ./openclaw-worker pairing approve telegram <CODE>"
   read -r -p "$TIGER Select [0-9]: " pick
   case "$pick" in
     1) sep; run_all ;;
