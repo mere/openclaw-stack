@@ -91,6 +91,17 @@ tailscale_ip(){
   tailscale ip -4 2>/dev/null | head -n1 || true
 }
 
+apply_tailscale_bind(){
+  local tsip="$1"
+  [ -n "$tsip" ] || return 1
+  if [ ! -f "$ENV_FILE" ]; then return 1; fi
+  sed -i "s/^NOVNC_HOST=.*/NOVNC_HOST=${tsip}/" "$ENV_FILE"
+  sed -i "s/^GATEWAY_HOST=.*/GATEWAY_HOST=${tsip}/" "$ENV_FILE"
+  sed -i "s/^GUARD_GATEWAY_HOST=.*/GUARD_GATEWAY_HOST=${tsip}/" "$ENV_FILE"
+  cd "$STACK_DIR"
+  docker compose --env-file "$ENV_FILE" -f compose.yml up -d --force-recreate browser openclaw-gateway openclaw-guard >/dev/null
+}
+
 check_done(){
   local id="$1"
   case "$id" in
@@ -158,12 +169,20 @@ step_browser_init(){
 step_tailscale(){
   say "Step 5: Tailscale setup (opinionated default)"
   say "Why: secure private access instead of exposing services publicly."
-  if check_done tailscale; then ok "Tailscale already running"; ok "Tailnet IP: $(tailscale_ip)"; return; fi
+  if check_done tailscale; then
+    local tsip
+    tsip=$(tailscale_ip)
+    ok "Tailscale already running"
+    ok "Tailnet IP: ${tsip}"
+    apply_tailscale_bind "$tsip" && ok "Bound dashboard ports to Tailscale IP"
+    return
+  fi
   read -r -p "$TIGER Install Tailscale now? [y/N]: " ans
   if [[ "$ans" =~ ^[Yy]$ ]]; then
     curl -fsSL https://tailscale.com/install.sh | sh >/dev/null
     ok "Tailscale installed"
     say "Run next: tailscale up"
+    say "After tailscale up, run option 7 again to bind dashboard ports to Tailscale IP."
   else
     ok "Skipped Tailscale install"
   fi
