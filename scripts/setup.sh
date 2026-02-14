@@ -344,18 +344,7 @@ step_auth_tokens(){
   echo "  ./openclaw-worker <command>"
   echo "  e.g. ./openclaw-worker pairing approve telegram <CODE>"
   echo
-  echo "If you see auth errors:"
-  echo "  • Open the dashboard in a private/incognito window, or clear site data for this URL"
-  echo "  • Reconnect and use the latest token"
-  echo
-  read -r -p "$TIGER Reveal current tokens now? [y/N]: " reveal
-  if [[ "$reveal" =~ ^[Yy]$ ]]; then
-    echo "Worker token:"; "$STACK_DIR/openclaw-worker" config get gateway.auth.token || true
-    echo "Guard token:";  "$STACK_DIR/openclaw-guard" config get gateway.auth.token || true
-  else
-    ok "Skipped token reveal"
-  fi
-  echo
+
   echo "Useful commands:"
   echo "  ./openclaw-worker pairing approve telegram <CODE>"
   echo "  ./openclaw-guard pairing approve telegram <CODE>"
