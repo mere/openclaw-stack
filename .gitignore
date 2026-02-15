@@ -1,2 +1,9 @@
 compose.yml.bak.*
 /vendor/
+
+# python bytecode
+__pycache__/
+*.pyc
+
+# accidental temp files
+ .Destination}}{{end}}

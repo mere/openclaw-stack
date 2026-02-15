@@ -293,6 +293,27 @@ EOF
   chown 1000:1000 "$gws/APPROVALS.md" 2>/dev/null || true
 }
 
+
+
+ensure_repo_writable_for_guard(){
+  say "Ensure repo is writable for guard"
+  say "Why: allows guard to patch stack scripts without elevated tool mode."
+
+  # Host repo permissions (guard runs as uid 1000 inside container)
+  chown -R 1000:1000 "$STACK_DIR" 2>/dev/null || true
+
+  # Avoid git ownership/filemode noise
+  git -C "$STACK_DIR" config core.fileMode false 2>/dev/null || true
+  git config --global --add safe.directory "$STACK_DIR" 2>/dev/null || true
+
+  # Also inside guard container (path is /opt/openclaw-stack)
+  if container_running "$guard_name"; then
+    docker exec "$guard_name" sh -lc 'git config --global --add safe.directory /opt/openclaw-stack >/dev/null 2>&1 || true'
+  fi
+
+  ok "Repo permissions/safe.directory configured"
+}
+
 ensure_bridge_dirs(){
   mkdir -p /var/lib/openclaw/bridge/inbox /var/lib/openclaw/bridge/outbox /var/lib/openclaw/bridge/audit
   mkdir -p /var/lib/openclaw/guard-state/bridge
@@ -414,6 +435,7 @@ step_start_browser(){
 }
 
 step_start_all(){
+  ensure_repo_writable_for_guard
   ensure_browser_profile
   ensure_inline_buttons
   say "Start full stack"
@@ -522,6 +544,7 @@ step_auth_tokens(){
 }
 
 run_all(){
+  ensure_repo_writable_for_guard
   step_preflight
   step_docker
   step_env
