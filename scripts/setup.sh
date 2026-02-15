@@ -130,6 +130,7 @@ for p in paths:
     ch=d.setdefault('channels',{}).setdefault('telegram',{})
     caps=ch.setdefault('capabilities',{})
     caps['inlineButtons']='all'
+    d.setdefault('heartbeat',{}).setdefault('capabilities',{})['inlineButtons']='all'
     p.write_text(json.dumps(d,indent=2)+'\n')
 PY2
   chown 1000:1000 /var/lib/openclaw/state/openclaw.json /var/lib/openclaw/guard-state/openclaw.json 2>/dev/null || true
@@ -264,6 +265,33 @@ step_guard_admin_mode(){
       *) ok "No changes" ;;
     esac
   fi
+}
+
+
+
+ensure_guard_approval_instructions(){
+  local gws="/var/lib/openclaw/guard-workspace"
+  mkdir -p "$gws"
+  cat > "$gws/APPROVALS.md" <<'EOF'
+# Guard Approval Flow (Telegram)
+
+Use inline buttons first:
+- 🚀 Approve -> guard approve <requestId>
+- ❌ Deny -> guard deny <requestId>
+- 🚀 Always approve -> guard approve always <requestId>
+- 🛑 Always deny -> guard deny always <requestId>
+
+Typed text fallback uses same strings.
+Regex:
+- ^guard approve ([a-f0-9-]{36})$
+- ^guard approve always ([a-f0-9-]{36})$
+- ^guard deny ([a-f0-9-]{36})$
+- ^guard deny always ([a-f0-9-]{36})$
+
+Execution:
+- /opt/openclaw-stack/scripts/guard-bridge.sh decision "<incoming text>"
+EOF
+  chown 1000:1000 "$gws/APPROVALS.md" 2>/dev/null || true
 }
 
 ensure_bridge_dirs(){
@@ -501,6 +529,7 @@ run_all(){
   step_browser_init
   ensure_browser_profile
   ensure_inline_buttons
+  ensure_guard_approval_instructions
   step_tailscale
   step_start_all
   step_auth_tokens

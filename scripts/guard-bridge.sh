@@ -18,12 +18,33 @@ case "$ACTION" in
   command-policy)
     cat "$CMD_POLICY" 2>/dev/null || echo '{}'
     ;;
+  decision)
+    TEXT=${2:-}
+    [ -n "$TEXT" ] || { echo "usage: $0 decision '<guard approve|deny ...>'"; exit 1; }
+    python3 - "$TEXT" <<'PY'
+import re, subprocess, sys
+text=sys.argv[1].strip()
+patterns=[
+    (r'^guard\s+approve\s+always\s+([a-f0-9-]{36})$', ('approve','always')),
+    (r'^guard\s+approve\s+([a-f0-9-]{36})$', ('approve','once')),
+    (r'^guard\s+deny\s+always\s+([a-f0-9-]{36})$', ('reject','always')),
+    (r'^guard\s+deny\s+([a-f0-9-]{36})$', ('reject','once')),
+]
+for pat,(act,mode) in patterns:
+    m=re.match(pat,text,re.I)
+    if m:
+        rid=m.group(1)
+        raise SystemExit(subprocess.call(['/opt/openclaw-stack/scripts/guard-bridge.sh',act,rid,mode]))
+print('no_match')
+raise SystemExit(2)
+PY
+    ;;
   approve|reject)
     REQ=${2:-}
     MODE=${3:-once}
     [ -n "$REQ" ] || { echo "usage: $0 $ACTION <requestId> [once|always]"; exit 1; }
     python3 - "$ACTION" "$REQ" "$MODE" <<'PY'
-import json, pathlib, subprocess, sys, re
+import json, pathlib, subprocess, sys
 action, req_id, mode = sys.argv[1], sys.argv[2], sys.argv[3]
 pending_p=pathlib.Path('/home/node/.openclaw/bridge/pending.json')
 policy_p=pathlib.Path('/home/node/.openclaw/bridge/policy.json')
@@ -41,7 +62,6 @@ if not item:
 req=item['request']
 matched=item.get('matchedRule','')
 
-# persist policy change for always actions
 if mode=='always':
     if matched.startswith('action:'):
         act=matched.split(':',1)[1]
@@ -86,6 +106,7 @@ Usage:
   $0 command-policy
   $0 approve <requestId> [once|always]
   $0 reject <requestId> [once|always]
+  $0 decision "guard approve <requestId>|guard deny <requestId>|... always"
 EOF
     ;;
 esac

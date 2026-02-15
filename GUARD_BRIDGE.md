@@ -55,3 +55,14 @@ Use strict decision text parsing:
 Match approvals using stable identity (`provider + chatId`), not display/conversation labels.
 
 Fallback (trusted DM only): allow requestId-only routing if identity normalization fails, and log this downgrade.
+
+
+## Inline 4-button approval UX
+
+- 🚀 Approve → `guard approve <requestId>`
+- ❌ Deny → `guard deny <requestId>`
+- 🚀 Always approve → `guard approve always <requestId>`
+- 🛑 Always deny → `guard deny always <requestId>`
+
+Decision parser command:
+- `/opt/openclaw-stack/scripts/guard-bridge.sh decision "<incoming text>"`
