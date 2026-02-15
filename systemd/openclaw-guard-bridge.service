@@ -5,4 +5,4 @@ Wants=docker.service
 
 [Service]
 Type=oneshot
-ExecStart=/opt/openclaw-stack/scripts/guard-bridge-tick.sh
+ExecStart=/root/openclaw-stack/scripts/guard-bridge-tick.sh
