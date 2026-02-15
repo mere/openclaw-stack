@@ -49,7 +49,7 @@ if not CMD_POLICY_PATH.exists():
 if not PENDING_PATH.exists():
     PENDING_PATH.write_text('{}\n')
 
-subprocess.run(['/root/openclaw-stack/scripts/guard-bridge-catalog.py'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+subprocess.run(['/opt/openclaw-stack/scripts/guard-bridge-catalog.py'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 def now_iso():
     return datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat().replace('+00:00','Z')
@@ -76,9 +76,9 @@ def wake_guard_for_ask(req, matched=None):
 
 def execute_action(action, args):
     if action.startswith('poems.'):
-        cmd = ['/root/openclaw-stack/scripts/guard-poems.sh', action]
+        cmd = ['/opt/openclaw-stack/scripts/guard-poems.sh', action]
     else:
-        cmd = ['/root/openclaw-stack/scripts/guard-email.sh', action, json.dumps(args)]
+        cmd = ['/opt/openclaw-stack/scripts/guard-email.sh', action, json.dumps(args)]
     proc = subprocess.run(cmd, capture_output=True, text=True)
     raw = (proc.stdout or '').strip() or (proc.stderr or '').strip()
     try:
@@ -88,7 +88,7 @@ def execute_action(action, args):
     return proc.returncode, parsed
 
 def execute_command(command):
-    proc = subprocess.run(['/root/openclaw-stack/scripts/guard-exec-command.py', command], capture_output=True, text=True)
+    proc = subprocess.run(['/opt/openclaw-stack/scripts/guard-exec-command.py', command], capture_output=True, text=True)
     raw = (proc.stdout or '').strip() or (proc.stderr or '').strip()
     try:
         parsed = json.loads(raw) if raw else {'ok': proc.returncode == 0}

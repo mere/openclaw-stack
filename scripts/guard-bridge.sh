@@ -7,7 +7,7 @@ CMD_POLICY=/var/lib/openclaw/guard-state/bridge/command-policy.json
 
 case "$ACTION" in
   run-once)
-    exec /root/openclaw-stack/scripts/guard-bridge-runner.py
+    exec /opt/openclaw-stack/scripts/guard-bridge-runner.py
     ;;
   pending)
     cat "$PENDING" 2>/dev/null || echo '{}'
@@ -59,9 +59,9 @@ if action=='reject':
     (outbox/f'{req_id}.json').write_text(json.dumps({'requestId':req_id,'status':'rejected','error':'manual_reject','completedAt':now()}, indent=2)+'\n')
 else:
     if req.get('action'):
-        cmd=['/root/openclaw-stack/scripts/guard-email.sh', req['action'], json.dumps(req.get('args',{}))]
+        cmd=['/opt/openclaw-stack/scripts/guard-email.sh', req['action'], json.dumps(req.get('args',{}))]
     else:
-        cmd=['/root/openclaw-stack/scripts/guard-exec-command.py', req.get('command','')]
+        cmd=['/opt/openclaw-stack/scripts/guard-exec-command.py', req.get('command','')]
     pr=subprocess.run(cmd, capture_output=True, text=True)
     raw=(pr.stdout or '').strip() or (pr.stderr or '').strip()
     try: res=json.loads(raw) if raw else {'ok': pr.returncode==0}
