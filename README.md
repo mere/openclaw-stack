@@ -74,3 +74,8 @@ Guard maintenance:
 ```
 
 See [GUARD_BRIDGE.md](./GUARD_BRIDGE.md).
+
+
+### Telegram approvals
+
+Setup enables Telegram inline buttons (`channels.telegram.capabilities.inlineButtons=all`) for worker and guard so approval UX can use native buttons.

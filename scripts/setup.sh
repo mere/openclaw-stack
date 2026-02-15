@@ -118,6 +118,23 @@ PY2
 
 apply_tailscale_bind(){ :; }
 
+
+ensure_inline_buttons(){
+  python3 - <<'PY2'
+import json, pathlib
+paths=[pathlib.Path('/var/lib/openclaw/state/openclaw.json'), pathlib.Path('/var/lib/openclaw/guard-state/openclaw.json')]
+for p in paths:
+    if not p.exists() or p.stat().st_size==0:
+        continue
+    d=json.loads(p.read_text())
+    ch=d.setdefault('channels',{}).setdefault('telegram',{})
+    caps=ch.setdefault('capabilities',{})
+    caps['inlineButtons']='all'
+    p.write_text(json.dumps(d,indent=2)+'\n')
+PY2
+  chown 1000:1000 /var/lib/openclaw/state/openclaw.json /var/lib/openclaw/guard-state/openclaw.json 2>/dev/null || true
+}
+
 ensure_browser_profile(){
   python3 - <<'PY2'
 import json, pathlib
@@ -315,6 +332,7 @@ step_start_browser(){
 
 step_start_all(){
   ensure_browser_profile
+  ensure_inline_buttons
   say "Start full stack"
   say "Why: starts browser + worker + guard together in one command."
   STACK_DIR="$STACK_DIR" "$STACK_DIR/start.sh" || true
@@ -410,6 +428,7 @@ step_auth_tokens(){
   echo "  ./openclaw-guard pairing approve telegram <CODE>"
   echo "  ./openclaw-worker config get gateway.auth.token"
   echo "  ./openclaw-guard config get gateway.auth.token"
+  echo "  ./openclaw-guard config get channels.telegram.capabilities.inlineButtons"
   echo "  ./openclaw-worker doctor --generate-gateway-token"
   echo "  ./openclaw-guard doctor --generate-gateway-token"
   echo "  call "poems.read" --reason "User asked for poem" --timeout 30"
@@ -425,6 +444,7 @@ run_all(){
   step_env
   step_browser_init
   ensure_browser_profile
+  ensure_inline_buttons
   step_tailscale
   step_start_all
   step_auth_tokens
