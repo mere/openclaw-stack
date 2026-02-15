@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ACTION=${1:-}
-POEMS_FILE=/var/lib/openclaw/guard-state/bridge/poem-of-the-day.txt
-mkdir -p /var/lib/openclaw/guard-state/bridge
+POEMS_FILE=/home/node/.openclaw/bridge/poem-of-the-day.txt
+mkdir -p /home/node/.openclaw/bridge
 
 today_poem() {
   cat <<'EOF'
