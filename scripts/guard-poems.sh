@@ -26,9 +26,12 @@ print(json.dumps({"ok": True, "poem": '''$poem'''}, ensure_ascii=False))
 PY
     ;;
   poems.write)
-    # policy should reject before execution; keep defensive reject here too
-    echo '{"ok":false,"error":"policy_rejected_write"}'
-    exit 4
+    poem=$(today_poem)
+    printf "%s\n" "$poem" > "$POEMS_FILE"
+    python3 - <<PY
+import json
+print(json.dumps({"ok": True, "written": True, "poem": '''$poem'''}, ensure_ascii=False))
+PY
     ;;
   poems.delete)
     rm -f "$POEMS_FILE"
