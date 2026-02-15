@@ -48,6 +48,8 @@ services:
     volumes:
       - ${OPENCLAW_GUARD_STATE_DIR:-/var/lib/openclaw/guard-state}:/home/node/.openclaw
       - ${OPENCLAW_GUARD_WORKSPACE_DIR:-/var/lib/openclaw/guard-workspace}:/home/node/.openclaw/workspace
+      - /var/lib/openclaw/state:/mnt/worker-state
+      - /var/lib/openclaw/workspace:/mnt/worker-workspace
       - /var/lib/openclaw/bridge:/var/lib/openclaw/bridge
       - /root/openclaw-stack:/opt/openclaw-stack
       - /var/run/docker.sock:/var/run/docker.sock
