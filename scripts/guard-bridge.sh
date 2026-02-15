@@ -59,7 +59,10 @@ if action=='reject':
     (outbox/f'{req_id}.json').write_text(json.dumps({'requestId':req_id,'status':'rejected','error':'manual_reject','completedAt':now()}, indent=2)+'\n')
 else:
     if req.get('action'):
-        cmd=['/opt/openclaw-stack/scripts/guard-email.sh', req['action'], json.dumps(req.get('args',{}))]
+        if str(req.get('action','')).startswith('poems.'):
+            cmd=['/opt/openclaw-stack/scripts/guard-poems.sh', req['action']]
+        else:
+            cmd=['/opt/openclaw-stack/scripts/guard-email.sh', req['action'], json.dumps(req.get('args',{}))]
     else:
         cmd=['/opt/openclaw-stack/scripts/guard-exec-command.py', req.get('command','')]
     pr=subprocess.run(cmd, capture_output=True, text=True)
