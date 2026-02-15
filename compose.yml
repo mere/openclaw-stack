@@ -48,8 +48,6 @@ services:
     volumes:
       - ${OPENCLAW_GUARD_STATE_DIR:-/var/lib/openclaw/guard-state}:/home/node/.openclaw
       - ${OPENCLAW_GUARD_WORKSPACE_DIR:-/var/lib/openclaw/guard-workspace}:/home/node/.openclaw/workspace
-      - /var/lib/openclaw/state:/mnt/worker-state
-      - /var/lib/openclaw/workspace:/mnt/worker-workspace
       - /var/lib/openclaw:/mnt/openclaw-data
       - /etc/openclaw:/mnt/etc-openclaw
       - /var/lib/openclaw/bridge:/var/lib/openclaw/bridge

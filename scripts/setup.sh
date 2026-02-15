@@ -224,6 +224,48 @@ ensure_guard_bitwarden(){
   fi
 }
 
+
+
+guard_admin_mode_enabled(){
+  grep -q '/var/lib/openclaw:/mnt/openclaw-data' "$STACK_DIR/compose.yml"
+}
+
+set_guard_admin_mode(){
+  local mode="$1"  # on|off
+  local c="$STACK_DIR/compose.yml"
+  if [ "$mode" = "on" ]; then
+    grep -q '/var/lib/openclaw:/mnt/openclaw-data' "$c" || sed -i '/OPENCLAW_GUARD_WORKSPACE_DIR.*workspace/a\      - /var/lib/openclaw:/mnt/openclaw-data
+      - /etc/openclaw:/mnt/etc-openclaw' "$c"
+    ok "Guard admin mode enabled (full host OpenClaw data/config mounted)"
+  else
+    sed -i '\# /var/lib/openclaw:/mnt/openclaw-data#d' "$c"
+    sed -i '\# /etc/openclaw:/mnt/etc-openclaw#d' "$c"
+    ok "Guard admin mode disabled (minimal mounts)"
+  fi
+  cd "$STACK_DIR"
+  docker compose --env-file "$ENV_FILE" -f compose.yml up -d --force-recreate openclaw-guard >/dev/null || true
+}
+
+step_guard_admin_mode(){
+  say "Guard admin mode"
+  say "Why: optionally grant guard full access to /var/lib/openclaw and /etc/openclaw for deep fixes."
+  if guard_admin_mode_enabled; then
+    ok "Current: ENABLED"
+    read -r -p "$TIGER Disable admin mode now? [y/N]: " ans
+    case "${ans:-n}" in
+      y|Y) set_guard_admin_mode off ;;
+      *) ok "No changes" ;;
+    esac
+  else
+    ok "Current: DISABLED"
+    read -r -p "$TIGER Enable admin mode now? [y/N]: " ans
+    case "${ans:-n}" in
+      y|Y) set_guard_admin_mode on ;;
+      *) ok "No changes" ;;
+    esac
+  fi
+}
+
 ensure_bridge_dirs(){
   mkdir -p /var/lib/openclaw/bridge/inbox /var/lib/openclaw/bridge/outbox /var/lib/openclaw/bridge/audit
   mkdir -p /var/lib/openclaw/guard-state/bridge
@@ -478,9 +520,10 @@ Choose an action:
   7) Run Tailscale setup $(simple_status_label "running" "not running" "tailscale")
   8) Access OpenClaw dashboard and CLI
   9) Run healthcheck
+ 10) Toggle guard admin mode
   0) Exit
 EOF
-  read -r -p "$TIGER Select [0-9]: " pick
+  read -r -p "$TIGER Select [0-10]: " pick
   case "$pick" in
     1) sep; run_all ;;
     2) sep; step_start_guard ;;
@@ -491,6 +534,7 @@ EOF
     7) sep; step_tailscale ;;
     8) sep; step_auth_tokens ;;
     9) sep; step_verify ;;
+    10) sep; step_guard_admin_mode ;;
     0) say "Exiting setup wizard. See you soon."; return 1 ;;
     *) warn "Invalid choice" ;;
   esac
