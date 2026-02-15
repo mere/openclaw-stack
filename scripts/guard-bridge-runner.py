@@ -70,9 +70,12 @@ def write_out(request_id, payload):
 def wake_guard_for_ask(req, matched=None):
     reason = req.get('reason','(no reason provided)')
     msg = f"Guard approval needed: requestId={req.get('requestId')} action={req.get('action','command.run')} command={req.get('command','')} reason={reason} matchedRule={matched or 'n/a'}"
-    subprocess.run([
-        'docker','exec','chloe-openclaw-guard','./openclaw.mjs','system','event','--mode','now','--text',msg
-    ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    # runner executes inside guard container; fire local event and never fail the request path
+    try:
+        subprocess.run(['./openclaw.mjs','system','event','--mode','now','--text',msg],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    except Exception:
+        pass
 
 def execute_action(action, args):
     if action.startswith('poems.'):
