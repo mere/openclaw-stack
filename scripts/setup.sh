@@ -411,6 +411,8 @@ step_auth_tokens(){
   echo "  ./scripts/worker-bridge.sh request email.list '{"account":"icloud","limit":10}'"
   echo "  ./scripts/guard-bridge.sh run-once"
   echo "  ./scripts/guard-bridge.sh pending"
+  echo "  ./scripts/worker-bridge.sh call poems.read '{}' 'User asked for poem of the day'"
+  echo "  ./scripts/worker-bridge.sh call poems.write '{}' 'User asked to write poem' 90"
 }
 
 run_all(){

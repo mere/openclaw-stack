@@ -84,3 +84,14 @@ See [GUARD_BRIDGE.md](./GUARD_BRIDGE.md) for the Worker→Guard bridge model, ap
 ./scripts/guard-bridge.sh pending
 ./scripts/guard-bridge.sh command-policy
 ```
+
+
+### Async bridge calls
+
+```bash
+# returns final result (waits); times out if still pending approval
+./scripts/worker-bridge.sh call poems.read "{}" "User asked for poem of the day" 60
+
+# ask flow: waits until approval or timeout
+./scripts/worker-bridge.sh call poems.write "{}" "User asked me to write a poem" 120
+```
