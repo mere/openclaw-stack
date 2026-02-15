@@ -45,20 +45,23 @@ print(rid)
 PY
 }
 
+# sets ARGS/REASON/TIMEOUT globals, supports optional positional timeout as last arg
 parse_flags(){
-  local args='{}' reason='' timeout='120'
+  ARGS='{}'; REASON=''; TIMEOUT='120'
   while [ $# -gt 0 ]; do
     case "$1" in
-      --reason) reason="${2:-}"; shift 2 ;;
-      --args) args="${2:-{}}"; shift 2 ;;
-      --timeout) timeout="${2:-120}"; shift 2 ;;
-      *) echo "unknown flag: $1"; exit 1 ;;
+      --reason) REASON="${2:-}"; shift 2 ;;
+      --args) ARGS="${2:-{}}"; shift 2 ;;
+      --timeout) TIMEOUT="${2:-120}"; shift 2 ;;
+      *)
+        if [[ "$1" =~ ^[0-9]+$ ]] && [ $# -eq 1 ]; then TIMEOUT="$1"; shift 1
+        else echo "unknown flag: $1"; exit 1
+        fi
+        ;;
     esac
   done
-  printf '%s\n%s\n%s\n' "$args" "$reason" "$timeout"
 }
 
-# if TARGET has spaces -> command; else action
 submit_target(){
   local target="$1" args="$2" reason="$3"
   if [[ "$target" == *" "* ]]; then submit_command "$target" "$reason"; else submit_action "$target" "$args" "$reason"; fi
@@ -68,8 +71,7 @@ case "$SUB" in
   request|call)
     TARGET=${1:-}; shift || true
     [ -n "$TARGET" ] || { echo "usage: $0 $SUB '<action-or-command>' --reason '<reason>' [--args '<json>'] [--timeout N]"; exit 1; }
-    mapfile -t F < <(parse_flags "$@")
-    ARGS="${F[0]}"; REASON="${F[1]}"; TIMEOUT="${F[2]}"
+    parse_flags "$@"
     [ -n "$REASON" ] || { echo "reason required"; exit 1; }
     RID=$(submit_target "$TARGET" "$ARGS" "$REASON")
     if [ "$SUB" = "call" ]; then wait_result "$RID" "$TIMEOUT"; else echo "$RID"; fi
@@ -91,7 +93,7 @@ Usage:
 
 Examples:
   $0 call 'poems.read' --reason 'User asked for poem' --timeout 30
-  $0 call 'git status' --reason 'User asked for repo status' --timeout 30
+  $0 call 'git status --short' --reason 'User asked for repo status' 30
 EOF
     ;;
 esac
