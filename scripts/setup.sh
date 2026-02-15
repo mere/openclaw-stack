@@ -130,7 +130,6 @@ for p in paths:
     ch=d.setdefault('channels',{}).setdefault('telegram',{})
     caps=ch.setdefault('capabilities',{})
     caps['inlineButtons']='all'
-    d.setdefault('heartbeat',{}).setdefault('capabilities',{})['inlineButtons']='all'
     p.write_text(json.dumps(d,indent=2)+'\n')
 PY2
   chown 1000:1000 /var/lib/openclaw/state/openclaw.json /var/lib/openclaw/guard-state/openclaw.json 2>/dev/null || true
