@@ -25,10 +25,10 @@ case "$ACTION" in
 import re, subprocess, sys
 text=sys.argv[1].strip()
 patterns=[
-    (r'^guard\s+approve\s+always\s+([a-f0-9-]{36})$', ('approve','always')),
-    (r'^guard\s+approve\s+([a-f0-9-]{36})$', ('approve','once')),
-    (r'^guard\s+deny\s+always\s+([a-f0-9-]{36})$', ('reject','always')),
-    (r'^guard\s+deny\s+([a-f0-9-]{36})$', ('reject','once')),
+    (r'^guard\s+approve\s+always\s+([a-f0-9-]{8,36})$', ('approve','always')),
+    (r'^guard\s+approve\s+([a-f0-9-]{8,36})$', ('approve','once')),
+    (r'^guard\s+deny\s+always\s+([a-f0-9-]{8,36})$', ('reject','always')),
+    (r'^guard\s+deny\s+([a-f0-9-]{8,36})$', ('reject','once')),
 ]
 for pat,(act,mode) in patterns:
     m=re.match(pat,text,re.I)
@@ -42,10 +42,10 @@ PY
   approve|reject)
     REQ=${2:-}
     MODE=${3:-once}
-    [ -n "$REQ" ] || { echo "usage: $0 $ACTION <requestId> [once|always]"; exit 1; }
+    [ -n "$REQ" ] || { echo "usage: $0 $ACTION <requestId-or-prefix> [once|always]"; exit 1; }
     python3 - "$ACTION" "$REQ" "$MODE" <<'PY'
 import json, pathlib, subprocess, sys
-action, req_id, mode = sys.argv[1], sys.argv[2], sys.argv[3]
+action, req_in, mode = sys.argv[1], sys.argv[2], sys.argv[3]
 pending_p=pathlib.Path('/home/node/.openclaw/bridge/pending.json')
 policy_p=pathlib.Path('/home/node/.openclaw/bridge/policy.json')
 cmd_policy_p=pathlib.Path('/home/node/.openclaw/bridge/command-policy.json')
@@ -56,6 +56,15 @@ def now():
     return datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat().replace('+00:00','Z')
 
 pending=json.loads(pending_p.read_text() if pending_p.exists() else '{}')
+req_id=req_in
+if req_in not in pending:
+    # prefix match (8+ chars recommended)
+    matches=[k for k in pending.keys() if k.startswith(req_in)]
+    if len(matches)==1:
+        req_id=matches[0]
+    elif len(matches)>1:
+        print('ambiguous_prefix:'+','.join(matches[:5])); sys.exit(2)
+
 item=pending.get(req_id)
 if not item:
     print('request_not_found'); sys.exit(1)
@@ -94,7 +103,7 @@ else:
 
 pending.pop(req_id, None)
 pending_p.write_text(json.dumps(pending, indent=2)+'\n')
-print('done')
+print('done:'+req_id)
 PY
     ;;
   *)
@@ -104,9 +113,9 @@ Usage:
   $0 pending
   $0 policy
   $0 command-policy
-  $0 approve <requestId> [once|always]
-  $0 reject <requestId> [once|always]
-  $0 decision "guard approve <requestId>|guard deny <requestId>|... always"
+  $0 approve <requestId-or-prefix> [once|always]
+  $0 reject <requestId-or-prefix> [once|always]
+  $0 decision "guard approve <id8+>|guard deny <id8+>|... always"
 EOF
     ;;
 esac

@@ -175,10 +175,10 @@ You are the daily assistant instance.
   - call "<action-or-command>" --reason "..." --timeout 30
   - request "<action-or-command>" --reason "..."
 - Approval decision parsing (must be deterministic):
-  - ^guard approve ([a-f0-9-]{36})$
-  - ^guard approve always ([a-f0-9-]{36})$
-  - ^guard deny ([a-f0-9-]{36})$
-  - ^guard deny always ([a-f0-9-]{36})$
+  - ^guard approve ([a-f0-9-]{8,36})$
+  - ^guard approve always ([a-f0-9-]{8,36})$
+  - ^guard deny ([a-f0-9-]{8,36})$
+  - ^guard deny always ([a-f0-9-]{8,36})$
 - Match approvals by provider+chatId (stable identity), not display label.
 - For trusted DM fallback, allow requestId-only approval routing if identity normalization fails.
 - Examples:
@@ -195,9 +195,9 @@ You are the control-plane safety instance.
 - After tool changes, run: `./scripts/guard-tool-sync.sh`
 - Keep behavior strict/minimal and security-first.
 - Approval commands accepted:
-  - guard approve <requestId>
+  - guard approve <requestId-or-id8>
   - guard approve always <requestId>
-  - guard deny <requestId>
+  - guard deny <requestId-or-id8>
   - guard deny always <requestId>
 - Approval matching key must be provider+chatId (not human label).
 - Log requestId, chatId, parsed decision, and match result for each approval attempt.
@@ -275,17 +275,17 @@ ensure_guard_approval_instructions(){
 # Guard Approval Flow (Telegram)
 
 Use inline buttons first:
-- 🚀 Approve -> guard approve <requestId>
-- ❌ Deny -> guard deny <requestId>
+- 🚀 Approve -> guard approve <requestId-or-id8>
+- ❌ Deny -> guard deny <requestId-or-id8>
 - 🚀 Always approve -> guard approve always <requestId>
 - 🛑 Always deny -> guard deny always <requestId>
 
 Typed text fallback uses same strings.
 Regex:
-- ^guard approve ([a-f0-9-]{36})$
-- ^guard approve always ([a-f0-9-]{36})$
-- ^guard deny ([a-f0-9-]{36})$
-- ^guard deny always ([a-f0-9-]{36})$
+- ^guard approve ([a-f0-9-]{8,36})$
+- ^guard approve always ([a-f0-9-]{8,36})$
+- ^guard deny ([a-f0-9-]{8,36})$
+- ^guard deny always ([a-f0-9-]{8,36})$
 
 Execution:
 - /opt/openclaw-stack/scripts/guard-bridge.sh decision "<incoming text>"

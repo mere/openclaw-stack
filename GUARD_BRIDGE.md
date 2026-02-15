@@ -47,10 +47,10 @@ Guard state:
 ## Approval parsing + identity matching
 
 Use strict decision text parsing:
-- `^guard approve ([a-f0-9-]{36})$`
-- `^guard approve always ([a-f0-9-]{36})$`
-- `^guard deny ([a-f0-9-]{36})$`
-- `^guard deny always ([a-f0-9-]{36})$`
+- `^guard approve ([a-f0-9-]{8,36})$`
+- `^guard approve always ([a-f0-9-]{8,36})$`
+- `^guard deny ([a-f0-9-]{8,36})$`
+- `^guard deny always ([a-f0-9-]{8,36})$`
 
 Match approvals using stable identity (`provider + chatId`), not display/conversation labels.
 
@@ -59,8 +59,8 @@ Fallback (trusted DM only): allow requestId-only routing if identity normalizati
 
 ## Inline 4-button approval UX
 
-- 🚀 Approve → `guard approve <requestId>`
-- ❌ Deny → `guard deny <requestId>`
+- 🚀 Approve → `guard approve <requestId-or-id8>`
+- ❌ Deny → `guard deny <requestId-or-id8>`
 - 🚀 Always approve → `guard approve always <requestId>`
 - 🛑 Always deny → `guard deny always <requestId>`
 
