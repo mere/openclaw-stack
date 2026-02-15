@@ -17,11 +17,13 @@ When you add or edit a tool script on Guard:
 2) update policy if needed
 3) run `./scripts/guard-tool-sync.sh`
 
-## Worker usage (minimal)
+## Worker usage (blocking call)
+
+Only one mode exists: blocking `call`.
 
 - `call "poems.read" --reason "..." --timeout 30`
 - `call "git status --short" --reason "..." --timeout 30`
-- `request "poems.write" --reason "..."`
+- `call "poems.write" --reason "..." --timeout 180`
 
 (Worker wrappers map to `tools/bridge` under the hood.)
 

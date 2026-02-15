@@ -94,8 +94,8 @@ def execute_action(action, args):
         parsed = {'ok': proc.returncode == 0, 'raw': raw}
     return proc.returncode, parsed
 
-def execute_command(command):
-    proc = subprocess.run(['/opt/openclaw-stack/scripts/guard-exec-command.py', command], capture_output=True, text=True)
+def analyze_command(command):
+    proc = subprocess.run(['/opt/openclaw-stack/scripts/guard-command-engine.py', 'analyze', command], capture_output=True, text=True)
     raw = (proc.stdout or '').strip() or (proc.stderr or '').strip()
     try:
         parsed = json.loads(raw) if raw else {'ok': proc.returncode == 0}
@@ -103,15 +103,14 @@ def execute_command(command):
         parsed = {'ok': proc.returncode == 0, 'raw': raw}
     return proc.returncode, parsed
 
-def decision_for_command(command):
-    cfg = load_json(CMD_POLICY_PATH, DEFAULT_CMD_POLICY)
-    for rule in cfg.get('rules',[]):
-        try:
-            if re.search(rule.get('pattern','^$'), command):
-                return rule.get('decision','rejected'), rule.get('id','unknown')
-        except re.error:
-            continue
-    return 'rejected', 'no_match'
+def execute_command(command):
+    proc = subprocess.run(['/opt/openclaw-stack/scripts/guard-command-engine.py', 'execute', command], capture_output=True, text=True)
+    raw = (proc.stdout or '').strip() or (proc.stderr or '').strip()
+    try:
+        parsed = json.loads(raw) if raw else {'ok': proc.returncode == 0}
+    except Exception:
+        parsed = {'ok': proc.returncode == 0, 'raw': raw}
+    return proc.returncode, parsed
 
 def process_one(path):
     req = load_json(path, None)
@@ -142,18 +141,53 @@ def process_one(path):
         if not command:
             write_out(rid, {'requestId':rid,'shortId':short_id(rid),'status':'rejected','error':'missing_command_or_action','completedAt':now_iso()})
             return True
-        decision, matched = decision_for_command(command)
+        arc, analysis = analyze_command(command)
+        if not isinstance(analysis, dict) or not analysis.get('ok'):
+            write_out(rid, {'requestId':rid,'shortId':short_id(rid),'status':'rejected','error':'command_analysis_failed','result':analysis,'completedAt':now_iso()})
+            audit({'ts':now_iso(),'event':'rejected','requestId':rid,'requestedBy':who,'matchedRule':'analysis_failed','reason':reason})
+            return True
+        decision = analysis.get('decision', 'rejected')
+        matched_ids = analysis.get('matchedRuleIds', [])
+        matched = 'command:' + ','.join([str(x) for x in matched_ids]) if matched_ids else 'command:no_match'
+        # stash analysis for later (approval + audit)
+        req['_analysis'] = analysis
 
     if decision == 'rejected':
-        write_out(rid, {'requestId':rid,'shortId':short_id(rid),'status':'rejected','error':'policy_rejected','matchedRule':matched,'completedAt':now_iso()})
+        analysis = req.get('_analysis') if isinstance(req, dict) else None
+        write_out(rid, {
+            'requestId':rid,
+            'shortId':short_id(rid),
+            'status':'rejected',
+            'error':'policy_rejected',
+            'matchedRule':matched,
+            'matchedRuleIds': (analysis.get('matchedRuleIds') if isinstance(analysis, dict) else None),
+            'completedAt':now_iso()
+        })
         audit({'ts':now_iso(),'event':'rejected','requestId':rid,'requestedBy':who,'matchedRule':matched,'reason':reason})
         return True
 
     if decision == 'ask':
         pending = load_json(PENDING_PATH, {})
-        pending[rid] = {'request': req, 'createdAt': now_iso(), 'state': 'pending_approval', 'matchedRule': matched}
+        analysis = req.get('_analysis') if isinstance(req, dict) else None
+        pending[rid] = {
+            'request': req,
+            'createdAt': now_iso(),
+            'state': 'pending_approval',
+            'matchedRule': matched,
+            'matchedRuleIds': (analysis.get('matchedRuleIds') if isinstance(analysis, dict) else None),
+            'analysis': analysis,
+        }
         PENDING_PATH.write_text(json.dumps(pending, indent=2) + '\n')
-        write_out(rid, {'requestId':rid,'shortId':short_id(rid),'status':'pending_approval','matchedRule':matched,'message':'Awaiting guard approval','completedAt':now_iso()})
+        analysis = req.get('_analysis') if isinstance(req, dict) else None
+        write_out(rid, {
+            'requestId':rid,
+            'shortId':short_id(rid),
+            'status':'pending_approval',
+            'matchedRule':matched,
+            'matchedRuleIds': (analysis.get('matchedRuleIds') if isinstance(analysis, dict) else None),
+            'message':'Awaiting guard approval',
+            'completedAt':now_iso()
+        })
         audit({'ts':now_iso(),'event':'pending_approval','requestId':rid,'requestedBy':who,'matchedRule':matched,'reason':reason})
         wake_guard_for_ask(req, matched)
         return True

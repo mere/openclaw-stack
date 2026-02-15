@@ -70,6 +70,12 @@ if not item:
     print('request_not_found'); sys.exit(1)
 req=item['request']
 matched=item.get('matchedRule','')
+matched_ids=item.get('matchedRuleIds')
+if not isinstance(matched_ids, list):
+    # fallback: try to read from analysis
+    an=item.get('analysis')
+    if isinstance(an, dict) and isinstance(an.get('matchedRuleIds'), list):
+        matched_ids=an.get('matchedRuleIds')
 
 if mode=='always':
     if matched.startswith('action:'):
@@ -79,8 +85,13 @@ if mode=='always':
         policy_p.write_text(json.dumps(pol, indent=2)+'\n')
     else:
         cp=json.loads(cmd_policy_p.read_text() if cmd_policy_p.exists() else '{"rules":[]}')
+        ids=set([str(x) for x in matched_ids]) if isinstance(matched_ids, list) else set()
+        # If we don't know which rule(s) matched, we refuse to set always.
+        if not ids:
+            print('cannot_set_always_without_matchedRuleIds')
+            sys.exit(2)
         for r in cp.get('rules',[]):
-            if r.get('id')==matched:
+            if r.get('id') in ids:
                 r['decision']='approved' if action=='approve' else 'rejected'
         cmd_policy_p.write_text(json.dumps(cp, indent=2)+'\n')
 
