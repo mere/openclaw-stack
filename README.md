@@ -51,47 +51,26 @@ sudo ./stop.sh
 
 ## Privilege Bridge
 
-See [GUARD_BRIDGE.md](./GUARD_BRIDGE.md) for the Worker→Guard bridge model, approval map (approved|rejected|ask), and Telegram decision flow. and Telegram decision flow.
+Script-first model:
+- Guard edits tool scripts directly (`scripts/guard-*.sh`, `scripts/guard-*.py`)
+- Worker calls tools through bridge
+- Guard policies decide approved/ask/rejected
 
-## Bridge operations (v1)
+Quick use (minimal syntax):
 
 ```bash
-# Worker submits request
-./scripts/worker-bridge.sh request email.list '{"account":"icloud","limit":10}'
+# in worker workspace
+call "poems.read" --reason "User asked for poem" --timeout 30
+call "git status --short" --reason "User asked for repo status" --timeout 30
+request "poems.write" --reason "User asked me to write poem"
+```
 
-# Guard processes one queued request
-./scripts/guard-bridge.sh run-once
+Guard maintenance:
 
-# Guard reviews pending approvals
+```bash
+./scripts/guard-tool-sync.sh
 ./scripts/guard-bridge.sh pending
-
-# Guard approves/rejects a pending request (once or always)
 ./scripts/guard-bridge.sh approve <requestId> once
-./scripts/guard-bridge.sh reject <requestId> always
 ```
 
-
-### Bridge quick examples
-
-```bash
-# command request with reason
-./scripts/worker-bridge.sh request-run "himalaya envelope list --folder Inbox" "User asked for unread inbox summary"
-
-# process one request on guard
-./scripts/guard-bridge.sh run-once
-
-# inspect pending + policies
-./scripts/guard-bridge.sh pending
-./scripts/guard-bridge.sh command-policy
-```
-
-
-### Async bridge calls
-
-```bash
-# returns final result (waits); times out if still pending approval
-./scripts/worker-bridge.sh call poems.read "{}" "User asked for poem of the day" 60
-
-# ask flow: waits until approval or timeout
-./scripts/worker-bridge.sh call poems.write "{}" "User asked me to write a poem" 120
-```
+See [GUARD_BRIDGE.md](./GUARD_BRIDGE.md).

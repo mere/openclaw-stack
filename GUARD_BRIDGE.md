@@ -1,68 +1,44 @@
-# Guard Bridge Design (Worker → Guard)
+# Guard Bridge (simple, script-first)
 
-## Purpose
+## Model
 
-Safe privileged delegation from Worker to Guard.
+- Guard owns tool scripts and policies.
+- Worker can only submit calls and read results/catalog.
+- No extra management API layer.
 
-- Worker submits requests.
-- Guard enforces policy.
-- Unknown requests are denied.
+## Source of truth (Guard)
 
-## Request schema
+- Tool scripts: `scripts/guard-*.sh`, `scripts/guard-*.py`
+- Action policy: guard state policy json
+- Command policy: guard state command-policy json
 
-All requests require:
-- `requestId`
-- `requestedBy`
-- `reason` (why Worker is asking)
-- one of:
-  - `action` + `args`
-  - `command` (single atomic command string)
+When you add or edit a tool script on Guard:
+1) edit script
+2) update policy if needed
+3) run `./scripts/guard-tool-sync.sh`
 
-## Strict command parser (command requests)
+## Worker usage (minimal)
 
-Guard rejects non-atomic/malicious command strings, including:
-- shell chaining/operators (`;`, `|`, `&&`, backticks, redirects, newlines)
-- eval-style patterns (`bash -c`, `sh -c`, `python -c`, `node -e`, etc.)
-- common encoding trickery (`base64`, `xxd -r`, `openssl enc`)
+- `call "poems.read" --reason "..." --timeout 30`
+- `call "git status --short" --reason "..." --timeout 30`
+- `request "poems.write" --reason "..."`
 
-Command execution uses argument parsing + direct subprocess execution (`shell=False`).
+(Worker wrappers map to `tools/bridge` under the hood.)
 
-## Policy model
+## Policy decisions
 
-### Action policy
-`/var/lib/openclaw/guard-state/bridge/policy.json`
+- `approved` => immediate execution
+- `ask` => pending approval, then execute/reject
+- `rejected` => immediate deny
 
-Values: `approved | ask | rejected`
+## Runtime files
 
-### Command policy (regex rules)
-`/var/lib/openclaw/guard-state/bridge/command-policy.json`
-
-Rule fields:
-- `id`
-- `pattern` (regex)
-- `decision` (`approved|ask|rejected`)
-
-First matching rule wins. No match = rejected.
-
-## Ask flow + wake
-
-When decision is `ask`:
-1. Request is stored in pending map.
-2. Outbox receives `pending_approval`.
-3. Guard runner emits a system event to wake Guard AI immediately:
-   - `openclaw system event --mode now --text "...approval needed..."`
-
-Guard AI then sends Telegram approval buttons (Approve / Reject / Always approve / Always reject).
-
-## Approval persistence
-
-For `always` decisions:
-- action requests update `policy.json`
-- command requests update matching rule decision in `command-policy.json`
-
-## Files
-
+Host shared bridge:
 - Inbox: `/var/lib/openclaw/bridge/inbox/*.json`
 - Outbox: `/var/lib/openclaw/bridge/outbox/*.json`
-- Pending: `/var/lib/openclaw/guard-state/bridge/pending.json`
 - Audit: `/var/lib/openclaw/bridge/audit/bridge-audit.jsonl`
+
+Guard state:
+- Policy: `/home/node/.openclaw/bridge/policy.json` (inside guard container)
+- Command policy: `/home/node/.openclaw/bridge/command-policy.json` (inside guard container)
+- Pending: `/home/node/.openclaw/bridge/pending.json` (inside guard container)

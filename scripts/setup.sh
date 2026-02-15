@@ -154,8 +154,12 @@ ensure_role_context(){
 You are the daily assistant instance.
 - Focus: chat, planning, research, automations, browser workflows.
 - Do NOT perform privileged host/docker/admin actions directly.
-- For privileged actions, ask guard for approval/execution.
-- Keep user interaction friendly and practical.
+- Use bridge with minimal syntax:
+  - call "<action-or-command>" --reason "..." --timeout 30
+  - request "<action-or-command>" --reason "..."
+- Examples:
+  - call "poems.read" --reason "User asked for poem" --timeout 30
+  - call "git status --short" --reason "User asked for repo status" --timeout 30
 EOF
 
   cat > "$guard_ws/ROLE.md" <<'EOF'
@@ -163,9 +167,9 @@ EOF
 
 You are the control-plane safety instance.
 - Focus: privileged operations, approvals, system changes, secrets access.
+- Tool management is script-first: edit `scripts/guard-*` directly.
+- After tool changes, run: `./scripts/guard-tool-sync.sh`
 - Keep behavior strict/minimal and security-first.
-- Avoid day-to-day chat tasks unless explicitly requested.
-- When possible, execute sensitive actions only after explicit user confirmation.
 EOF
 
   chown 1000:1000 "$worker_ws/ROLE.md" "$guard_ws/ROLE.md" 2>/dev/null || true
@@ -408,11 +412,11 @@ step_auth_tokens(){
   echo "  ./openclaw-guard config get gateway.auth.token"
   echo "  ./openclaw-worker doctor --generate-gateway-token"
   echo "  ./openclaw-guard doctor --generate-gateway-token"
-  echo "  ./scripts/worker-bridge.sh request email.list '{"account":"icloud","limit":10}'"
-  echo "  ./scripts/guard-bridge.sh run-once"
+  echo "  call "poems.read" --reason "User asked for poem" --timeout 30"
+  echo "  ./scripts/guard-tool-sync.sh"
   echo "  ./scripts/guard-bridge.sh pending"
-  echo "  ./scripts/worker-bridge.sh call poems.read '{}' 'User asked for poem of the day'"
-  echo "  ./scripts/worker-bridge.sh call poems.write '{}' 'User asked to write poem' 90"
+  echo "  call "git status --short" --reason "User asked for repo status" --timeout 30"
+  echo "  request "poems.write" --reason "User asked me to write poem""
 }
 
 run_all(){
