@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ACTION=${1:-help}
-PENDING=/var/lib/openclaw/guard-state/bridge/pending.json
-POLICY=/var/lib/openclaw/guard-state/bridge/policy.json
-CMD_POLICY=/var/lib/openclaw/guard-state/bridge/command-policy.json
+PENDING=/home/node/.openclaw/bridge/pending.json
+POLICY=/home/node/.openclaw/bridge/policy.json
+CMD_POLICY=/home/node/.openclaw/bridge/command-policy.json
 
 case "$ACTION" in
   run-once)
@@ -25,9 +25,9 @@ case "$ACTION" in
     python3 - "$ACTION" "$REQ" "$MODE" <<'PY'
 import json, pathlib, subprocess, sys, re
 action, req_id, mode = sys.argv[1], sys.argv[2], sys.argv[3]
-pending_p=pathlib.Path('/var/lib/openclaw/guard-state/bridge/pending.json')
-policy_p=pathlib.Path('/var/lib/openclaw/guard-state/bridge/policy.json')
-cmd_policy_p=pathlib.Path('/var/lib/openclaw/guard-state/bridge/command-policy.json')
+pending_p=pathlib.Path('/home/node/.openclaw/bridge/pending.json')
+policy_p=pathlib.Path('/home/node/.openclaw/bridge/policy.json')
+cmd_policy_p=pathlib.Path('/home/node/.openclaw/bridge/command-policy.json')
 outbox=pathlib.Path('/var/lib/openclaw/bridge/outbox'); outbox.mkdir(parents=True, exist_ok=True)
 
 def now():

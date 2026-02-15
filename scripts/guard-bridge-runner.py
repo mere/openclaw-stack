@@ -5,9 +5,9 @@ BRIDGE_ROOT = pathlib.Path('/var/lib/openclaw/bridge')
 INBOX = BRIDGE_ROOT / 'inbox'
 OUTBOX = BRIDGE_ROOT / 'outbox'
 AUDIT = BRIDGE_ROOT / 'audit' / 'bridge-audit.jsonl'
-POLICY_PATH = pathlib.Path('/var/lib/openclaw/guard-state/bridge/policy.json')
-CMD_POLICY_PATH = pathlib.Path('/var/lib/openclaw/guard-state/bridge/command-policy.json')
-PENDING_PATH = pathlib.Path('/var/lib/openclaw/guard-state/bridge/pending.json')
+POLICY_PATH = pathlib.Path('/home/node/.openclaw/bridge/policy.json')
+CMD_POLICY_PATH = pathlib.Path('/home/node/.openclaw/bridge/command-policy.json')
+PENDING_PATH = pathlib.Path('/home/node/.openclaw/bridge/pending.json')
 
 DEFAULT_POLICY = {
     'email.list': 'approved',
