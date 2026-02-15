@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 CMD=${1:-help}
+shift || true
 ROOT=/var/lib/openclaw/bridge
 INBOX=$ROOT/inbox
 OUTBOX=$ROOT/outbox
@@ -69,35 +70,75 @@ print(rid)
 PY
 }
 
+parse_flags() {
+  local call="" run="" args="{}" reason="" timeout="120"
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --call) call="${2:-}"; shift 2 ;;
+      --run) run="${2:-}"; shift 2 ;;
+      --args) args="${2:-{}}"; shift 2 ;;
+      --reason) reason="${2:-}"; shift 2 ;;
+      --timeout) timeout="${2:-120}"; shift 2 ;;
+      *) echo "unknown flag: $1"; exit 1 ;;
+    esac
+  done
+  printf '%s\n%s\n%s\n%s\n%s\n' "$call" "$run" "$args" "$reason" "$timeout"
+}
+
 case "$CMD" in
   request)
-    ACTION=${2:-}; ARGS=${3:-"{}"}; REASON=${4:-}
-    [ -n "$ACTION" ] || { echo "usage: $0 request <action> '<args-json>' <reason>"; exit 1; }
-    [ -n "$REASON" ] || { echo "reason required"; exit 1; }
-    submit_action "$ACTION" "$ARGS" "$REASON"
+    if [ "${1:-}" = "--call" ] || [ "${1:-}" = "--run" ]; then
+      mapfile -t F < <(parse_flags "$@")
+      CALL="${F[0]}"; RUN="${F[1]}"; ARGS="${F[2]}"; REASON="${F[3]}"
+      [ -n "$REASON" ] || { echo "reason required"; exit 1; }
+      if [ -n "$RUN" ]; then
+        submit_command "$RUN" "$REASON"
+      else
+        [ -n "$CALL" ] || { echo "--call required"; exit 1; }
+        submit_action "$CALL" "$ARGS" "$REASON"
+      fi
+    else
+      ACTION=${1:-}; ARGS=${2:-"{}"}; REASON=${3:-}
+      [ -n "$ACTION" ] || { echo "usage: $0 request <action> '<args-json>' <reason>"; exit 1; }
+      [ -n "$REASON" ] || { echo "reason required"; exit 1; }
+      submit_action "$ACTION" "$ARGS" "$REASON"
+    fi
     ;;
   request-run)
-    COMMAND=${2:-}; REASON=${3:-}
+    COMMAND=${1:-}; REASON=${2:-}
     [ -n "$COMMAND" ] || { echo "usage: $0 request-run '<command>' '<reason>'"; exit 1; }
     [ -n "$REASON" ] || { echo "reason required"; exit 1; }
     submit_command "$COMMAND" "$REASON"
     ;;
   call)
-    ACTION=${2:-}; ARGS=${3:-"{}"}; REASON=${4:-}; TIMEOUT=${5:-120}
-    [ -n "$ACTION" ] || { echo "usage: $0 call <action> '<args-json>' <reason> [timeoutSec]"; exit 1; }
-    [ -n "$REASON" ] || { echo "reason required"; exit 1; }
-    RID=$(submit_action "$ACTION" "$ARGS" "$REASON")
-    wait_result "$RID" "$TIMEOUT"
+    if [ "${1:-}" = "--call" ] || [ "${1:-}" = "--run" ]; then
+      mapfile -t F < <(parse_flags "$@")
+      CALL="${F[0]}"; RUN="${F[1]}"; ARGS="${F[2]}"; REASON="${F[3]}"; TIMEOUT="${F[4]}"
+      [ -n "$REASON" ] || { echo "reason required"; exit 1; }
+      if [ -n "$RUN" ]; then
+        RID=$(submit_command "$RUN" "$REASON")
+      else
+        [ -n "$CALL" ] || { echo "--call required"; exit 1; }
+        RID=$(submit_action "$CALL" "$ARGS" "$REASON")
+      fi
+      wait_result "$RID" "$TIMEOUT"
+    else
+      ACTION=${1:-}; ARGS=${2:-"{}"}; REASON=${3:-}; TIMEOUT=${4:-120}
+      [ -n "$ACTION" ] || { echo "usage: $0 call <action> '<args-json>' <reason> [timeoutSec]"; exit 1; }
+      [ -n "$REASON" ] || { echo "reason required"; exit 1; }
+      RID=$(submit_action "$ACTION" "$ARGS" "$REASON")
+      wait_result "$RID" "$TIMEOUT"
+    fi
     ;;
   call-run)
-    COMMAND=${2:-}; REASON=${3:-}; TIMEOUT=${4:-120}
+    COMMAND=${1:-}; REASON=${2:-}; TIMEOUT=${3:-120}
     [ -n "$COMMAND" ] || { echo "usage: $0 call-run '<command>' '<reason>' [timeoutSec]"; exit 1; }
     [ -n "$REASON" ] || { echo "reason required"; exit 1; }
     RID=$(submit_command "$COMMAND" "$REASON")
     wait_result "$RID" "$TIMEOUT"
     ;;
   result)
-    RID=${2:-}; [ -n "$RID" ] || { echo "usage: $0 result <requestId>"; exit 1; }
+    RID=${1:-}; [ -n "$RID" ] || { echo "usage: $0 result <requestId>"; exit 1; }
     cat "$OUTBOX/$RID.json"
     ;;
   catalog)
@@ -107,8 +148,12 @@ case "$CMD" in
     cat <<EOF
 Usage:
   $0 request <action> '<args-json>' '<reason>'
-  $0 request-run '<command>' '<reason>'
+  $0 request --call <action> --args '<args-json>' --reason '<reason>'
+  $0 request --run '<command>' --reason '<reason>'
   $0 call <action> '<args-json>' '<reason>' [timeoutSec]
+  $0 call --call <action> --args '<args-json>' --reason '<reason>' --timeout 120
+  $0 call --run '<command>' --reason '<reason>' --timeout 120
+  $0 request-run '<command>' '<reason>'
   $0 call-run '<command>' '<reason>' [timeoutSec]
   $0 result <requestId>
   $0 catalog
