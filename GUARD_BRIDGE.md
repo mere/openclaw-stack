@@ -42,3 +42,16 @@ Guard state:
 - Policy: `/home/node/.openclaw/bridge/policy.json` (inside guard container)
 - Command policy: `/home/node/.openclaw/bridge/command-policy.json` (inside guard container)
 - Pending: `/home/node/.openclaw/bridge/pending.json` (inside guard container)
+
+
+## Approval parsing + identity matching
+
+Use strict decision text parsing:
+- `^guard approve ([a-f0-9-]{36})$`
+- `^guard approve always ([a-f0-9-]{36})$`
+- `^guard deny ([a-f0-9-]{36})$`
+- `^guard deny always ([a-f0-9-]{36})$`
+
+Match approvals using stable identity (`provider + chatId`), not display/conversation labels.
+
+Fallback (trusted DM only): allow requestId-only routing if identity normalization fails, and log this downgrade.

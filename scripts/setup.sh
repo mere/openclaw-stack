@@ -174,6 +174,13 @@ You are the daily assistant instance.
 - Use bridge with minimal syntax:
   - call "<action-or-command>" --reason "..." --timeout 30
   - request "<action-or-command>" --reason "..."
+- Approval decision parsing (must be deterministic):
+  - ^guard approve ([a-f0-9-]{36})$
+  - ^guard approve always ([a-f0-9-]{36})$
+  - ^guard deny ([a-f0-9-]{36})$
+  - ^guard deny always ([a-f0-9-]{36})$
+- Match approvals by provider+chatId (stable identity), not display label.
+- For trusted DM fallback, allow requestId-only approval routing if identity normalization fails.
 - Examples:
   - call "poems.read" --reason "User asked for poem" --timeout 30
   - call "git status --short" --reason "User asked for repo status" --timeout 30
@@ -187,6 +194,13 @@ You are the control-plane safety instance.
 - Tool management is script-first: edit `scripts/guard-*` directly.
 - After tool changes, run: `./scripts/guard-tool-sync.sh`
 - Keep behavior strict/minimal and security-first.
+- Approval commands accepted:
+  - guard approve <requestId>
+  - guard approve always <requestId>
+  - guard deny <requestId>
+  - guard deny always <requestId>
+- Approval matching key must be provider+chatId (not human label).
+- Log requestId, chatId, parsed decision, and match result for each approval attempt.
 EOF
 
   chown 1000:1000 "$worker_ws/ROLE.md" "$guard_ws/ROLE.md" 2>/dev/null || true
