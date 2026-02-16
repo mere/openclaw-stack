@@ -36,7 +36,12 @@ services:
     command: ["node","dist/index.js","gateway","--bind","loopback","--port","18789","--allow-unconfigured"]
 
   openclaw-guard:
-    image: ${OPENCLAW_IMAGE:-ghcr.io/openclaw/openclaw:main}
+    image: ${OPENCLAW_GUARD_IMAGE:-openclaw-guard-tools:local}
+    build:
+      context: .
+      dockerfile: docker/openclaw-tools.Dockerfile
+      args:
+        OPENCLAW_BASE_IMAGE: ${OPENCLAW_IMAGE:-ghcr.io/openclaw/openclaw:main}
     container_name: ${INSTANCE:-chloe}-openclaw-guard
     network_mode: host
     environment:

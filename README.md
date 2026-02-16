@@ -43,10 +43,30 @@ sudo ./healthcheck.sh
 sudo ./stop.sh
 ```
 
+## Core instructions sync (worker + guard)
+
+This repo now carries core instruction files under:
+
+- `core/worker/*.md`
+- `core/guard/*.md`
+
+On `start.sh` (and setup start actions), the script `scripts/sync-workspaces.sh` updates the runtime workspaces:
+
+- `/var/lib/openclaw/workspace`
+- `/var/lib/openclaw/guard-workspace`
+
+Each managed file keeps two marker blocks:
+
+- `<!-- CORE:BEGIN --> ... <!-- CORE:END -->` (updated from repo)
+- `<!-- LOCAL:BEGIN --> ... <!-- LOCAL:END -->` (preserved local custom layer)
+
+So repo updates refresh core instructions while keeping local edits intact.
+
 ## Notes
 
 - Worker has no break-glass path; privileged actions are guard-only.
 - Guard uses docker.sock + repo mount for controlled admin operations.
+- Guard image can include extra admin CLIs (Bitwarden/Himalaya/WhatsApp CLI); worker stays minimal.
 - Keep secrets out of git. Use `/var/lib/openclaw/guard-state/secrets/`.
 
 ## Privilege Bridge
@@ -59,10 +79,10 @@ Script-first model:
 Quick use (minimal syntax):
 
 ```bash
-# in worker workspace
+# in worker workspace (blocking call only)
 call "poems.read" --reason "User asked for poem" --timeout 30
 call "git status --short" --reason "User asked for repo status" --timeout 30
-request "poems.write" --reason "User asked me to write poem"
+call "poems.write" --reason "User asked me to write poem" --timeout 180
 ```
 
 Guard maintenance:

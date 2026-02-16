@@ -173,7 +173,6 @@ You are the daily assistant instance.
 - Do NOT perform privileged host/docker/admin actions directly.
 - Use bridge with minimal syntax:
   - call "<action-or-command>" --reason "..." --timeout 30
-  - request "<action-or-command>" --reason "..."
 - Approval decision parsing (must be deterministic):
   - ^guard approve ([a-f0-9-]{8,36})$
   - ^guard approve always ([a-f0-9-]{8,36})$
@@ -295,6 +294,10 @@ EOF
 
 
 
+sync_core_workspaces(){
+  "$STACK_DIR/scripts/sync-workspaces.sh" >/dev/null 2>&1 || true
+}
+
 ensure_repo_writable_for_guard(){
   say "Ensure repo is writable for guard"
   say "Why: allows guard to patch stack scripts without elevated tool mode."
@@ -408,6 +411,7 @@ step_tailscale(){
 }
 
 step_start_guard(){
+  sync_core_workspaces
   say "Start guard service"
   say "Why: guard handles oversight and privileged pathways."
   if container_running "$guard_name"; then ok "Guard already running"; return; fi
@@ -417,6 +421,7 @@ step_start_guard(){
 }
 
 step_start_worker(){
+  sync_core_workspaces
   say "Start worker service"
   say "Why: worker is your daily assistant runtime."
   if container_running "$worker_name"; then ok "Worker already running"; return; fi
@@ -435,6 +440,7 @@ step_start_browser(){
 }
 
 step_start_all(){
+  sync_core_workspaces
   ensure_repo_writable_for_guard
   ensure_browser_profile
   ensure_inline_buttons
@@ -540,7 +546,7 @@ step_auth_tokens(){
   echo "  ./scripts/guard-tool-sync.sh"
   echo "  ./scripts/guard-bridge.sh pending"
   echo "  call "git status --short" --reason "User asked for repo status" --timeout 30"
-  echo "  request "poems.write" --reason "User asked me to write poem""
+  echo "  call "poems.write" --reason "User asked me to write poem" --timeout 180"
 }
 
 run_all(){

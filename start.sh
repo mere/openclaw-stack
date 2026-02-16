@@ -8,6 +8,9 @@ COMPOSE_FILE=${COMPOSE_FILE:-$STACK_DIR/compose.yml}
 
 cd "$STACK_DIR"
 
+echo "[start] syncing core instructions into workspaces"
+"$STACK_DIR/scripts/sync-workspaces.sh"
+
 echo "[start] pulling images"
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" pull
 
