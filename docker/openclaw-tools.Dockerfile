@@ -17,16 +17,6 @@ RUN apt-get update \
 # Bitwarden CLI
 RUN npm i -g @bitwarden/cli
 
-# WhatsApp CLI (official release artifact)
-RUN case "${TARGETARCH}" in \
-      amd64) WACLI_URL="https://github.com/steipete/wacli/releases/latest/download/wacli_Linux_x86_64.tar.gz" ;; \
-      arm64) WACLI_URL="https://github.com/steipete/wacli/releases/latest/download/wacli_Linux_arm64.tar.gz" ;; \
-      *) echo "Unsupported TARGETARCH=${TARGETARCH}" >&2; exit 1 ;; \
-    esac \
- && (curl -fsSL "$WACLI_URL" || curl -fsSL "https://github.com/steipete/wacli/releases/latest/download/wacli_Linux_aarch64.tar.gz") \
-  | tar -xz -C /usr/local/bin wacli \
- && chmod +x /usr/local/bin/wacli
-
 # Himalaya mail CLI (official release artifact)
 RUN case "${TARGETARCH}" in \
       amd64) HIMALAYA_ARCH="x86_64" ;; \
