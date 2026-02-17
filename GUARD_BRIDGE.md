@@ -24,7 +24,7 @@ Only one mode exists: blocking `call`.
 - `call "git status --short" --reason "..." --timeout 30`
 - `call "himalaya envelope list -a icloud -s 20 -o json" --reason "check inbox" --timeout 120`
 - `call "himalaya message read -a icloud 38400" --reason "read one email" --timeout 120`
-- `call "cd /opt/openclaw-stack && git pull && ./start.sh" --reason "update stack" --timeout 600`
+- `call "cd /opt/op-and-chloe && git pull && ./start.sh" --reason "update stack" --timeout 600`
 
 No action wrappers. Use direct commands through `command.run` policy map.
 
@@ -70,4 +70,4 @@ Fallback (trusted DM only): allow requestId-only routing if identity normalizati
 - 🛑 Always deny → `guard deny always <requestId>`
 
 Decision parser command:
-- `/opt/openclaw-stack/scripts/guard-bridge.sh decision "<incoming text>"`
+- `/opt/op-and-chloe/scripts/guard-bridge.sh decision "<incoming text>"`

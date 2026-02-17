@@ -41,7 +41,7 @@ if not CMD_POLICY_PATH.exists():
 if not PENDING_PATH.exists():
     PENDING_PATH.write_text('{}\n')
 
-subprocess.run(['/opt/openclaw-stack/scripts/guard-bridge-catalog.py'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+subprocess.run(['/opt/op-and-chloe/scripts/guard-bridge-catalog.py'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 def short_id(rid):
     return rid or ''
@@ -83,7 +83,7 @@ def execute_action(action, args):
     return proc.returncode, parsed
 
 def analyze_command(command):
-    proc = subprocess.run(['/opt/openclaw-stack/scripts/guard-command-engine.py', 'analyze', command], capture_output=True, text=True)
+    proc = subprocess.run(['/opt/op-and-chloe/scripts/guard-command-engine.py', 'analyze', command], capture_output=True, text=True)
     raw = (proc.stdout or '').strip() or (proc.stderr or '').strip()
     try:
         parsed = json.loads(raw) if raw else {'ok': proc.returncode == 0}
@@ -92,7 +92,7 @@ def analyze_command(command):
     return proc.returncode, parsed
 
 def execute_command(command):
-    proc = subprocess.run(['/opt/openclaw-stack/scripts/guard-command-engine.py', 'execute', command], capture_output=True, text=True)
+    proc = subprocess.run(['/opt/op-and-chloe/scripts/guard-command-engine.py', 'execute', command], capture_output=True, text=True)
     raw = (proc.stdout or '').strip() or (proc.stderr or '').strip()
     try:
         parsed = json.loads(raw) if raw else {'ok': proc.returncode == 0}

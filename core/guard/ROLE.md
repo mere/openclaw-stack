@@ -17,5 +17,5 @@ Approval commands accepted (short id or full requestId):
 
 Auto-decision hook (must):
 When an incoming message matches an approval command, immediately run:
-- /opt/openclaw-stack/scripts/guard-bridge.sh decision "<exact message text>"
+- /opt/op-and-chloe/scripts/guard-bridge.sh decision "<exact message text>"
 Then report final outbox status.

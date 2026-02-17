@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 set -euo pipefail
 # Short wrapper for worker bridge operations
-exec /opt/openclaw-stack/scripts/worker-bridge.sh "$@"
+exec /opt/op-and-chloe/scripts/worker-bridge.sh "$@"

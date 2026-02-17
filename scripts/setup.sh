@@ -299,7 +299,7 @@ Regex:
 - ^guard deny always ([a-f0-9]{8})$
 
 Execution:
-- /opt/openclaw-stack/scripts/guard-bridge.sh decision "<incoming text>"
+- /opt/op-and-chloe/scripts/guard-bridge.sh decision "<incoming text>"
 EOF
   chown 1000:1000 "$gws/APPROVALS.md" 2>/dev/null || true
 }
@@ -321,9 +321,9 @@ ensure_repo_writable_for_guard(){
   git -C "$STACK_DIR" config core.fileMode false 2>/dev/null || true
   git config --global --add safe.directory "$STACK_DIR" 2>/dev/null || true
 
-  # Also inside guard container (path is /opt/openclaw-stack)
+  # Also inside guard container (path is /opt/op-and-chloe)
   if container_running "$guard_name"; then
-    docker exec "$guard_name" sh -lc 'git config --global --add safe.directory /opt/openclaw-stack >/dev/null 2>&1 || true'
+    docker exec "$guard_name" sh -lc 'git config --global --add safe.directory /opt/op-and-chloe >/dev/null 2>&1 || true'
   fi
 
   ok "Repo permissions/safe.directory configured"

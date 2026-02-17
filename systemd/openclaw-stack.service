@@ -6,10 +6,10 @@ Wants=network-online.target docker.service
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-WorkingDirectory=/opt/openclaw-stack
+WorkingDirectory=/opt/op-and-chloe
 EnvironmentFile=-/etc/openclaw/stack.env
-ExecStart=/usr/bin/docker compose -f /opt/openclaw-stack/compose.yml up -d
-ExecStop=/usr/bin/docker compose -f /opt/openclaw-stack/compose.yml down
+ExecStart=/usr/bin/docker compose -f /opt/op-and-chloe/compose.yml up -d
+ExecStop=/usr/bin/docker compose -f /opt/op-and-chloe/compose.yml down
 TimeoutStartSec=0
 
 [Install]

@@ -12,8 +12,8 @@ See architecture details in [ARCHITECTURE.md](./ARCHITECTURE.md).
 ## Quick start
 
 ```bash
-git clone https://github.com/mere/openclaw-stack.git
-cd openclaw-stack
+git clone https://github.com/mere/op-and-chloe.git
+cd op-and-chloe
 sudo ./scripts/setup.sh
 ```
 
@@ -43,7 +43,7 @@ flowchart LR
   BW[(Bitwarden)]
   BR[(Bridge inbox/outbox)]
   D[/var/run/docker.sock/]
-  R[/opt/openclaw-stack/]
+  R[/opt/op-and-chloe/]
 
   U --> C
   U --> O
@@ -125,7 +125,7 @@ Examples:
 call "git status --short" --reason "User asked for repo status" --timeout 30
 call "himalaya envelope list -a icloud -s 20 -o json" --reason "User asked for inbox" --timeout 120
 call "himalaya message read -a icloud 38400" --reason "User asked to read message" --timeout 120
-call "cd /opt/openclaw-stack && git pull && ./start.sh" --reason "Update stack" --timeout 600
+call "cd /opt/op-and-chloe && git pull && ./start.sh" --reason "Update stack" --timeout 600
 ```
 
 No action wrappers. Use direct commands through `command.run` policy.
@@ -135,4 +135,8 @@ No action wrappers. Use direct commands through `command.run` policy.
 - Chloe has no direct password access.
 - Credentialed operations are proxied via Op-approved commands.
 - Bitwarden secrets are stored under `/var/lib/openclaw/guard-state/secrets/`.
+- Bridge mount separation:
+  - Chloe gets `/var/lib/openclaw/bridge` as read-only.
+  - Chloe gets `/var/lib/openclaw/bridge/inbox` as the only writable bridge path.
+  - Op keeps full bridge access for approvals, policy, and audit.
 - Prefer minimal, explicit command policy rules.

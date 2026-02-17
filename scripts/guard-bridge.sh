@@ -7,7 +7,7 @@ CMD_POLICY=/home/node/.openclaw/bridge/command-policy.json
 
 case "$ACTION" in
   run-once)
-    exec /opt/openclaw-stack/scripts/guard-bridge-runner.py
+    exec /opt/op-and-chloe/scripts/guard-bridge-runner.py
     ;;
   pending)
     cat "$PENDING" 2>/dev/null || echo '{}'
@@ -34,9 +34,23 @@ for pat,(act,mode) in patterns:
     m=re.match(pat,text,re.I)
     if m:
         rid=m.group(1)
-        raise SystemExit(subprocess.call(['/opt/openclaw-stack/scripts/guard-bridge.sh',act,rid,mode]))
+        raise SystemExit(subprocess.call(['/opt/op-and-chloe/scripts/guard-bridge.sh',act,rid,mode]))
 print('no_match')
 raise SystemExit(2)
+PY
+    ;;
+  clear-pending)
+    python3 - <<'PY'
+import json, pathlib, datetime
+pending_p=pathlib.Path('/home/node/.openclaw/bridge/pending.json')
+outbox=pathlib.Path('/var/lib/openclaw/bridge/outbox'); outbox.mkdir(parents=True, exist_ok=True)
+def now():
+    return datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat().replace('+00:00','Z')
+pending=json.loads(pending_p.read_text() if pending_p.exists() else '{}')
+for req_id in list(pending.keys()):
+    (outbox/f'{req_id}.json').write_text(json.dumps({'requestId':req_id,'status':'rejected','error':'manual_clear_pending','completedAt':now()}, indent=2)+'\n')
+pending_p.write_text('{}\n')
+print('cleared:'+str(len(pending)))
 PY
     ;;
   approve|reject)
@@ -110,7 +124,7 @@ else:
         pending_p.write_text(json.dumps(pending, indent=2)+'\n')
         print('done:'+req_id)
         sys.exit(0)
-    cmd=['/opt/openclaw-stack/scripts/guard-exec-command.py', req.get('command','')]
+    cmd=['/opt/op-and-chloe/scripts/guard-exec-command.py', req.get('command','')]
     pr=subprocess.run(cmd, capture_output=True, text=True)
     raw=(pr.stdout or '').strip() or (pr.stderr or '').strip()
     try: res=json.loads(raw) if raw else {'ok': pr.returncode==0}
@@ -130,9 +144,10 @@ Usage:
   $0 pending
   $0 policy
   $0 command-policy
+  $0 clear-pending
   $0 approve <requestId-or-prefix> [once|always]
   $0 reject <requestId-or-prefix> [once|always]
-  $0 decision "guard approve <id8+>|guard deny <id8+>|... always"
+  $0 decision "guard approve <id>|guard deny <id>|... always"
 EOF
     ;;
 esac

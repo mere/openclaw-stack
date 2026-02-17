@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-STACK_DIR=${STACK_DIR:-/opt/openclaw-stack}
+STACK_DIR=${STACK_DIR:-/opt/op-and-chloe}
 STATE_JSON=${STATE_JSON:-/var/lib/openclaw/state/openclaw.json}
 BROWSER_CONTAINER=${BROWSER_CONTAINER:-chloe-browser}
 CDP_PORT=${CDP_PORT:-9223}

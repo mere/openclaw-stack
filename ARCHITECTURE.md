@@ -29,12 +29,13 @@ Default `INSTANCE` is `op-and-chloe`.
 - Handles normal user workflows
 - Has no dedicated break-glass path
 - Must request privileged actions through guard policies
+- Bridge access is constrained to submit requests (`inbox` write) and read results (bridge read-only)
 
 ### 🐕 Op / Guard (privileged plane)
 
 - Has access to:
   - `/var/run/docker.sock`
-  - `/opt/openclaw-stack`
+  - `/opt/op-and-chloe`
   - guard state/workspace
 - Intended for approval-gated admin/secret operations only
 
@@ -49,7 +50,7 @@ flowchart LR
   W --> G
 
   G --> D[/var/run/docker.sock/]
-  G --> R[/opt/openclaw-stack repo/]
+  G --> R[/opt/op-and-chloe repo/]
   G --> S[(Bitwarden)]
 
   subgraph VPS
@@ -100,9 +101,9 @@ sequenceDiagram
 Run on VPS host:
 
 ```bash
-sudo /opt/openclaw-stack/start.sh
-sudo /opt/openclaw-stack/healthcheck.sh
-sudo /opt/openclaw-stack/stop.sh
+sudo /opt/op-and-chloe/start.sh
+sudo /opt/op-and-chloe/healthcheck.sh
+sudo /opt/op-and-chloe/stop.sh
 ```
 
 ## Current security posture

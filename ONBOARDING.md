@@ -3,8 +3,8 @@
 ## 1) Clone + run setup wizard
 
 ```bash
-git clone https://github.com/mere/openclaw-stack.git
-cd openclaw-stack
+git clone https://github.com/mere/op-and-chloe.git
+cd op-and-chloe
 sudo ./scripts/setup.sh
 ```
 
