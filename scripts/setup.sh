@@ -286,17 +286,17 @@ ensure_guard_approval_instructions(){
 # Guard Approval Flow (Telegram)
 
 Use inline buttons first:
-- 🚀 Approve -> guard approve <requestId-or-id8>
-- ❌ Deny -> guard deny <requestId-or-id8>
-- 🚀 Always approve -> guard approve always <requestId>
-- 🛑 Always deny -> guard deny always <requestId>
+- 🚀 Approve -> guard approve <id>
+- ❌ Deny -> guard deny <id>
+- 🚀 Always approve -> guard approve always <id>
+- 🛑 Always deny -> guard deny always <id>
 
 Typed text fallback uses same strings.
 Regex:
-- ^guard approve ([a-f0-9-]{8,36})$
-- ^guard approve always ([a-f0-9-]{8,36})$
-- ^guard deny ([a-f0-9-]{8,36})$
-- ^guard deny always ([a-f0-9-]{8,36})$
+- ^guard approve ([a-f0-9]{8})$
+- ^guard approve always ([a-f0-9]{8})$
+- ^guard deny ([a-f0-9]{8})$
+- ^guard deny always ([a-f0-9]{8})$
 
 Execution:
 - /opt/openclaw-stack/scripts/guard-bridge.sh decision "<incoming text>"

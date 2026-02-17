@@ -25,10 +25,10 @@ case "$ACTION" in
 import re, subprocess, sys
 text=sys.argv[1].strip()
 patterns=[
-    (r'^guard\s+approve\s+always\s+([a-f0-9-]{8,36})$', ('approve','always')),
-    (r'^guard\s+approve\s+([a-f0-9-]{8,36})$', ('approve','once')),
-    (r'^guard\s+deny\s+always\s+([a-f0-9-]{8,36})$', ('reject','always')),
-    (r'^guard\s+deny\s+([a-f0-9-]{8,36})$', ('reject','once')),
+    (r'^guard\s+approve\s+always\s+([a-f0-9]{8})$', ('approve','always')),
+    (r'^guard\s+approve\s+([a-f0-9]{8})$', ('approve','once')),
+    (r'^guard\s+deny\s+always\s+([a-f0-9]{8})$', ('reject','always')),
+    (r'^guard\s+deny\s+([a-f0-9]{8})$', ('reject','once')),
 ]
 for pat,(act,mode) in patterns:
     m=re.match(pat,text,re.I)
@@ -44,7 +44,7 @@ PY
     MODE=${3:-once}
     [ -n "$REQ" ] || { echo "usage: $0 $ACTION <requestId-or-prefix> [once|always]"; exit 1; }
     python3 - "$ACTION" "$REQ" "$MODE" <<'PY'
-import json, pathlib, subprocess, sys
+import json, pathlib, subprocess, sys, re
 action, req_in, mode = sys.argv[1], sys.argv[2], sys.argv[3]
 pending_p=pathlib.Path('/home/node/.openclaw/bridge/pending.json')
 policy_p=pathlib.Path('/home/node/.openclaw/bridge/policy.json')
@@ -78,33 +78,39 @@ if not isinstance(matched_ids, list):
         matched_ids=an.get('matchedRuleIds')
 
 if mode=='always':
-    if matched.startswith('action:'):
-        act=matched.split(':',1)[1]
-        pol=json.loads(policy_p.read_text() if policy_p.exists() else '{}')
-        pol[act]='approved' if action=='approve' else 'rejected'
-        policy_p.write_text(json.dumps(pol, indent=2)+'\n')
-    else:
-        cp=json.loads(cmd_policy_p.read_text() if cmd_policy_p.exists() else '{"rules":[]}')
-        ids=set([str(x) for x in matched_ids]) if isinstance(matched_ids, list) else set()
-        # If we don't know which rule(s) matched, we refuse to set always.
-        if not ids:
-            print('cannot_set_always_without_matchedRuleIds')
+    cp=json.loads(cmd_policy_p.read_text() if cmd_policy_p.exists() else '{"rules":[]}')
+    ids=set([str(x) for x in matched_ids]) if isinstance(matched_ids, list) else set()
+
+    # If there is no explicit match (no_match), persist an exact-command rule.
+    if (not ids) or ('no_match' in ids):
+        cmd_text=(req.get('command') or '').strip()
+        if not cmd_text:
+            print('cannot_set_always_without_command')
             sys.exit(2)
+        rid='user-'+req_id
+        escaped=re.escape(cmd_text)
+        cp.setdefault('rules', []).append({
+            'id': rid,
+            'pattern': r'^'+escaped+r'$',
+            'decision': 'approved' if action=='approve' else 'rejected',
+        })
+    else:
         for r in cp.get('rules',[]):
             if r.get('id') in ids:
                 r['decision']='approved' if action=='approve' else 'rejected'
-        cmd_policy_p.write_text(json.dumps(cp, indent=2)+'\n')
+
+    cmd_policy_p.write_text(json.dumps(cp, indent=2)+'\n')
 
 if action=='reject':
     (outbox/f'{req_id}.json').write_text(json.dumps({'requestId':req_id,'status':'rejected','error':'manual_reject','completedAt':now()}, indent=2)+'\n')
 else:
     if req.get('action'):
-        if str(req.get('action','')).startswith('poems.'):
-            cmd=['/opt/openclaw-stack/scripts/guard-poems.sh', req['action']]
-        else:
-            cmd=['/opt/openclaw-stack/scripts/guard-email.sh', req['action'], json.dumps(req.get('args',{}))]
-    else:
-        cmd=['/opt/openclaw-stack/scripts/guard-exec-command.py', req.get('command','')]
+        (outbox/f'{req_id}.json').write_text(json.dumps({'requestId':req_id,'status':'error','error':'unsupported_action','completedAt':now()}, indent=2)+'\n')
+        pending.pop(req_id, None)
+        pending_p.write_text(json.dumps(pending, indent=2)+'\n')
+        print('done:'+req_id)
+        sys.exit(0)
+    cmd=['/opt/openclaw-stack/scripts/guard-exec-command.py', req.get('command','')]
     pr=subprocess.run(cmd, capture_output=True, text=True)
     raw=(pr.stdout or '').strip() or (pr.stderr or '').strip()
     try: res=json.loads(raw) if raw else {'ok': pr.returncode==0}

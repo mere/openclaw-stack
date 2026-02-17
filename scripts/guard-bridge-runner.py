@@ -44,7 +44,7 @@ if not PENDING_PATH.exists():
 subprocess.run(['/opt/openclaw-stack/scripts/guard-bridge-catalog.py'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 def short_id(rid):
-    return (rid or '')[:8]
+    return rid or ''
 
 def now_iso():
     return datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat().replace('+00:00','Z')
@@ -65,7 +65,7 @@ def write_out(request_id, payload):
 def wake_guard_for_ask(req, matched=None):
     reason = req.get('reason','(no reason provided)')
     rid=req.get('requestId')
-    msg = f"Guard approval needed: id={short_id(rid)} requestId={rid} action={req.get('action','command.run')} command={req.get('command','')} reason={reason} matchedRule={matched or 'n/a'}"
+    msg = f"Guard approval needed: id={rid} action={req.get('action','command.run')} command={req.get('command','')} reason={reason} matchedRule={matched or 'n/a'}"
     # runner executes inside guard container; fire local event and never fail the request path
     try:
         subprocess.run(['./openclaw.mjs','system','event','--mode','now','--text',msg],
@@ -109,7 +109,7 @@ def process_one(path):
     reason = req.get('reason','')
 
     if not rid or not reason:
-        payload = {'requestId': rid or 'unknown', 'shortId': short_id(rid or 'unknown'), 'status': 'rejected', 'error': 'invalid_request_missing_id_or_reason', 'completedAt': now_iso()}
+        payload = {'requestId': rid or 'unknown', 'status': 'rejected', 'error': 'invalid_request_missing_id_or_reason', 'completedAt': now_iso()}
         if rid:
             write_out(rid, payload)
         audit({'ts': now_iso(), 'event':'rejected','reason':'invalid_request', 'request': req})
@@ -119,7 +119,7 @@ def process_one(path):
     if action:
         args = req.get('args', {})
         if not isinstance(args, dict):
-            write_out(rid, {'requestId':rid,'shortId':short_id(rid),'status':'rejected','error':'invalid_args','completedAt':now_iso()})
+            write_out(rid, {'requestId':rid,'status':'rejected','error':'invalid_args','completedAt':now_iso()})
             return True
         policy = load_json(POLICY_PATH, DEFAULT_POLICY)
         decision = policy.get(action, 'rejected')
@@ -127,11 +127,11 @@ def process_one(path):
     else:
         command = (req.get('command') or '').strip()
         if not command:
-            write_out(rid, {'requestId':rid,'shortId':short_id(rid),'status':'rejected','error':'missing_command_or_action','completedAt':now_iso()})
+            write_out(rid, {'requestId':rid,'status':'rejected','error':'missing_command_or_action','completedAt':now_iso()})
             return True
         arc, analysis = analyze_command(command)
         if not isinstance(analysis, dict) or not analysis.get('ok'):
-            write_out(rid, {'requestId':rid,'shortId':short_id(rid),'status':'rejected','error':'command_analysis_failed','result':analysis,'completedAt':now_iso()})
+            write_out(rid, {'requestId':rid,'status':'rejected','error':'command_analysis_failed','result':analysis,'completedAt':now_iso()})
             audit({'ts':now_iso(),'event':'rejected','requestId':rid,'requestedBy':who,'matchedRule':'analysis_failed','reason':reason})
             return True
         decision = analysis.get('decision', 'rejected')
@@ -144,7 +144,6 @@ def process_one(path):
         analysis = req.get('_analysis') if isinstance(req, dict) else None
         write_out(rid, {
             'requestId':rid,
-            'shortId':short_id(rid),
             'status':'rejected',
             'error':'policy_rejected',
             'matchedRule':matched,
@@ -169,7 +168,6 @@ def process_one(path):
         analysis = req.get('_analysis') if isinstance(req, dict) else None
         write_out(rid, {
             'requestId':rid,
-            'shortId':short_id(rid),
             'status':'pending_approval',
             'matchedRule':matched,
             'matchedRuleIds': (analysis.get('matchedRuleIds') if isinstance(analysis, dict) else None),
@@ -185,7 +183,7 @@ def process_one(path):
     else:
         rc, result = execute_command(req.get('command',''))
     status = 'ok' if rc == 0 else 'error'
-    payload = {'requestId':rid,'shortId':short_id(rid),'status':status,'matchedRule':matched,'result':result,'completedAt':now_iso()}
+    payload = {'requestId':rid,'status':status,'matchedRule':matched,'result':result,'completedAt':now_iso()}
     write_out(rid, payload)
     audit({'ts':now_iso(),'event':status,'requestId':rid,'requestedBy':who,'matchedRule':matched,'reason':reason})
     return True

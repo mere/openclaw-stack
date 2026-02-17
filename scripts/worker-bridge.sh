@@ -29,8 +29,8 @@ PY
 submit_action(){
   local action="$1" args="$2" reason="$3"
   python3 - "$action" "$args" "$reason" <<'PY'
-import json, pathlib, sys, uuid, datetime
-rid=str(uuid.uuid4())
+import json, pathlib, sys, secrets, datetime
+rid=secrets.token_hex(4)
 o={
   'requestId':rid,
   'requestedBy':'worker',
@@ -47,8 +47,8 @@ PY
 submit_command(){
   local cmd="$1" reason="$2"
   python3 - "$cmd" "$reason" <<'PY'
-import json, pathlib, sys, uuid, datetime
-rid=str(uuid.uuid4())
+import json, pathlib, sys, secrets, datetime
+rid=secrets.token_hex(4)
 o={
   'requestId':rid,
   'requestedBy':'worker',
