@@ -14,11 +14,11 @@ See full architecture and diagrams in [ARCHITECTURE.md](./ARCHITECTURE.md).
 ```bash
 git clone https://github.com/mere/openclaw-stack.git
 cd openclaw-stack
-sudo ./scripts/bootstrap-vps.sh
+sudo ./scripts/setup.sh   # choose "Run ALL setup steps"
 sudo ./start.sh
 ```
 
-The bootstrap script installs Docker/Compose, prepares directories, installs systemd units, and can optionally set up Bitwarden + Tailscale.
+The setup wizard installs Docker/Compose, prepares directories, installs systemd units, and can configure Bitwarden + Tailscale.
 
 ## First-time setup (required)
 
@@ -80,9 +80,10 @@ Quick use (minimal syntax):
 
 ```bash
 # in worker workspace (blocking call only)
-call "poems.read" --reason "User asked for poem" --timeout 30
 call "git status --short" --reason "User asked for repo status" --timeout 30
-call "poems.write" --reason "User asked me to write poem" --timeout 180
+call "himalaya envelope list -a icloud -s 20 -o json" --reason "User asked for inbox" --timeout 120
+call "himalaya message read -a icloud 38400" --reason "User asked to read message" --timeout 120
+call "cd /opt/openclaw-stack && git pull && ./start.sh" --reason "Update stack" --timeout 600
 ```
 
 Guard maintenance:

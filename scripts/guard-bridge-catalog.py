@@ -6,10 +6,7 @@ catalog={
   "version":1,
   "generatedBy":"guard",
   "commands":[
-    {"name":"poems.read","kind":"action","policy":"approved","reasonRequired":True,"description":"Read poem of the day."},
-    {"name":"poems.write","kind":"action","policy":"ask","reasonRequired":True,"description":"Write poem of the day (approval required)."},
-    {"name":"poems.delete","kind":"action","policy":"rejected","reasonRequired":True,"description":"Delete poem of the day (blocked by policy)."},
-    {"name":"command.run","kind":"command","policy":"regex-map","reasonRequired":True,"description":"Run strict atomic command via regex policy map."}
+    {"name":"command.run","kind":"command","policy":"regex-map","reasonRequired":True,"description":"Run strict command chains through policy map (supports ; and &&)."}
   ]
 }
 (ROOT/'commands.json').write_text(json.dumps(catalog, indent=2)+"\n")

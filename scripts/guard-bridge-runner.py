@@ -9,15 +9,7 @@ POLICY_PATH = pathlib.Path('/home/node/.openclaw/bridge/policy.json')
 CMD_POLICY_PATH = pathlib.Path('/home/node/.openclaw/bridge/command-policy.json')
 PENDING_PATH = pathlib.Path('/home/node/.openclaw/bridge/pending.json')
 
-DEFAULT_POLICY = {
-    'email.list': 'approved',
-    'email.read': 'approved',
-    'email.draft': 'ask',
-    'email.send': 'ask',
-    'poems.read': 'approved',
-    'poems.write': 'ask',
-    'poems.delete': 'rejected'
-}
+DEFAULT_POLICY = {}
 DEFAULT_CMD_POLICY = {
     'rules': [
         {'id':'himalaya-list','pattern':r'^himalaya\s+envelope\s+list\b','decision':'approved'},
@@ -82,11 +74,7 @@ def wake_guard_for_ask(req, matched=None):
         pass
 
 def execute_action(action, args):
-    if action.startswith('poems.'):
-        cmd = ['/opt/openclaw-stack/scripts/guard-poems.sh', action]
-    else:
-        cmd = ['/opt/openclaw-stack/scripts/guard-email.sh', action, json.dumps(args)]
-    proc = subprocess.run(cmd, capture_output=True, text=True)
+    return 1, {'ok': False, 'error': 'unsupported_action'}
     raw = (proc.stdout or '').strip() or (proc.stderr or '').strip()
     try:
         parsed = json.loads(raw) if raw else {'ok': proc.returncode == 0}

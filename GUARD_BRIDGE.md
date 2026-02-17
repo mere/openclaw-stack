@@ -21,9 +21,12 @@ When you add or edit a tool script on Guard:
 
 Only one mode exists: blocking `call`.
 
-- `call "poems.read" --reason "..." --timeout 30`
 - `call "git status --short" --reason "..." --timeout 30`
-- `call "poems.write" --reason "..." --timeout 180`
+- `call "himalaya envelope list -a icloud -s 20 -o json" --reason "check inbox" --timeout 120`
+- `call "himalaya message read -a icloud 38400" --reason "read one email" --timeout 120`
+- `call "cd /opt/openclaw-stack && git pull && ./start.sh" --reason "update stack" --timeout 600`
+
+No action wrappers. Use direct commands through `command.run` policy map.
 
 (Worker wrappers map to `tools/bridge` under the hood.)
 

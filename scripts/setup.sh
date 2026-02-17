@@ -69,6 +69,14 @@ simple_status_label(){
   if check_done "$check"; then echo "(✅ ${ok_text})"; else echo "(⚪ ${bad_text})"; fi
 }
 
+bitwarden_status_label(){
+  if check_done bitwarden; then
+    echo "(✅ configured + access ok)"
+  else
+    echo "(⚪ not configured or access failed)"
+  fi
+}
+
 configured_label(){
   local kind="$1"
   local file
@@ -205,6 +213,54 @@ EOF
   chown 1000:1000 "$worker_ws/ROLE.md" "$guard_ws/ROLE.md" 2>/dev/null || true
 }
 
+step_bitwarden_secrets(){
+  say "Configure Bitwarden for guard"
+  say "This stack uses Bitwarden (https://bitwarden.com) to store credentials safely."
+  say "If you don't have one yet, create a free account, then go to Settings → Security → Keys and create an API key."
+
+  local secrets_dir="/var/lib/openclaw/guard-state/secrets"
+  local secrets_file="$secrets_dir/bitwarden.env"
+  mkdir -p "$secrets_dir"
+  chmod 700 "$secrets_dir"
+
+  local cur_server=""
+  local cur_email=""
+  if [ -f "$secrets_file" ]; then
+    cur_server=$(grep '^BW_SERVER=' "$secrets_file" | cut -d= -f2- || true)
+    cur_email=$(grep '^BW_EMAIL=' "$secrets_file" | cut -d= -f2- || true)
+    ok "Existing bitwarden.env found"
+  fi
+
+  say "Did you register on .com or .eu? Enter the server URL accordingly."
+  read -r -p "$TIGER BW server URL [${cur_server:-https://vault.bitwarden.eu}]: " BW_SERVER
+  BW_SERVER=${BW_SERVER:-${cur_server:-https://vault.bitwarden.eu}}
+
+  read -r -p "$TIGER BW client id: " BW_CLIENTID
+  read -r -s -p "$TIGER BW client secret: " BW_CLIENTSECRET
+  echo
+  read -r -p "$TIGER BW email [${cur_email:-}]: " BW_EMAIL
+  BW_EMAIL=${BW_EMAIL:-$cur_email}
+  read -r -s -p "$TIGER BW master password: " BW_PASSWORD
+  echo
+
+  [ -n "$BW_CLIENTID" ] || { warn "BW client id is required"; return; }
+  [ -n "$BW_CLIENTSECRET" ] || { warn "BW client secret is required"; return; }
+  [ -n "$BW_EMAIL" ] || { warn "BW email is required"; return; }
+  [ -n "$BW_PASSWORD" ] || { warn "BW master password is required"; return; }
+
+  cat > "$secrets_file" <<EOF
+BW_SERVER=$BW_SERVER
+BW_CLIENTID=$BW_CLIENTID
+BW_CLIENTSECRET=$BW_CLIENTSECRET
+BW_PASSWORD=$BW_PASSWORD
+BW_EMAIL=$BW_EMAIL
+EOF
+
+  chmod 600 "$secrets_file"
+  chown 1000:1000 "$secrets_dir" "$secrets_file" 2>/dev/null || true
+  ok "Saved $secrets_file"
+}
+
 ensure_guard_bitwarden(){
   if [ ! -f /var/lib/openclaw/guard-state/secrets/bitwarden.env ]; then
     warn "Guard Bitwarden env not found at /var/lib/openclaw/guard-state/secrets/bitwarden.env"
@@ -331,6 +387,25 @@ check_done(){
     browser_init) [ -f /var/lib/openclaw/browser/custom-cont-init.d/20-start-chromium-cdp ] && [ -f /var/lib/openclaw/browser/custom-cont-init.d/30-start-socat-cdp-proxy ] ;;
     running) container_running "$worker_name" && container_running "$guard_name" ;;
     tailscale) tailscale status >/dev/null 2>&1 ;;
+    bitwarden)
+      [ -f /var/lib/openclaw/guard-state/secrets/bitwarden.env ] || return 1
+      grep -q '^BW_SERVER=' /var/lib/openclaw/guard-state/secrets/bitwarden.env || return 1
+      grep -q '^BW_CLIENTID=' /var/lib/openclaw/guard-state/secrets/bitwarden.env || return 1
+      grep -q '^BW_CLIENTSECRET=' /var/lib/openclaw/guard-state/secrets/bitwarden.env || return 1
+      grep -q '^BW_EMAIL=' /var/lib/openclaw/guard-state/secrets/bitwarden.env || return 1
+      grep -q '^BW_PASSWORD=' /var/lib/openclaw/guard-state/secrets/bitwarden.env || return 1
+      container_running "$guard_name" || return 1
+      docker exec "$guard_name" sh -lc '
+        set -e
+        command -v bw >/dev/null 2>&1
+        . /home/node/.openclaw/secrets/bitwarden.env
+        [ -n "$BW_SERVER" ] && [ -n "$BW_CLIENTID" ] && [ -n "$BW_CLIENTSECRET" ] && [ -n "$BW_EMAIL" ] && [ -n "$BW_PASSWORD" ]
+        bw config server "$BW_SERVER" >/dev/null 2>&1
+        BW_CLIENTID="$BW_CLIENTID" BW_CLIENTSECRET="$BW_CLIENTSECRET" bw login --apikey --nointeraction >/dev/null 2>&1 || true
+        bw status >/tmp/bw-status.json 2>/dev/null || exit 1
+        grep -q '"status":"unauthenticated"' /tmp/bw-status.json && exit 1 || exit 0
+      ' >/dev/null 2>&1
+      ;;
     *) return 1 ;;
   esac
 }
@@ -558,8 +633,13 @@ run_all(){
   ensure_browser_profile
   ensure_inline_buttons
   ensure_guard_approval_instructions
+  read -r -p "$TIGER Configure Bitwarden secrets now? [y/N]: " bw_ans
+  if [[ "$bw_ans" =~ ^[Yy]$ ]]; then
+    step_bitwarden_secrets
+  fi
   step_tailscale
   step_start_all
+  ensure_guard_bitwarden
   step_auth_tokens
   step_verify
 }
@@ -576,11 +656,12 @@ Choose an action:
   6) Run configure worker (openclaw onboard) $(configured_label worker)
   7) Run Tailscale setup $(simple_status_label "running" "not running" "tailscale")
   8) Access OpenClaw dashboard and CLI
-  9) Run healthcheck
+  9) Configure Bitwarden secrets (guard) $(bitwarden_status_label)
  10) Toggle guard admin mode
+ 11) Run healthcheck
   0) Exit
 EOF
-  read -r -p "$TIGER Select [0-10]: " pick
+  read -r -p "$TIGER Select [0-11]: " pick
   case "$pick" in
     1) sep; run_all ;;
     2) sep; step_start_guard ;;
@@ -590,8 +671,10 @@ EOF
     6) sep; step_configure_worker ;;
     7) sep; step_tailscale ;;
     8) sep; step_auth_tokens ;;
-    9) sep; step_verify ;;
+    9) sep; step_bitwarden_secrets ;;
     10) sep; step_guard_admin_mode ;;
+    # Keep healthcheck immediately before exit in this menu ordering.
+    11) sep; step_verify ;;
     0) say "Exiting setup wizard. See you soon."; return 1 ;;
     *) warn "Invalid choice" ;;
   esac

@@ -7,7 +7,7 @@ This is the practical sequence for onboarding a fresh VPS.
 ```bash
 git clone https://github.com/mere/openclaw-stack.git
 cd openclaw-stack
-sudo ./scripts/bootstrap-vps.sh
+sudo ./scripts/setup.sh
 ```
 
 During bootstrap, you can optionally enter:
