@@ -14,9 +14,11 @@ This stack runs a **two-instance OpenClaw architecture** on one VPS:
 
 ## Components
 
-- `chloe-openclaw-gateway` (worker gateway, host port `18789`)
-- `chloe-openclaw-guard` (guard gateway, host port `18790` loopback)
-- `chloe-browser` (webtop + Chromium CDP + socat)
+- `${INSTANCE}-openclaw-gateway` (worker gateway, host port `18789`)
+- `${INSTANCE}-openclaw-guard` (guard gateway, host port `18790` loopback)
+- `${INSTANCE}-browser` (webtop + Chromium CDP + socat)
+
+Default `INSTANCE` is `op-and-chloe`.
 - `openclaw-cdp-watchdog.timer` (auto-recovery)
 - Bitwarden CLI in guard for secret retrieval
 

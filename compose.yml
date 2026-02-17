@@ -1,7 +1,7 @@
 services:
   browser:
     image: lscr.io/linuxserver/webtop:ubuntu-xfce
-    container_name: ${INSTANCE:-chloe}-browser
+    container_name: ${INSTANCE:-op-and-chloe}-browser
     environment:
       - PUID=1000
       - PGID=1000
@@ -19,7 +19,7 @@ services:
 
   openclaw-gateway:
     image: ${OPENCLAW_IMAGE:-ghcr.io/openclaw/openclaw:main}
-    container_name: ${INSTANCE:-chloe}-openclaw-gateway
+    container_name: ${INSTANCE:-op-and-chloe}-openclaw-gateway
     network_mode: host
     environment:
       HOME: /home/node
@@ -42,7 +42,7 @@ services:
       dockerfile: docker/openclaw-tools.Dockerfile
       args:
         OPENCLAW_BASE_IMAGE: ${OPENCLAW_IMAGE:-ghcr.io/openclaw/openclaw:main}
-    container_name: ${INSTANCE:-chloe}-openclaw-guard
+    container_name: ${INSTANCE:-op-and-chloe}-openclaw-guard
     network_mode: host
     environment:
       HOME: /home/node
@@ -56,7 +56,7 @@ services:
       - /var/lib/openclaw:/mnt/openclaw-data
       - /etc/openclaw:/mnt/etc-openclaw
       - /var/lib/openclaw/bridge:/var/lib/openclaw/bridge
-      - /root/openclaw-stack:/opt/openclaw-stack
+      - ${OPENCLAW_STACK_DIR:-/opt/openclaw-stack}:/opt/openclaw-stack
       - /var/run/docker.sock:/var/run/docker.sock
     init: true
     restart: unless-stopped
@@ -64,7 +64,7 @@ services:
 
 networks:
   openclaw_net:
-    name: ${INSTANCE:-chloe}-net
+    name: ${INSTANCE:-op-and-chloe}-net
     driver: bridge
     ipam:
       config:

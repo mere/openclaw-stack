@@ -1,8 +1,6 @@
 # Onboarding Playbook
 
-This is the practical sequence for onboarding a fresh VPS.
-
-## 1) Clone + bootstrap
+## 1) Clone + run setup wizard
 
 ```bash
 git clone https://github.com/mere/openclaw-stack.git
@@ -10,28 +8,19 @@ cd openclaw-stack
 sudo ./scripts/setup.sh
 ```
 
-During bootstrap, you can optionally enter:
-- Bitwarden credentials for guard (`bitwarden.env`)
-- Tailscale installation bootstrap
+Choose `Run ALL setup steps` for the default path.
 
-## 2) Start stack
+## 2) Configure bots/models in wizard
 
-```bash
-sudo ./start.sh
-```
+Use wizard options:
+- `Run configure guard (openclaw onboard)` for Op
+- `Run configure worker (openclaw onboard)` for Chloe
 
-## 3) Run OpenClaw setup (both instances)
+## 3) Optional browser login
 
-```bash
-docker exec -it chloe-openclaw-guard ./openclaw.mjs setup
-docker exec -it chloe-openclaw-gateway ./openclaw.mjs setup
-```
+Use webtop/noVNC once for persistent site sessions.
 
-## 4) One-time browser login
-
-Use webtop/noVNC, log into LinkedIn (or other sites) once, then keep using persistent CDP profile.
-
-## 5) Verify
+## 4) Optional explicit verify
 
 ```bash
 sudo ./healthcheck.sh
@@ -43,10 +32,6 @@ Expected:
 - browser up
 - CDP smoke test passes
 - watchdog timer enabled
-
-## 6) Optional Tailscale Serve URLs
-
-After `tailscale up`, you can publish local services over tailnet HTTPS with `tailscale serve`.
 
 ---
 

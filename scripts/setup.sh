@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 STACK_DIR=$(cd "$SCRIPT_DIR/.." && pwd)
 ENV_FILE=${ENV_FILE:-/etc/openclaw/stack.env}
-INSTANCE=${INSTANCE:-chloe}
+INSTANCE=${INSTANCE:-op-and-chloe}
 
 TIGER="🐯"
 OK="✅"
@@ -23,12 +23,12 @@ guard_cfg="/var/lib/openclaw/guard-state/openclaw.json"
 
 welcome(){
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  echo "🐯 OpenClaw Hetzner Setup Wizard"
+  echo "🐯 OpenClaw Setup Wizard"
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   echo "Setup includes:"
   echo "  🖥️ Webtop browser (Chromium) for persistent logins"
-  echo "  👷 Worker OpenClaw instance (daily tasks)"
-  echo "  🛡️ Guard OpenClaw instance (privileged operations)"
+  echo "  👷 Chloe (worker) OpenClaw instance (daily tasks)"
+  echo "  🛡️ Op (guard) OpenClaw instance (privileged operations)"
   echo "  🔐 Tailscale for private network access"
   echo "  🔑 Bitwarden env scaffold for secret workflow"
   echo "  🩺 Healthcheck + watchdog validation"
@@ -168,50 +168,6 @@ PY2
   chown 1000:1000 /var/lib/openclaw/state/openclaw.json /var/lib/openclaw/guard-state/openclaw.json 2>/dev/null || true
 }
 
-ensure_role_context(){
-  local worker_ws="/var/lib/openclaw/workspace"
-  local guard_ws="/var/lib/openclaw/guard-workspace"
-  mkdir -p "$worker_ws" "$guard_ws"
-
-  cat > "$worker_ws/ROLE.md" <<'EOF'
-# WORKER ROLE
-
-You are the daily assistant instance.
-- Focus: chat, planning, research, automations, browser workflows.
-- Do NOT perform privileged host/docker/admin actions directly.
-- Use bridge with minimal syntax:
-  - call "<action-or-command>" --reason "..." --timeout 30
-- Approval decision parsing (must be deterministic):
-  - ^guard approve ([a-f0-9-]{8,36})$
-  - ^guard approve always ([a-f0-9-]{8,36})$
-  - ^guard deny ([a-f0-9-]{8,36})$
-  - ^guard deny always ([a-f0-9-]{8,36})$
-- Match approvals by provider+chatId (stable identity), not display label.
-- For trusted DM fallback, allow requestId-only approval routing if identity normalization fails.
-- Examples:
-  - call "poems.read" --reason "User asked for poem" --timeout 30
-  - call "git status --short" --reason "User asked for repo status" --timeout 30
-EOF
-
-  cat > "$guard_ws/ROLE.md" <<'EOF'
-# GUARD ROLE
-
-You are the control-plane safety instance.
-- Focus: privileged operations, approvals, system changes, secrets access.
-- Tool management is script-first: edit `scripts/guard-*` directly.
-- After tool changes, run: `./scripts/guard-tool-sync.sh`
-- Keep behavior strict/minimal and security-first.
-- Approval commands accepted:
-  - guard approve <requestId-or-id8>
-  - guard approve always <requestId>
-  - guard deny <requestId-or-id8>
-  - guard deny always <requestId>
-- Approval matching key must be provider+chatId (not human label).
-- Log requestId, chatId, parsed decision, and match result for each approval attempt.
-EOF
-
-  chown 1000:1000 "$worker_ws/ROLE.md" "$guard_ws/ROLE.md" 2>/dev/null || true
-}
 
 step_bitwarden_secrets(){
   say "Configure Bitwarden for guard"
@@ -617,11 +573,11 @@ step_auth_tokens(){
   echo "  ./openclaw-guard config get channels.telegram.capabilities.inlineButtons"
   echo "  ./openclaw-worker doctor --generate-gateway-token"
   echo "  ./openclaw-guard doctor --generate-gateway-token"
-  echo "  call "poems.read" --reason "User asked for poem" --timeout 30"
+  echo "  call \"git status --short\" --reason \"User asked for repo status\" --timeout 30"
+  echo "  call \"himalaya envelope list -a icloud -s 20 -o json\" --reason \"User asked for inbox\" --timeout 120"
+  echo "  call \"himalaya message read -a icloud 38400\" --reason \"User asked to read email\" --timeout 120"
   echo "  ./scripts/guard-tool-sync.sh"
   echo "  ./scripts/guard-bridge.sh pending"
-  echo "  call "git status --short" --reason "User asked for repo status" --timeout 30"
-  echo "  call "poems.write" --reason "User asked me to write poem" --timeout 180"
 }
 
 run_all(){
