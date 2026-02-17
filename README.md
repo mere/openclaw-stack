@@ -2,8 +2,8 @@
 
 `op-and-chloe` ("openclaw-ey") is a two-instance OpenClaw stack for any VPS.
 
-- **Chloe**: friendly day-to-day assistant (safe container)
-- **Op**: operator/guard instance (admin + security approvals)
+- **🐯 Chloe**: friendly day-to-day assistant (safe container)
+- **🐕 Op**: operator/guard instance (admin + security approvals)
 - Webtop Chromium + CDP proxy for browser automation
 - Healthcheck + watchdog
 
@@ -31,6 +31,70 @@ Optional explicit verification:
 ```bash
 sudo ./healthcheck.sh
 ```
+
+## System diagram
+
+```mermaid
+flowchart LR
+  U[User Telegram]
+  C[🐯 Chloe\nWorker OpenClaw\n:18789]
+  O[🐕 Op\nGuard OpenClaw\n:18790]
+  B[Webtop Chromium CDP\n:9223]
+  BW[(Bitwarden)]
+  BR[(Bridge inbox/outbox)]
+  D[/var/run/docker.sock/]
+  R[/opt/openclaw-stack/]
+
+  U --> C
+  U --> O
+
+  C --> BR
+  BR --> O
+
+  C --> B
+  O --> D
+  O --> R
+  O --> BW
+
+  subgraph VPS
+    C
+    O
+    B
+    BR
+    D
+    R
+  end
+```
+
+Approval flow (blocking call):
+
+```mermaid
+sequenceDiagram
+  participant User
+  participant Chloe as 🐯 Chloe
+  participant Op as 🐕 Op
+
+  User->>Chloe: request task
+  Chloe->>Op: call "<command>" --reason ... --timeout ...
+  Op->>Op: command policy evaluation
+  alt decision = approved
+    Op->>Op: execute command
+    Op-->>Chloe: final result
+  else decision = ask
+    Op->>User: approval buttons
+    User->>Op: approve/deny
+    alt approved
+      Op->>Op: execute command
+      Op-->>Chloe: final result
+    else denied
+      Op-->>Chloe: rejected
+    end
+  else decision = rejected
+    Op-->>Chloe: rejected
+  end
+  Chloe-->>User: response
+```
+
 
 ## Core instruction sync
 

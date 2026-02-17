@@ -134,8 +134,8 @@ def evaluate_segment(segment: str, rules: list[dict[str, Any]]) -> dict[str, Any
     if not matched:
         return {
             'segment': segment,
-            'decision': 'rejected',
-            'matchedRules': [{'id': 'no_match', 'decision': 'rejected', 'pattern': ''}],
+            'decision': 'ask',
+            'matchedRules': [{'id': 'no_match', 'decision': 'ask', 'pattern': ''}],
             'error': 'no_matching_policy_rule'
         }
 

@@ -27,8 +27,8 @@ sudo ./healthcheck.sh
 ```
 
 Expected:
-- worker up
-- guard up
+- 🐯 Chloe (worker) up
+- 🐕 Op (guard) up
 - browser up
 - CDP smoke test passes
 - watchdog timer enabled

@@ -2,8 +2,8 @@
 
 This stack runs a **two-instance OpenClaw architecture** on one VPS:
 
-- **Worker**: day-to-day assistant tasks (chat, browser automation, drafting)
-- **Guard**: privileged control-plane (host control, secret broker, approvals)
+- **🐯 Chloe (Worker)**: day-to-day assistant tasks (chat, browser automation, drafting)
+- **🐕 Op (Guard)**: privileged control-plane (host control, secret broker, approvals)
 
 ## Design goals
 
@@ -24,13 +24,13 @@ Default `INSTANCE` is `op-and-chloe`.
 
 ## Trust boundaries
 
-### Worker (unprivileged plane)
+### 🐯 Chloe / Worker (unprivileged plane)
 
 - Handles normal user workflows
 - Has no dedicated break-glass path
 - Must request privileged actions through guard policies
 
-### Guard (privileged plane)
+### 🐕 Op / Guard (privileged plane)
 
 - Has access to:
   - `/var/run/docker.sock`
@@ -42,8 +42,8 @@ Default `INSTANCE` is `op-and-chloe`.
 
 ```mermaid
 flowchart LR
-  U[User Telegram] --> W[Worker OpenClaw\n:18789]
-  U --> G[Guard OpenClaw\n:18790 loopback/Tailscale-only]
+  U[User Telegram] --> W[🐯 Chloe / Worker OpenClaw\n:18789]
+  U --> G[🐕 Op / Guard OpenClaw\n:18790 loopback/Tailscale-only]
 
   W --> B[Webtop Chromium CDP\n127.0.0.1:9222 -> 0.0.0.0:9223]
   W --> G
