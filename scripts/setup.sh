@@ -48,7 +48,8 @@ need_root(){
 
 container_running(){
   local name="$1"
-  docker ps --format '{{.Names}}' | grep -q "^${name}$"
+  command -v docker >/dev/null 2>&1 || return 1
+  docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${name}$"
 }
 
 # Status for 2-column menu display
