@@ -26,17 +26,17 @@ worker_cfg="/var/lib/openclaw/state/openclaw.json"
 guard_cfg="/var/lib/openclaw/guard-state/openclaw.json"
 
 welcome(){
-  echo "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
+  echo "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
   echo "┃ 🐯 OpenClaw Setup Wizard                                   ┃"
-  echo "┃ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ┃"
-  echo "┃ Setup includes:                                             ┃"
+  echo "┃ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┃"
+  echo "┃ Setup includes:                                            ┃"
   echo "┃   🖥️ Webtop browser (Chromium) for persistent logins       ┃"
-  echo "┃   🐯 Chloe (worker) OpenClaw instance (daily tasks)         ┃"
-  echo "┃   🐕 Op (guard) OpenClaw instance (privileged operations)   ┃"
-  echo "┃   🔐 Tailscale for private network access                   ┃"
-  echo "┃   🔑 Bitwarden env scaffold for secret workflow             ┃"
-  echo "┃   🩺 Healthcheck + watchdog validation                      ┃"
-  echo "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"
+  echo "┃   🐯 Chloe (worker) OpenClaw instance (daily tasks)        ┃"
+  echo "┃   🐕 Op (guard) OpenClaw instance (privileged operations)  ┃"
+  echo "┃   🔐 Tailscale for private network access                  ┃"
+  echo "┃   🔑 Bitwarden env scaffold for secret workflow            ┃"
+  echo "┃   ❤️ Healthcheck + watchdog validation                     ┃"
+  echo "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"
 }
 
 need_root(){
@@ -614,8 +614,8 @@ Choose an action:
   2) Run start guard $(status_label "$guard_name")
   3) Run start worker $(status_label "$worker_name")
   4) Run start browser $(browser_status_label)
-  5) Run configure guard (openclaw onboard) $(configured_label guard)
-  6) Run configure worker (openclaw onboard) $(configured_label worker)
+  5) Run openclaw onboard on guard $(configured_label guard)
+  6) Run openclaw onboard on worker $(configured_label worker)
   7) Run Tailscale setup $(simple_status_label "running" "not running" "tailscale")
   8) Access OpenClaw dashboard and CLI
   9) Configure Bitwarden secrets (guard) $(bitwarden_status_label)
