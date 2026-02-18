@@ -18,15 +18,19 @@ See architecture details in [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 Setting up a fully working and safe end-to-end OpenClaw stack is tedious—especially on a $5 VPS. This repo is a friendly wizard that guides you through an easy, opinionated setup. You can change everything once you're up and running.
 
+You can set up op-and-chloe without any technical knowledge - you just need to follow the wizard's instructions step-by step.
+
 By default it gives you:
 
 - **☁️ A fully working setup on a VPS of your choice.** Our favourite is [Hetzner](https://www.hetzner.com), where you can run op-and-chloe for about **$4.70/month**. See [HETZNER.md](./HETZNER.md) for setup.
 
-- **🖥️ A browser you can share with OpenClaw.** Log in to social sites (e.g. LinkedIn) in the Webtop browser and let OpenClaw use it to read messages and draft responses for you.
+- **🖥️ A browser you can share with OpenClaw!** Log in to social sites (e.g. LinkedIn) in the Webtop browser and let OpenClaw use it to read messages and draft responses for you!
 
 - **🔐 A safe split between Chloe and Op.** Chloe does day-to-day tasks without touching credentials; Op handles privileged operations and approvals so you stay in control.
 
-- **🔒 Private access via Tailscale.** Worker, Guard, and Webtop dashboards are served over your Tailscale network with optional HTTPS—no public ports required.
+- **📱 2 separate Telegram Chats.** You’ll get one chat for Chloe - this is where 99% of your conversations and commands will happen. The other chat is for Op, your personal security guard: it’s dedicated to approving requests and making changes to the stack, keeping privileged actions safe and separate.
+
+- **🔒 Private access via Tailscale.** Worker, Guard, and Webtop dashboards are served over your Tailscale network with optional HTTPS—no public ports required. You can access them safely on your phone or on your laptop.
 
 - **❤️ Healthcheck and watchdog.** Simple scripts to verify the stack and keep it running.
 
@@ -44,18 +48,17 @@ Work through the setup steps 1–14 in order. Each step runs once and returns yo
   <img src="assets/wizard.png" alt="OpenClaw Setup Wizard" width="600">
 </p>
 
-**Tailscale**: During setup you'll be prompted to log in. Use an [auth key](https://login.tailscale.com/admin/settings/keys) for headless VPS, or run `tailscale up` interactively.
 
-**Tailscale HTTPS** (for Worker/Guard/Webtop dashboards): Enable [HTTPS certificates](https://tailscale.com/kb/1153/enabling-https) in the admin console, then run `sudo tailscale cert` on the VPS. The setup configures serve on ports 443 (Worker), 444 (Guard), 445 (Webtop).
-
-## Daily ops
+## Stopping and Starting your server
+In case your openclaw stack gains consciousness and tries to take over the world,
+you can quickly stop and start them using these commands:
 
 ```bash
-sudo ./start.sh
 sudo ./stop.sh
+sudo ./start.sh
 ```
 
-Optional explicit verification:
+You can also run the healthcheck without the full wizard:
 
 ```bash
 sudo ./healthcheck.sh
@@ -88,26 +91,7 @@ flowchart TD
 ```
 
 
-## Core instruction sync
-
-Core instructions live in:
-
-- `core/worker/*.md` (Chloe)
-- `core/guard/*.md` (Op)
-
-`scripts/sync-workspaces.sh` composes them into runtime workspaces:
-
-- `/var/lib/openclaw/workspace`
-- `/var/lib/openclaw/guard-workspace`
-
-Managed files use two blocks:
-
-- `<!-- CORE:BEGIN --> ... <!-- CORE:END -->` (repo-managed)
-- `<!-- LOCAL:BEGIN --> ... <!-- LOCAL:END -->` (locally editable)
-
-Core updates refresh automatically; local layer stays intact.
-
-## Bridge model (blocking calls only)
+## Bridge model
 
 Worker uses one bridge mode only: blocking `call`.
 
@@ -119,8 +103,6 @@ call "himalaya envelope list -a icloud -s 20 -o json" --reason "User asked for i
 call "himalaya message read -a icloud 38400" --reason "User asked to read message" --timeout 120
 call "cd /opt/op-and-chloe && git pull && ./start.sh" --reason "Update stack" --timeout 600
 ```
-
-No action wrappers. Use direct commands through `command.run` policy.
 
 ## Troubleshooting
 
