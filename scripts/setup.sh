@@ -162,8 +162,8 @@ PY2
 
 step_bitwarden_secrets(){
   say "Configure Bitwarden for guard"
-  say "Create a free account on vault.bitwarden.com or vault.bitwarden.eu — whichever is closer to you."
-  say "Bitwarden lets you share credentials safely with OpenClaw, straight from your phone without SSH."
+  say "Create a free account on https://vault.bitwarden.com or https://vault.bitwarden.eu — whichever is closer to you."
+  say "Bitwarden lets you share credentials safely with OpenClaw, straight from your phone."
   say "Go to Settings → Security → Keys to create an API key."
 
   local secrets_dir="/var/lib/openclaw/guard-state/secrets"
@@ -173,14 +173,23 @@ step_bitwarden_secrets(){
 
   local cur_server=""
   local cur_email=""
+  local default_choice="2"
   if [ -f "$secrets_file" ]; then
     cur_server=$(grep '^BW_SERVER=' "$secrets_file" | cut -d= -f2- || true)
     cur_email=$(grep '^BW_EMAIL=' "$secrets_file" | cut -d= -f2- || true)
     ok "Existing bitwarden.env found"
+    [[ "$cur_server" == *".com"* ]] && default_choice="1" || default_choice="2"
   fi
 
-  read -r -p "$TIGER BW server URL [${cur_server:-https://vault.bitwarden.eu}]: " BW_SERVER
-  BW_SERVER=${BW_SERVER:-${cur_server:-https://vault.bitwarden.eu}}
+  echo "  1) vault.bitwarden.com"
+  echo "  2) vault.bitwarden.eu"
+  read -r -p "$TIGER BW server [1 or 2, default ${default_choice}]: " ans
+  ans=${ans:-$default_choice}
+  if [[ "$ans" == "1" ]]; then
+    BW_SERVER="https://vault.bitwarden.com"
+  else
+    BW_SERVER="https://vault.bitwarden.eu"
+  fi
 
   read -r -p "$TIGER BW client id: " BW_CLIENTID
   read -r -s -p "$TIGER BW client secret: " BW_CLIENTSECRET
