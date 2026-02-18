@@ -26,16 +26,17 @@ worker_cfg="/var/lib/openclaw/state/openclaw.json"
 guard_cfg="/var/lib/openclaw/guard-state/openclaw.json"
 
 welcome(){
-  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  echo "🐯 OpenClaw Setup Wizard"
-  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  echo "Setup includes:"
-  echo "  🖥️ Webtop browser (Chromium) for persistent logins"
-  echo "  🐯 Chloe (worker) OpenClaw instance (daily tasks)"
-  echo "  🐕 Op (guard) OpenClaw instance (privileged operations)"
-  echo "  🔐 Tailscale for private network access"
-  echo "  🔑 Bitwarden env scaffold for secret workflow"
-  echo "  🩺 Healthcheck + watchdog validation"
+  echo "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
+  echo "┃ 🐯 OpenClaw Setup Wizard                                   ┃"
+  echo "┃ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ┃"
+  echo "┃ Setup includes:                                             ┃"
+  echo "┃   🖥️ Webtop browser (Chromium) for persistent logins       ┃"
+  echo "┃   🐯 Chloe (worker) OpenClaw instance (daily tasks)         ┃"
+  echo "┃   🐕 Op (guard) OpenClaw instance (privileged operations)   ┃"
+  echo "┃   🔐 Tailscale for private network access                   ┃"
+  echo "┃   🔑 Bitwarden env scaffold for secret workflow             ┃"
+  echo "┃   🩺 Healthcheck + watchdog validation                      ┃"
+  echo "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"
 }
 
 need_root(){
@@ -605,7 +606,9 @@ run_all(){
 
 menu_once(){
   welcome
+  printf "$TIGER Checking status..."
   cat <<EOF
+
 Choose an action:
   1) Run ALL setup steps (recommended)
   2) Run start guard $(status_label "$guard_name")
