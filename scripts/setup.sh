@@ -119,7 +119,7 @@ for p in paths:
     a=g.setdefault('auth',{})
     a['allowTailscale']=True
     g['trustedProxies']=['127.0.0.1','::1','172.31.0.1']
-    p.write_text(json.dumps(d,indent=2)+'\n')
+    p.write_text(json.dumps(d,indent=2)+"\n")
 PY2
   chown 1000:1000 /var/lib/openclaw/state/openclaw.json /var/lib/openclaw/guard-state/openclaw.json 2>/dev/null || true
 }
@@ -138,7 +138,7 @@ for p in paths:
     ch=d.setdefault('channels',{}).setdefault('telegram',{})
     caps=ch.setdefault('capabilities',{})
     caps['inlineButtons']='all'
-    p.write_text(json.dumps(d,indent=2)+'\n')
+    p.write_text(json.dumps(d,indent=2)+"\n")
 PY2
   chown 1000:1000 /var/lib/openclaw/state/openclaw.json /var/lib/openclaw/guard-state/openclaw.json 2>/dev/null || true
 }
@@ -157,13 +157,11 @@ if worker.exists() and worker.stat().st_size>0:
     p=prof.setdefault('vps-chromium',{})
     p['cdpUrl']='http://172.31.0.10:9223'
     p.setdefault('color','#00AAFF')
-    worker.write_text(json.dumps(d,indent=2)+'
-')
+    worker.write_text(json.dumps(d,indent=2)+"\n")
 if guard.exists() and guard.stat().st_size>0:
     d=json.loads(guard.read_text())
     d.setdefault('browser',{})['enabled']=False
-    guard.write_text(json.dumps(d,indent=2)+'
-')
+    guard.write_text(json.dumps(d,indent=2)+"\n")
 PY2
   chown 1000:1000 /var/lib/openclaw/state/openclaw.json /var/lib/openclaw/guard-state/openclaw.json 2>/dev/null || true
 }
@@ -401,6 +399,7 @@ step_env(){
     cp "$STACK_DIR/config/env.example" "$ENV_FILE"
     sed -i "s#^OPENCLAW_GATEWAY_TOKEN=.*#OPENCLAW_GATEWAY_TOKEN=$(openssl rand -hex 32)#" "$ENV_FILE"
     sed -i "s#^OPENCLAW_GUARD_GATEWAY_TOKEN=.*#OPENCLAW_GUARD_GATEWAY_TOKEN=$(openssl rand -hex 24)#" "$ENV_FILE"
+    sed -i "s#^OPENCLAW_STACK_DIR=.*#OPENCLAW_STACK_DIR=$STACK_DIR#" "$ENV_FILE"
     ok "Created $ENV_FILE with fresh gateway tokens"
   else
     ok "Env already present: $ENV_FILE"

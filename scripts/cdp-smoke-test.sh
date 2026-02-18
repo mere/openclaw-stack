@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BROWSER_CONTAINER=${BROWSER_CONTAINER:-chloe-browser}
-GATEWAY_CONTAINER=${GATEWAY_CONTAINER:-chloe-openclaw-gateway}
+INSTANCE=${INSTANCE:-op-and-chloe}
+BROWSER_CONTAINER=${BROWSER_CONTAINER:-${INSTANCE}-browser}
+GATEWAY_CONTAINER=${GATEWAY_CONTAINER:-${INSTANCE}-openclaw-gateway}
 CDP_PORT=${CDP_PORT:-9223}
 
 BIP=$(docker inspect -f "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}" "$BROWSER_CONTAINER")

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-INSTANCE=${INSTANCE:-chloe}
+INSTANCE=${INSTANCE:-op-and-chloe}
 GW_CONTAINER=${GW_CONTAINER:-${INSTANCE}-openclaw-gateway}
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 STACK_DIR=${STACK_DIR:-$(cd "$SCRIPT_DIR/.." && pwd)}
