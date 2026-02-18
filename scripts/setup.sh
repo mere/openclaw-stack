@@ -162,8 +162,9 @@ PY2
 
 step_bitwarden_secrets(){
   say "Configure Bitwarden for guard"
-  say "This stack uses Bitwarden (https://bitwarden.com) to store credentials safely."
-  say "If you don't have one yet, create a free account, then go to Settings → Security → Keys and create an API key."
+  say "Create a free account on vault.bitwarden.com or vault.bitwarden.eu — whichever is closer to you."
+  say "Bitwarden lets you share credentials safely with OpenClaw, straight from your phone without SSH."
+  say "Go to Settings → Security → Keys to create an API key."
 
   local secrets_dir="/var/lib/openclaw/guard-state/secrets"
   local secrets_file="$secrets_dir/bitwarden.env"
@@ -178,7 +179,6 @@ step_bitwarden_secrets(){
     ok "Existing bitwarden.env found"
   fi
 
-  say "Did you register on .com or .eu? Enter the server URL accordingly."
   read -r -p "$TIGER BW server URL [${cur_server:-https://vault.bitwarden.eu}]: " BW_SERVER
   BW_SERVER=${BW_SERVER:-${cur_server:-https://vault.bitwarden.eu}}
 
@@ -397,6 +397,15 @@ step_env(){
   else
     ok "Env already present: $ENV_FILE"
   fi
+  echo
+  echo "Created:"
+  echo "  /etc/openclaw/"
+  echo "  /var/lib/openclaw/state"
+  echo "  /var/lib/openclaw/workspace"
+  echo "  /var/lib/openclaw/browser"
+  echo "  /var/lib/openclaw/guard-state"
+  echo "  /var/lib/openclaw/guard-workspace"
+  echo "  $ENV_FILE"
 }
 
 step_browser_init(){
