@@ -15,7 +15,7 @@ echo "[start] building guard image (openclaw-guard-tools:local)"
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" build openclaw-guard
 
 echo "[start] pulling images"
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" pull --ignore-pull-failures
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" pull browser openclaw-gateway
 
 echo "[start] bringing stack up"
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d
