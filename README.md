@@ -21,7 +21,7 @@ cd op-and-chloe
 sudo ./scripts/setup.sh
 ```
 
-Use `Run ALL setup steps` in the setup wizard.
+Work through the setup steps 1–14 in order. Each step runs once and returns you to the menu so you can verify status before continuing.
 
 **Tailscale**: During setup you'll be prompted to log in. Use an [auth key](https://login.tailscale.com/admin/settings/keys) for headless VPS, or run `tailscale up` interactively.
 

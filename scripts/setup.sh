@@ -51,35 +51,25 @@ container_running(){
   docker ps --format '{{.Names}}' | grep -q "^${name}$"
 }
 
-status_label(){
-  local name="$1"
-  if container_running "$name"; then
-    echo "(✅ Currently running)"
-  else
-    echo "(⚪ Not running)"
-  fi
-}
-
-browser_status_label(){
-  local webtop cdp
-  if container_running "$browser_name"; then webtop="✅ Webtop running"; else webtop="⚪ Webtop stopped"; fi
-  if check_done browser_init; then cdp="✅ CDP installed"; else cdp="⚪ CDP not installed"; fi
-  echo "(${webtop}, ${cdp})"
-}
-
-simple_status_label(){
-  local ok_text="$1"
-  local bad_text="$2"
-  local check="$3"
-  if check_done "$check"; then echo "(✅ ${ok_text})"; else echo "(⚪ ${bad_text})"; fi
-}
-
-bitwarden_status_label(){
-  if check_done bitwarden; then
-    echo "(✅ configured + access ok)"
-  else
-    echo "(⚪ not configured or access failed)"
-  fi
+# Status for 2-column menu display
+step_status(){
+  case "$1" in
+    1) command -v apt-get >/dev/null 2>&1 && [ -f /etc/os-release ] && echo "✅ Ready" || echo "⚪ Not ready" ;;
+    2) command -v docker >/dev/null 2>&1 && echo "✅ Installed" || echo "⚪ Not installed" ;;
+    3) [ -f "$ENV_FILE" ] && echo "✅ Created" || echo "⚪ Not created" ;;
+    4) check_done browser_init && echo "✅ CDP scripts installed" || echo "⚪ Not installed" ;;
+    5) check_done bitwarden && echo "✅ Configured" || echo "⚪ Not configured" ;;
+    6) if check_done tailscale; then tsip=$(tailscale_ip); echo "✅ Running${tsip:+ ($tsip)}"; else echo "⚪ Not running"; fi ;;
+    7) container_running "$guard_name" && echo "✅ Currently running" || echo "⚪ Not running" ;;
+    8) container_running "$worker_name" && echo "✅ Currently running" || echo "⚪ Not running" ;;
+    9) container_running "$browser_name" && echo "✅ Currently running" || echo "⚪ Not running" ;;
+    10) configured_label guard ;;
+    11) configured_label worker ;;
+    12) echo "—" ;;
+    13) echo "Run to verify" ;;
+    14) guard_admin_mode_enabled && echo "✅ Enabled" || echo "⚪ Disabled" ;;
+    *) echo "—" ;;
+  esac
 }
 
 configured_label(){
@@ -87,13 +77,13 @@ configured_label(){
   local file
   if [ "$kind" = "guard" ]; then file="$guard_cfg"; else file="$worker_cfg"; fi
   if [ ! -s "$file" ]; then
-    echo "(⚪ Not configured)"
+    echo "⚪ Not configured"
     return
   fi
   if grep -q '"gateway"' "$file" && grep -q '"mode"' "$file"; then
-    echo "(✅ Configured)"
+    echo "✅ Configured"
   else
-    echo "(⚪ Not configured)"
+    echo "⚪ Not configured"
   fi
 }
 
@@ -594,64 +584,56 @@ step_auth_tokens(){
   echo "  ./scripts/guard-bridge.sh pending"
 }
 
-run_all(){
-  ensure_repo_writable_for_guard
-  step_preflight
-  step_docker
-  step_env
-  step_browser_init
-  ensure_browser_profile
-  ensure_inline_buttons
-  ensure_guard_approval_instructions
-  read -r -p "$TIGER Configure Bitwarden secrets now? [y/N]: " bw_ans
-  if [[ "$bw_ans" =~ ^[Yy]$ ]]; then
-    step_bitwarden_secrets
-  fi
-  step_tailscale
-  step_start_all
-  ensure_guard_bitwarden
-  step_auth_tokens
-  step_verify
+run_step(){
+  local n="$1"
+  sep
+  case "$n" in
+    1) step_preflight ;;
+    2) step_docker ;;
+    3) step_env ;;
+    4) step_browser_init ;;
+    5) step_bitwarden_secrets ;;
+    6) step_tailscale ;;
+    7) ensure_repo_writable_for_guard; sync_core_workspaces; step_start_guard; ensure_guard_approval_instructions ;;
+    8) sync_core_workspaces; step_start_worker ;;
+    9) step_start_browser; ensure_browser_profile; ensure_inline_buttons ;;
+    10) ensure_guard_bitwarden; step_configure_guard ;;
+    11) step_configure_worker ;;
+    12) step_auth_tokens ;;
+    13) step_verify ;;
+    14) step_guard_admin_mode ;;
+    *) warn "Unknown step" ;;
+  esac
+  echo
+  read -r -p "$TIGER Press Enter to return to menu..." _
 }
 
 menu_once(){
   welcome
   printf "$TIGER Checking status..."
-  cat <<EOF
-
-Choose an action:
-  1) Run ALL setup steps (recommended)
-  2) Run start guard $(status_label "$guard_name")
-  3) Run start worker $(status_label "$worker_name")
-  4) Run start browser $(browser_status_label)
-  5) Run openclaw onboard on guard $(configured_label guard)
-  6) Run openclaw onboard on worker $(configured_label worker)
-  7) Run Tailscale setup $(simple_status_label "running" "not running" "tailscale")
-  8) Access OpenClaw dashboard and CLI
-  9) Configure Bitwarden secrets (guard) $(bitwarden_status_label)
- 10) Toggle guard admin mode
- 11) Run healthcheck
-  0) Exit
-EOF
-  read -r -p "$TIGER Select [0-11]: " pick
+  echo
+  echo
+  printf "  %2d. %-24s | %s\n"  1 "preflight"           "$(step_status 1)"
+  printf "  %2d. %-24s | %s\n"  2 "docker"              "$(step_status 2)"
+  printf "  %2d. %-24s | %s\n"  3 "environment"        "$(step_status 3)"
+  printf "  %2d. %-24s | %s\n"  4 "browser init"       "$(step_status 4)"
+  printf "  %2d. %-24s | %s\n"  5 "bitwarden"          "$(step_status 5)"
+  printf "  %2d. %-24s | %s\n"  6 "tailscale"          "$(step_status 6)"
+  printf "  %2d. %-24s | %s\n"  7 "start guard"        "$(step_status 7)"
+  printf "  %2d. %-24s | %s\n"  8 "start worker"       "$(step_status 8)"
+  printf "  %2d. %-24s | %s\n"  9 "start browser"      "$(step_status 9)"
+  printf "  %2d. %-24s | %s\n" 10 "configure guard"    "$(step_status 10)"
+  printf "  %2d. %-24s | %s\n" 11 "configure worker"   "$(step_status 11)"
+  printf "  %2d. %-24s | %s\n" 12 "dashboard URLs"     "$(step_status 12)"
+  printf "  %2d. %-24s | %s\n" 13 "healthcheck"        "$(step_status 13)"
+  printf "  %2d. %-24s | %s\n" 14 "guard admin mode"   "$(step_status 14)"
+  echo
+  read -r -p "$TIGER Select step [1-14] or 0 to exit: " pick
   case "$pick" in
-    1) sep; run_all ;;
-    2) sep; step_start_guard ;;
-    3) sep; step_start_worker ;;
-    4) sep; step_start_browser ;;
-    5) sep; step_configure_guard ;;
-    6) sep; step_configure_worker ;;
-    7) sep; step_tailscale ;;
-    8) sep; step_auth_tokens ;;
-    9) sep; step_bitwarden_secrets ;;
-    10) sep; step_guard_admin_mode ;;
-    # Keep healthcheck immediately before exit in this menu ordering.
-    11) sep; step_verify ;;
     0) say "Exiting setup wizard. See you soon."; return 1 ;;
+    1|2|3|4|5|6|7|8|9|10|11|12|13|14) run_step "$pick" ;;
     *) warn "Invalid choice" ;;
   esac
-  echo
-  read -r -p "$TIGER Press Enter to return to menu..." _
   return 0
 }
 
