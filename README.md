@@ -35,64 +35,27 @@ sudo ./healthcheck.sh
 ## System diagram
 
 ```mermaid
-flowchart LR
-  U[User Telegram]
-  C[🐯 Chloe\nWorker OpenClaw\n:18789]
-  O[🐕 Op\nGuard OpenClaw\n:18790]
-  B[Webtop Chromium CDP\n:9223]
-  BW[(Bitwarden)]
-  BR[(Bridge inbox/outbox)]
-  D[/var/run/docker.sock/]
-  R[/opt/op-and-chloe/]
+flowchart TD
+    CH("<b>🐯 Chloe Bot.</b><br/><br/>Responsible for<br/>day-to-day tasks<br/>No access to credentials.")
+    OP("🐕 Operator Bot<br/>Responsible for security and authentication")
+    U[🥰 User]
+    BW[🔐 Bitwarden]
+    BR[🖥️ Webtop Browser]
 
-  U --> C
-  U --> O
+    U <-->|Approves tool use| OP
+    U <-->|Chats via Telegram with| CH
 
-  C --> BR
-  BR --> O
+    OP -->|Requests credentials from| BW
+    OP -->|Oversees Chloe and provides authenticated tools| CH
+    U -->|Logs in to web pages like Social Media sites| BR
+    CH -->|Accesses| BR
+    U -->|Sets secrets in| BW
 
-  C --> B
-  O --> D
-  O --> R
-  O --> BW
-
-  subgraph VPS
-    C
-    O
-    B
-    BR
-    D
-    R
-  end
-```
-
-Approval flow (blocking call):
-
-```mermaid
-sequenceDiagram
-  participant User
-  participant Chloe as 🐯 Chloe
-  participant Op as 🐕 Op
-
-  User->>Chloe: request task
-  Chloe->>Op: call "<command>" --reason ... --timeout ...
-  Op->>Op: command policy evaluation
-  alt decision = approved
-    Op->>Op: execute command
-    Op-->>Chloe: final result
-  else decision = ask
-    Op->>User: approval buttons
-    User->>Op: approve/deny
-    alt approved
-      Op->>Op: execute command
-      Op-->>Chloe: final result
-    else denied
-      Op-->>Chloe: rejected
+    subgraph VPS
+        CH
+        BR
+        OP
     end
-  else decision = rejected
-    Op-->>Chloe: rejected
-  end
-  Chloe-->>User: response
 ```
 
 
