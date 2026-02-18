@@ -160,16 +160,40 @@ PY2
 }
 
 
-step_bitwarden_secrets(){
-  say "Configure Bitwarden for guard"
-  say "We use Bitwarden to share credentials safely with OpenClaw, straight from your phone."
-  say "Create a free account on https://vault.bitwarden.com or https://vault.bitwarden.eu — whichever is closer to you."
-  say "Then, go to Settings → Security → Keys to create an API key."
+verify_bitwarden_credentials(){
+  local secrets_file="$1"
+  if ! command -v docker >/dev/null 2>&1; then
+    return 1
+  fi
+  docker run --rm --env-file "$secrets_file" node:20-alpine sh -c '
+    npm install -g @bitwarden/cli >/dev/null 2>&1 &&
+    bw config server "$BW_SERVER" >/dev/null 2>&1 &&
+    BW_CLIENTID="$BW_CLIENTID" BW_CLIENTSECRET="$BW_CLIENTSECRET" bw login --apikey --nointeraction 2>/dev/null &&
+    bw status 2>/dev/null | grep -qv "unauthenticated"
+  ' 2>/dev/null
+}
 
+step_bitwarden_secrets(){
   local secrets_dir="/var/lib/openclaw/guard-state/secrets"
   local secrets_file="$secrets_dir/bitwarden.env"
   mkdir -p "$secrets_dir"
   chmod 700 "$secrets_dir"
+
+  if [ -f "$secrets_file" ]; then
+    say "Configure Bitwarden for guard"
+    say "Verifying existing credentials..."
+    if verify_bitwarden_credentials "$secrets_file"; then
+      ok "Bitwarden credentials verified"
+      return
+    fi
+    warn "Previous credentials failed — re-enter them below"
+    echo
+  fi
+
+  say "Configure Bitwarden for guard"
+  say "We use Bitwarden to share credentials safely with OpenClaw, straight from your phone."
+  say "Create a free account on https://vault.bitwarden.com or https://vault.bitwarden.eu — whichever is closer to you."
+  say "Then, go to Settings → Security → Keys to create an API key."
 
   local cur_server=""
   local cur_email=""
@@ -217,19 +241,14 @@ EOF
   ok "Saved $secrets_file"
 
   say "Verifying Bitwarden credentials..."
-  if command -v docker >/dev/null 2>&1; then
-    if docker run --rm --env-file "$secrets_file" node:20-alpine sh -c '
-      npm install -g @bitwarden/cli >/dev/null 2>&1 &&
-      bw config server "$BW_SERVER" >/dev/null 2>&1 &&
-      BW_CLIENTID="$BW_CLIENTID" BW_CLIENTSECRET="$BW_CLIENTSECRET" bw login --apikey --nointeraction 2>/dev/null &&
-      bw status 2>/dev/null | grep -qv "unauthenticated"
-    ' 2>/dev/null; then
-      ok "Bitwarden credentials verified"
-    else
-      warn "Bitwarden login failed — check your client id, secret, and server URL"
-    fi
+  if verify_bitwarden_credentials "$secrets_file"; then
+    ok "Bitwarden credentials verified"
   else
-    warn "Docker not installed — skipping verification (run step 2 first)"
+    if command -v docker >/dev/null 2>&1; then
+      warn "Bitwarden login failed — check your client id, secret, and server URL"
+    else
+      warn "Docker not installed — skipping verification (run step 2 first)"
+    fi
   fi
 }
 
