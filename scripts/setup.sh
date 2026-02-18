@@ -66,7 +66,7 @@ step_status(){
     9) container_running "$browser_name" && echo "✅ Currently running" || echo "⚪ Not running" ;;
     10) configured_label guard ;;
     11) configured_label worker ;;
-    12) echo "—" ;;
+    12) echo "⚪ Not ready" ;;
     13) echo "Run to verify" ;;
     14) guard_admin_mode_enabled && echo "✅ Enabled" || echo "⚪ Disabled" ;;
     *) echo "—" ;;
@@ -250,7 +250,7 @@ set_guard_admin_mode(){
 
 step_guard_admin_mode(){
   say "Guard admin mode"
-  say "Why: optionally grant guard full access to /var/lib/openclaw and /etc/openclaw for deep fixes."
+  say "When enabled, the guard can access /var/lib/openclaw and /etc/openclaw for deep fixes and stack maintenance."
   if guard_admin_mode_enabled; then
     ok "Current: ENABLED"
     read -r -p "$TIGER Disable admin mode now? [y/N]: " ans
@@ -303,7 +303,7 @@ sync_core_workspaces(){
 
 ensure_repo_writable_for_guard(){
   say "Ensure repo is writable for guard"
-  say "Why: allows guard to patch stack scripts without elevated tool mode."
+  say "We set permissions so the guard can edit stack scripts when needed."
 
   # Host repo permissions (guard runs as uid 1000 inside container)
   chown -R 1000:1000 "$STACK_DIR" 2>/dev/null || true
@@ -359,7 +359,7 @@ check_done(){
 
 step_preflight(){
   say "Step 1: Preflight checks"
-  say "Why: confirm host prerequisites and avoid mid-setup surprises."
+  say "We verify your host is ready (Ubuntu/Debian, disk space) before proceeding."
   command -v apt-get >/dev/null
   . /etc/os-release
   ok "Host OS: $PRETTY_NAME"
@@ -368,7 +368,7 @@ step_preflight(){
 
 step_docker(){
   say "Step 2: Docker + Compose"
-  say "Why: worker/guard/browser all run as containers."
+  say "We use Docker to run the worker, guard and browser as safe, isolated containers."
   if check_done docker; then ok "Docker already installed"; return; fi
   export DEBIAN_FRONTEND=noninteractive
   apt-get update -y >/dev/null
@@ -385,7 +385,7 @@ step_docker(){
 
 step_env(){
   say "Step 3: State dirs + environment"
-  say "Why: persist config/state across restarts and reboots."
+  say "We create directories and an env file so your config and state survive restarts."
   mkdir -p /etc/openclaw /var/lib/openclaw/{state,workspace,browser,guard-state,guard-workspace}
   chown -R 1000:1000 /var/lib/openclaw/state /var/lib/openclaw/workspace /var/lib/openclaw/browser /var/lib/openclaw/guard-state /var/lib/openclaw/guard-workspace
   if [ ! -f "$ENV_FILE" ]; then
@@ -401,7 +401,7 @@ step_env(){
 
 step_browser_init(){
   say "Step 4: Browser CDP init scripts"
-  say "Why: makes Chromium start with remote-debugging + stable proxy (9223)."
+  say "We install scripts so Chromium starts with remote-debugging on port 9222, proxied to 9223 for automation."
   local browser_dir="/var/lib/openclaw/browser"
   mkdir -p "$browser_dir/custom-cont-init.d"
   install -m 0755 "$STACK_DIR/scripts/webtop-init/20-start-chromium-cdp" "$browser_dir/custom-cont-init.d/20-start-chromium-cdp"
@@ -412,7 +412,7 @@ step_browser_init(){
 
 step_tailscale(){
   say "Step 5: Tailscale setup (opinionated default)"
-  say "Why: secure private access instead of exposing services publicly."
+  say "We use Tailscale so you can access the dashboards privately over your tailnet, without exposing ports to the internet."
   if check_done tailscale; then
     local tsip
     tsip=$(tailscale_ip)
@@ -449,7 +449,7 @@ step_tailscale(){
 step_start_guard(){
   sync_core_workspaces
   say "Start guard service"
-  say "Why: guard handles oversight and privileged pathways."
+  say "The guard oversees privileged operations and approves Chloe's requests for credentials and tools."
   if container_running "$guard_name"; then ok "Guard already running"; return; fi
   cd "$STACK_DIR"
   docker compose --env-file "$ENV_FILE" -f compose.yml up -d openclaw-guard
@@ -459,7 +459,7 @@ step_start_guard(){
 step_start_worker(){
   sync_core_workspaces
   say "Start worker service"
-  say "Why: worker is your daily assistant runtime."
+  say "The worker is your main assistant — you'll chat with it daily and run tasks through it."
   if container_running "$worker_name"; then ok "Worker already running"; return; fi
   cd "$STACK_DIR"
   docker compose --env-file "$ENV_FILE" -f compose.yml up -d openclaw-gateway
@@ -468,7 +468,7 @@ step_start_worker(){
 
 step_start_browser(){
   say "Start browser service"
-  say "Why: webtop hosts the persistent Chromium profile used for automation."
+  say "The webtop runs a Chromium browser with a persistent profile, so Chloe can log into sites and automate them."
   if container_running "$browser_name"; then ok "Browser already running"; return; fi
   cd "$STACK_DIR"
   docker compose --env-file "$ENV_FILE" -f compose.yml up -d browser
@@ -481,14 +481,14 @@ step_start_all(){
   ensure_browser_profile
   ensure_inline_buttons
   say "Start full stack"
-  say "Why: starts browser + worker + guard together in one command."
+  say "This starts all three services together so the stack is ready."
   STACK_DIR="$STACK_DIR" ENV_FILE="$ENV_FILE" "$STACK_DIR/start.sh"
   ok "Start sequence finished"
 }
 
 step_verify(){
   say "Run healthcheck"
-  say "Why: confirm stack is truly ready for setup/use."
+  say "We run health checks to confirm everything is working."
   STACK_DIR="$STACK_DIR" "$STACK_DIR/healthcheck.sh" || true
   ok "Healthcheck executed"
 }
@@ -501,7 +501,7 @@ step_configure_guard(){
   "$STACK_DIR/openclaw-guard" config set gateway.port 18790 >/dev/null 2>&1 || true
   "$STACK_DIR/openclaw-guard" config set gateway.bind loopback >/dev/null 2>&1 || true
   say "Run configure guard"
-  say "Why: guard is the OpenClaw instance that oversees all operations."
+  say "The guard oversees privileged operations — connect a model and Telegram bot for approvals."
   echo
   sep
   echo "Recommended guard setup:"
@@ -524,7 +524,7 @@ step_configure_worker(){
   local pretty
   pretty=$(title_case_name "$INSTANCE")
   say "Run configure worker"
-  say "Why: this is the AI instance you'll chat to daily and build tasks with."
+  say "This is your main assistant — connect your models and Telegram bot here for daily chat."
   echo
   sep
   echo "Recommended worker setup:"
@@ -546,7 +546,7 @@ step_configure_worker(){
 
 step_auth_tokens(){
   say "Access OpenClaw dashboard and CLI"
-  say "Why: this gives you exact dashboard URLs and CLI helpers."
+  say "Here are your dashboard URLs and CLI commands."
   echo
   if check_done tailscale; then
     TSDNS=$(tailscale_dns)
@@ -613,6 +613,8 @@ menu_once(){
   welcome
   printf "$TIGER Checking status..."
   echo
+  echo
+  echo "Follow these steps one by one:"
   echo
   printf "  %2d. %-24s | %s\n"  1 "preflight"           "$(step_status 1)"
   printf "  %2d. %-24s | %s\n"  2 "docker"              "$(step_status 2)"
