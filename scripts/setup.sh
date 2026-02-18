@@ -160,17 +160,29 @@ PY2
 }
 
 
+bitwarden_env_hash(){
+  local f="$1"
+  [ -f "$f" ] || return 1
+  sha256sum < "$f" 2>/dev/null | cut -d' ' -f1 || openssl dgst -sha256 -r 2>/dev/null < "$f" | cut -d' ' -f1
+}
+
 verify_bitwarden_credentials(){
   local secrets_file="$1"
   if ! command -v docker >/dev/null 2>&1; then
     return 1
   fi
-  docker run --rm --env-file "$secrets_file" node:20-alpine sh -c '
+  if docker run --rm --env-file "$secrets_file" node:20-alpine sh -c '
     npm install -g @bitwarden/cli >/dev/null 2>&1 &&
     bw config server "$BW_SERVER" >/dev/null 2>&1 &&
-    BW_CLIENTID="$BW_CLIENTID" BW_CLIENTSECRET="$BW_CLIENTSECRET" bw login --apikey --nointeraction 2>/dev/null &&
+    BW_CLIENTID="$BW_CLIENTID" BW_CLIENTSECRET="$BW_CLIENTSECRET" bw login --apikey --nointeraction >/dev/null 2>&1 &&
     bw status 2>/dev/null | grep -qv "unauthenticated"
-  ' 2>/dev/null
+  ' >/dev/null 2>&1; then
+    local h
+    h=$(bitwarden_env_hash "$secrets_file")
+    [ -n "$h" ] && echo "$h" > "$(dirname "$secrets_file")/.bw_verified" && chmod 600 "$(dirname "$secrets_file")/.bw_verified" 2>/dev/null
+    return 0
+  fi
+  return 1
 }
 
 step_bitwarden_secrets(){
@@ -228,6 +240,7 @@ step_bitwarden_secrets(){
   [ -n "$BW_EMAIL" ] || { warn "BW email is required"; return; }
   [ -n "$BW_PASSWORD" ] || { warn "BW master password is required"; return; }
 
+  rm -f "$secrets_dir/.bw_verified"
   cat > "$secrets_file" <<EOF
 BW_SERVER=$BW_SERVER
 BW_CLIENTID=$BW_CLIENTID
@@ -379,12 +392,20 @@ check_done(){
     running) container_running "$worker_name" && container_running "$guard_name" ;;
     tailscale) tailscale status >/dev/null 2>&1 ;;
     bitwarden)
-      [ -f /var/lib/openclaw/guard-state/secrets/bitwarden.env ] || return 1
-      grep -q '^BW_SERVER=' /var/lib/openclaw/guard-state/secrets/bitwarden.env || return 1
-      grep -q '^BW_CLIENTID=' /var/lib/openclaw/guard-state/secrets/bitwarden.env || return 1
-      grep -q '^BW_CLIENTSECRET=' /var/lib/openclaw/guard-state/secrets/bitwarden.env || return 1
-      grep -q '^BW_EMAIL=' /var/lib/openclaw/guard-state/secrets/bitwarden.env || return 1
-      grep -q '^BW_PASSWORD=' /var/lib/openclaw/guard-state/secrets/bitwarden.env || return 1
+      local bw_env="/var/lib/openclaw/guard-state/secrets/bitwarden.env"
+      local bw_verified="/var/lib/openclaw/guard-state/secrets/.bw_verified"
+      [ -f "$bw_env" ] || return 1
+      grep -q '^BW_SERVER=' "$bw_env" || return 1
+      grep -q '^BW_CLIENTID=' "$bw_env" || return 1
+      grep -q '^BW_CLIENTSECRET=' "$bw_env" || return 1
+      grep -q '^BW_EMAIL=' "$bw_env" || return 1
+      grep -q '^BW_PASSWORD=' "$bw_env" || return 1
+      if [ -f "$bw_verified" ]; then
+        local want_h got_h
+        want_h=$(bitwarden_env_hash "$bw_env")
+        got_h=$(cat "$bw_verified" 2>/dev/null)
+        [ -n "$want_h" ] && [ "$want_h" = "$got_h" ] && return 0
+      fi
       container_running "$guard_name" || return 1
       docker exec "$guard_name" sh -lc '
         set -e

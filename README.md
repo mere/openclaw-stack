@@ -8,10 +8,27 @@
 
 - **🐯 Chloe**: friendly day-to-day assistant (safe container)
 - **🐕 Op**: operator/guard instance (admin + security approvals)
-- Webtop Chromium + CDP proxy for browser automation
-- Healthcheck + watchdog
+- 🖥️ Webtop Chromium + CDP proxy for browser automation
+- 🔐 Safe credential storage with BitWarden
+- ❤️ Healthcheck + watchdog
 
 See architecture details in [ARCHITECTURE.md](./ARCHITECTURE.md).
+
+## But Why?
+
+Setting up a fully working and safe end-to-end OpenClaw stack is tedious—especially on a $5 VPS. This repo is a friendly wizard that guides you through an easy, opinionated setup. You can change everything once you're up and running.
+
+By default it gives you:
+
+- **☁️ A fully working setup on a VPS of your choice.** Our favourite is [Hetzner](https://www.hetzner.com), where you can run op-and-chloe for about **$4.70/month**. See [HETZNER.md](./HETZNER.md) for setup.
+
+- **🖥️ A browser you can share with OpenClaw.** Log in to social sites (e.g. LinkedIn) in the Webtop browser and let OpenClaw use it to read messages and draft responses for you.
+
+- **🔐 A safe split between Chloe and Op.** Chloe does day-to-day tasks without touching credentials; Op handles privileged operations and approvals so you stay in control.
+
+- **🔒 Private access via Tailscale.** Worker, Guard, and Webtop dashboards are served over your Tailscale network with optional HTTPS—no public ports required.
+
+- **❤️ Healthcheck and watchdog.** Simple scripts to verify the stack and keep it running.
 
 ## Quick start
 
@@ -22,6 +39,10 @@ sudo ./scripts/setup.sh
 ```
 
 Work through the setup steps 1–14 in order. Each step runs once and returns you to the menu so you can verify status before continuing.
+
+<p align="center">
+  <img src="assets/wizard.png" alt="OpenClaw Setup Wizard" width="600">
+</p>
 
 **Tailscale**: During setup you'll be prompted to log in. Use an [auth key](https://login.tailscale.com/admin/settings/keys) for headless VPS, or run `tailscale up` interactively.
 
