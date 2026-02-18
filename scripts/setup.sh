@@ -4,6 +4,10 @@ set -euo pipefail
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 STACK_DIR=$(cd "$SCRIPT_DIR/.." && pwd)
 ENV_FILE=${ENV_FILE:-/etc/openclaw/stack.env}
+# Load INSTANCE from env file so we check the same container names as docker compose
+if [ -f "$ENV_FILE" ]; then
+  INSTANCE=$(grep -E '^INSTANCE=' "$ENV_FILE" | cut -d= -f2- | tr -d '"' | head -1)
+fi
 INSTANCE=${INSTANCE:-op-and-chloe}
 
 TIGER="🐯"
@@ -476,7 +480,7 @@ step_start_all(){
   ensure_inline_buttons
   say "Start full stack"
   say "Why: starts browser + worker + guard together in one command."
-  STACK_DIR="$STACK_DIR" "$STACK_DIR/start.sh" || true
+  STACK_DIR="$STACK_DIR" ENV_FILE="$ENV_FILE" "$STACK_DIR/start.sh"
   ok "Start sequence finished"
 }
 
