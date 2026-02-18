@@ -20,7 +20,10 @@ docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" pull browser openclaw-g
 echo "[start] bringing stack up"
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d
 
+echo "[start] container status"
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ps
+
 echo "[start] warming up browser/CDP"
 sleep 10
 echo "[start] healthcheck"
-"$STACK_DIR/healthcheck.sh"
+STACK_DIR="$STACK_DIR" ENV_FILE="$ENV_FILE" "$STACK_DIR/healthcheck.sh"

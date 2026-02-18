@@ -1,5 +1,9 @@
 # op-and-chloe
 
+<p align="center">
+  <img src="assets/logo.png" alt="Op and Chloe" width="400">
+</p>
+
 `op-and-chloe` ("openclaw-ey") is a two-instance OpenClaw stack for any VPS.
 
 - **🐯 Chloe**: friendly day-to-day assistant (safe container)
@@ -18,6 +22,8 @@ sudo ./scripts/setup.sh
 ```
 
 Use `Run ALL setup steps` in the setup wizard.
+
+**Tailscale**: During setup you'll be prompted to log in. Use an [auth key](https://login.tailscale.com/admin/settings/keys) for headless VPS, or run `tailscale up` interactively.
 
 ## Daily ops
 

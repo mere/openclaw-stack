@@ -438,8 +438,21 @@ step_tailscale(){
   if [[ "$ans" =~ ^[Yy]$ ]]; then
     curl -fsSL https://tailscale.com/install.sh | sh >/dev/null
     ok "Tailscale installed"
-    say "Run next: tailscale up"
-    say "After tailscale up, run option 7 again to configure Tailscale HTTPS endpoints."
+    say "Log in to Tailscale to join this machine to your tailnet."
+    say "Get an auth key from: https://login.tailscale.com/admin/settings/keys"
+    read -r -p "$TIGER Paste auth key (or Enter to run 'tailscale up' interactively): " authkey
+    if [ -n "$authkey" ]; then
+      tailscale up --authkey="$authkey" && ok "Tailscale joined tailnet" || warn "Tailscale up failed"
+    else
+      say "Running 'tailscale up' — follow the prompts (browser or URL) to authenticate."
+      tailscale up || warn "Run 'tailscale up' manually when ready."
+    fi
+    if check_done tailscale; then
+      apply_tailscale_serve && ok "Configured HTTPS Tailscale dashboard endpoints"
+      enable_tokenless_tailscale_auth && ok "Applied Tailscale auth compatibility settings"
+    else
+      say "After tailscale up succeeds, run option 7 again to configure HTTPS endpoints."
+    fi
   else
     ok "Skipped Tailscale install"
   fi

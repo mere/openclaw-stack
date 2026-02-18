@@ -6,9 +6,16 @@ BROWSER_CONTAINER=${BROWSER_CONTAINER:-${INSTANCE}-browser}
 GATEWAY_CONTAINER=${GATEWAY_CONTAINER:-${INSTANCE}-openclaw-gateway}
 CDP_PORT=${CDP_PORT:-9223}
 
-BIP=$(docker inspect -f "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}" "$BROWSER_CONTAINER")
+if ! docker ps -a --format '{{.Names}}' | grep -q "^${BROWSER_CONTAINER}$"; then
+  echo "Browser container '$BROWSER_CONTAINER' not found."
+  echo "Run: sudo ./start.sh  (or setup option 4: Run start browser)" >&2
+  exit 1
+fi
+
+BIP=$(docker inspect -f "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}" "$BROWSER_CONTAINER" 2>/dev/null || true)
 if [ -z "$BIP" ]; then
-  echo "Could not determine browser container IP for: $BROWSER_CONTAINER" >&2
+  echo "Browser container exists but has no network IP (may still be starting)." >&2
+  echo "Wait a moment and run healthcheck again." >&2
   exit 1
 fi
 
