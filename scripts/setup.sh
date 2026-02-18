@@ -173,7 +173,7 @@ step_bitwarden_secrets(){
 
   local cur_server=""
   local cur_email=""
-  local default_choice="2"
+  local default_choice="1"
   if [ -f "$secrets_file" ]; then
     cur_server=$(grep '^BW_SERVER=' "$secrets_file" | cut -d= -f2- || true)
     cur_email=$(grep '^BW_EMAIL=' "$secrets_file" | cut -d= -f2- || true)
@@ -181,9 +181,9 @@ step_bitwarden_secrets(){
     [[ "$cur_server" == *".com"* ]] && default_choice="1" || default_choice="2"
   fi
 
-  echo "  1) vault.bitwarden.com"
-  echo "  2) vault.bitwarden.eu"
-  read -r -p "$TIGER BW server [1 or 2, default ${default_choice}]: " ans
+  echo "  1) I registered on https://vault.bitwarden.com"
+  echo "  2) I registered on https://vault.bitwarden.eu"
+  read -r -p "$TIGER BW server [1 or 2]: " ans
   ans=${ans:-$default_choice}
   if [[ "$ans" == "1" ]]; then
     BW_SERVER="https://vault.bitwarden.com"
