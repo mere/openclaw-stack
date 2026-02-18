@@ -25,6 +25,8 @@ Use `Run ALL setup steps` in the setup wizard.
 
 **Tailscale**: During setup you'll be prompted to log in. Use an [auth key](https://login.tailscale.com/admin/settings/keys) for headless VPS, or run `tailscale up` interactively.
 
+**Tailscale HTTPS** (for Worker/Guard/Webtop dashboards): Enable [HTTPS certificates](https://tailscale.com/kb/1153/enabling-https) in the admin console, then run `sudo tailscale cert` on the VPS. The setup configures serve on ports 443 (Worker), 444 (Guard), 445 (Webtop).
+
 ## Daily ops
 
 ```bash
@@ -98,6 +100,14 @@ call "cd /opt/op-and-chloe && git pull && ./start.sh" --reason "Update stack" --
 ```
 
 No action wrappers. Use direct commands through `command.run` policy.
+
+## Troubleshooting
+
+**Webtop URL (https://hostname:445/) not working:**
+1. Ensure the browser container is running: `docker ps | grep browser`
+2. Ensure Tailscale serve is configured: `tailscale serve status` — you should see port 445 → 127.0.0.1:6080
+3. Re-apply serve config: `sudo ./scripts/apply-tailscale-serve.sh`
+4. For HTTPS to work, enable [HTTPS certificates](https://tailscale.com/kb/1153/enabling-https) in the admin console and run `sudo tailscale cert` on the VPS
 
 ## Security model
 

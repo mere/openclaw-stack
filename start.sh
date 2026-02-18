@@ -25,5 +25,10 @@ docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ps
 
 echo "[start] warming up browser/CDP"
 sleep 10
+
+if tailscale status >/dev/null 2>&1; then
+  echo "[start] applying Tailscale serve (Worker, Guard, Webtop)"
+  "$STACK_DIR/scripts/apply-tailscale-serve.sh" 2>/dev/null || true
+fi
 echo "[start] healthcheck"
 STACK_DIR="$STACK_DIR" ENV_FILE="$ENV_FILE" "$STACK_DIR/healthcheck.sh"

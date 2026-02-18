@@ -106,10 +106,7 @@ tailscale_dns(){
 }
 
 apply_tailscale_serve(){
-  tailscale serve reset >/dev/null 2>&1 || true
-  tailscale serve --bg --https=443 http://127.0.0.1:18789 >/dev/null
-  tailscale serve --bg --https=444 http://127.0.0.1:18790 >/dev/null
-  tailscale serve --bg --https=445 http://127.0.0.1:6080 >/dev/null
+  "$STACK_DIR/scripts/apply-tailscale-serve.sh" && ok "Tailscale serve: 443→worker, 444→guard, 445→webtop" || warn "Tailscale serve failed (is tailscale running?)"
 }
 
 enable_tokenless_tailscale_auth(){
