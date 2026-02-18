@@ -162,9 +162,9 @@ PY2
 
 step_bitwarden_secrets(){
   say "Configure Bitwarden for guard"
+  say "We use Bitwarden to share credentials safely with OpenClaw, straight from your phone."
   say "Create a free account on https://vault.bitwarden.com or https://vault.bitwarden.eu — whichever is closer to you."
-  say "Bitwarden lets you share credentials safely with OpenClaw, straight from your phone."
-  say "Go to Settings → Security → Keys to create an API key."
+  say "Then, go to Settings → Security → Keys to create an API key."
 
   local secrets_dir="/var/lib/openclaw/guard-state/secrets"
   local secrets_file="$secrets_dir/bitwarden.env"
@@ -192,7 +192,7 @@ step_bitwarden_secrets(){
   fi
 
   read -r -p "$TIGER BW client id: " BW_CLIENTID
-  read -r -s -p "$TIGER BW client secret: " BW_CLIENTSECRET
+  read -r -s -p "$TIGER BW client secret (it won't be shown): " BW_CLIENTSECRET
   echo
   read -r -p "$TIGER BW email [${cur_email:-}]: " BW_EMAIL
   BW_EMAIL=${BW_EMAIL:-$cur_email}
@@ -215,6 +215,22 @@ EOF
   chmod 600 "$secrets_file"
   chown 1000:1000 "$secrets_dir" "$secrets_file" 2>/dev/null || true
   ok "Saved $secrets_file"
+
+  say "Verifying Bitwarden credentials..."
+  if command -v docker >/dev/null 2>&1; then
+    if docker run --rm --env-file "$secrets_file" node:20-alpine sh -c '
+      npm install -g @bitwarden/cli >/dev/null 2>&1 &&
+      bw config server "$BW_SERVER" >/dev/null 2>&1 &&
+      BW_CLIENTID="$BW_CLIENTID" BW_CLIENTSECRET="$BW_CLIENTSECRET" bw login --apikey --nointeraction 2>/dev/null &&
+      bw status 2>/dev/null | grep -qv "unauthenticated"
+    ' 2>/dev/null; then
+      ok "Bitwarden credentials verified"
+    else
+      warn "Bitwarden login failed — check your client id, secret, and server URL"
+    fi
+  else
+    warn "Docker not installed — skipping verification (run step 2 first)"
+  fi
 }
 
 ensure_guard_bitwarden(){
