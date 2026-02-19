@@ -844,7 +844,7 @@ step_auth_tokens(){
       say "Let's set up your dashboards!"
       say "First, open the Guard and Worker dashboards using the links above."
       say "If you see Token mismatch, rotate the keys."
-      say "If you see disconnected (1008): pairing required — refresh the pairing status."
+      say "If you see disconnected (1008): pairing required — approve the pairing using the options below."
       echo
     fi
     guard_pending=()
@@ -864,7 +864,7 @@ step_auth_tokens(){
       options+=("🤝 Approve pairing request for Worker — $short_id"); option_type+=("approve_worker"); option_id+=("$id")
     done
     num_opts=${#options[@]}
-    if [ "$num_opts" -gt 1 ]; then
+    if [ ${#guard_pending[@]} -gt 0 ] || [ ${#worker_pending[@]} -gt 0 ]; then
       echo "🤝 Pairing Request Detected!"
       echo
     fi

@@ -63,6 +63,15 @@ sudo ./setup.sh
 That's it!
 It takes about 20 minutes to follow the steps and your `AI personal assistant` is ready! ✨
 
+## How to update
+
+To update your op-and-chloe stack: run `git pull`, then run the setup again. The wizard will show you if anything needs updating.
+
+```bash
+cd op-and-chloe   # or wherever you cloned the repo
+git pull
+sudo ./setup.sh
+```
 
 # Components
 
@@ -142,15 +151,28 @@ Run the setup wizard:
 sudo ./setup.sh
 ```
 
-Stop and start (also rebuild) the docker images:
+Is your AI about to take over the world? Stop the containers with:
 ```bash
 sudo ./stop.sh
+```
+
+False alarm, it was just ordering cat food? Start it with:  
+> Note: This also rebuilds the container, so it's a good way to reset if things go wrong!
+```
 sudo ./start.sh
 ```
+
 
 Run full health check on the stack:
 ```bash
 sudo ./healthcheck.sh
+```
+
+To run any `openclaw` command, use:
+```bash
+./openclaw-guard some command
+# or
+./openclaw-worker some command
 ```
 
 
