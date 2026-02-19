@@ -694,6 +694,12 @@ step_auth_tokens(){
   echo "  ./openclaw-guard <command>"
   echo "  ./openclaw-worker <command>"
   echo
+  say "Pairing required: if the dashboard shows \"Pairing required\", approve this device from here:"
+  echo "  ./openclaw-worker devices list     # Worker dashboard"
+  echo "  ./openclaw-worker devices approve <requestId>"
+  echo "  ./openclaw-guard devices list      # Guard dashboard"
+  echo "  ./openclaw-guard devices approve <requestId>"
+  echo
   say "If the tokens above don't work, you need to rotate them."
   read -r -p "$TIGER Rotate gateway tokens (e.g. if expired)? [y/N] " rot
   case "$rot" in [yY]|[yY][eE][sS]*) ;; *) rot="" ;; esac
