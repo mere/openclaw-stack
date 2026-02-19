@@ -19,10 +19,10 @@ Why not just use OpenClaw as it is?
 
 You can - and you should. OpenClaw is awesome.
 
-Setting it up from start to finish can be very tedious, though. How do you securely share credentials? How do you give OpenClaw browser access—especially on a headless server? Should you use Browserless or run headless Chromium? If you can't see the browser, how do you log in? How do you troubleshoot or fix things from your phone? And how do you help someone set up OpenClaw if they're not comfortable with SSH or the command line?
+Setting it up from start to finish can be very tedious, though. How do you securely share credentials? How do you give OpenClaw browser access - especially on a headless server? Should you use Browserless or run headless Chromium? If you can't see the browser, how do you log in? How do you troubleshoot or fix things from your phone? And how do you help someone set up OpenClaw if they're not comfortable with SSH or the command line?
 
 I created `op-and-chloe` to make this process easier.  
-It's not a framework, not a lock-in, **it's a simple wizard** to pre-configure your stack to get you started. **Once up and running, you can change it completely**
+It's not a framework, not a lock-in, **it's a simple wizard** to pre-configure your stack to get you started. **Once up and running, you can change it completely**.
 
 It looks like this:
 
@@ -33,15 +33,15 @@ It looks like this:
 
 **What you get out of the box:**
 
-- **☁️ A working stack on any VPS.** I use [Hetzner](https://www.hetzner.com) it's **~$4.70/month** and runs the full stack really well. See [HETZNER.md](./HETZNER.md).
+- **☁️ A working stack on any VPS.** I use [Hetzner](https://www.hetzner.com), it's **~$4.70/month** and runs the full stack really well - but you can use any VPS provider. See [HETZNER.md](./HETZNER.md).
 
 - **📱 Two Telegram chats.** One for Op (approvals, stack changes); one for Chloe (where most of your conversations happen).
 
-- **🔒 Private access via Tailscale.** Guard, worker, and Webtop are on your Tailscale network with optional HTTPS—no public ports. Use them from your phone or laptop.
+- **🔒 Private access via Tailscale.** Guard, worker, and Webtop are on your Tailscale network with optional HTTPS - no public ports. Use them from your phone or laptop.
 
 - **❤️ Health Check.** Scripts to configure, verify and keep your stack healthy.
 
-- **🔑 Secure Credentials** pre-authenticated CLI bridge, so that Chloe, your worker openClaw instance has no access to any passwords.
+- **🔑 Secure Credentials** pre-authenticated CLI bridge, so that Chloe, your worker openClaw instance has no access to any passwords!
 
 ## Quick start
 
@@ -51,7 +51,7 @@ cd op-and-chloe
 sudo ./setup.sh
 ```
 
-Work through the setup steps 1–16 in order. No deep technical knowledge needed—just follow the wizard; each step runs once and returns you to the menu so you can verify before continuing.
+Work through the setup steps 1–16 in order. No deep technical knowledge needed - just follow the wizard; each step runs once and returns you to the menu so you can verify before continuing.
 
 
 
@@ -107,7 +107,7 @@ op-and-chloe gives you that: a small Docker image with a browser that both you a
 
 ### Credentials
 
-The setup script can help you create a free Bitwarden account and share it with Op. Keep your secrets, tokens, and passwords there. When Chloe needs authenticated tools (mail, calendar, etc.), she requests them over an internal bridge where they're **pre-authenticated**—she never sees the secrets.
+The setup script can help you create a free Bitwarden account and share it with Op. Keep your secrets, tokens, and passwords there. When Chloe needs authenticated tools (mail, calendar, etc.), she requests them over an internal bridge where they're **pre-authenticated** - she never sees the secrets.
 
 ---
 <p align="center">
@@ -198,7 +198,7 @@ call "cd /opt/op-and-chloe && git pull && ./start.sh" --reason "Update stack" --
 
 **Webtop URL (https://hostname:445/) not working:**
 1. Ensure the browser container is running: `docker ps | grep browser`
-2. Ensure Tailscale serve is configured: `tailscale serve status` — you should see port 445 → 127.0.0.1:6080
+2. Ensure Tailscale serve is configured: `tailscale serve status`  -  you should see port 445 → 127.0.0.1:6080
 3. Re-apply serve config: `sudo ./scripts/apply-tailscale-serve.sh`
 4. For HTTPS to work, enable [HTTPS certificates](https://tailscale.com/kb/1153/enabling-https) in the admin console and run `sudo tailscale cert` on the VPS
 

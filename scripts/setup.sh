@@ -718,16 +718,26 @@ update_pairing_status(){
 }
 
 # Extract pending pairing request IDs from "devices list" output (first UUID per line in Pending table).
-# Use awk for the Pending..Paired range. Inner grep must not exit 1 (no match) or the pipeline can break.
+# Use Python so we don't depend on grep exit codes or awk behaviour across systems.
 pending_request_ids(){
   local out="$1"
-  echo "$out" | awk '
-    /[Pp]ending/ { pending=1; next }
-    /[Pp]aired/  { pending=0; next }
-    pending { print }
-  ' | while IFS= read -r line; do
-    echo "$line" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1 || true
-  done | grep -E '^[0-9a-f]{8}-' || true
+  python3 - "$out" <<'PY'
+import re, sys
+text = sys.argv[1] if len(sys.argv) > 1 else ""
+uuid_re = re.compile(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
+pending = False
+for line in text.splitlines():
+    if re.search(r'[Pp]ending', line):
+        pending = True
+        continue
+    if re.search(r'[Pp]aired', line):
+        pending = False
+        continue
+    if pending:
+        m = uuid_re.search(line)
+        if m:
+            print(m.group(0))
+PY
 }
 
 step_auth_tokens(){
