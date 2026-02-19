@@ -720,7 +720,8 @@ update_pairing_status(){
 # Extract pending pairing request IDs from "devices list" output (first UUID per line in Pending table)
 pending_request_ids(){
   local out="$1"
-  echo "$out" | sed -n '/Pending ([0-9]/,/Paired ([0-9]/p' | while IFS= read -r line; do
+  # Match Pending (N) through Paired (N) section; tolerate different spacing/format
+  echo "$out" | sed -n '/Pending.*([0-9]/,/Paired.*([0-9]/p' | while IFS= read -r line; do
     echo "$line" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1
   done | grep -E '^[0-9a-f]{8}-'
 }
@@ -763,14 +764,14 @@ step_auth_tokens(){
     [ -n "$worker_token" ] && echo "  Worker token: $worker_token"
   fi
   echo
-  # Check for pending pairing requests
+  # Check for pending pairing requests (capture stderr too; some CLIs print tables to stderr)
   guard_devices=""
   worker_devices=""
   if container_running "$guard_name"; then
-    guard_devices=$("$STACK_DIR/openclaw-guard" devices list 2>/dev/null || true)
+    guard_devices=$(cd "$STACK_DIR" && "$STACK_DIR/openclaw-guard" devices list 2>&1 || true)
   fi
   if container_running "$worker_name"; then
-    worker_devices=$("$STACK_DIR/openclaw-worker" devices list 2>/dev/null || true)
+    worker_devices=$(cd "$STACK_DIR" && "$STACK_DIR/openclaw-worker" devices list 2>&1 || true)
   fi
   guard_pending=()
   worker_pending=()
@@ -783,7 +784,8 @@ step_auth_tokens(){
   for id in "${guard_pending[@]}"; do options+=("🤝 approve \"$id\" (Guard) pairing request"); option_type+=("approve_guard"); option_id+=("$id"); done
   for id in "${worker_pending[@]}"; do options+=("🤝 approve \"$id\" (Worker) pairing request"); option_type+=("approve_worker"); option_id+=("$id"); done
   if [ ${#options[@]} -gt 1 ]; then
-    say "Pending pairing requests (or rotate tokens):"
+    echo "🤝 Pairing Request Detected!"
+    echo
     for i in "${!options[@]}"; do
       printf "  %d. %s\n" $((i+1)) "${options[$i]}"
     done
