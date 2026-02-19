@@ -101,6 +101,28 @@ apply_tailscale_serve(){
   "$STACK_DIR/scripts/apply-tailscale-serve.sh" && ok "Tailscale serve: 443→worker, 444→guard, 445→webtop" || warn "Tailscale serve failed (is tailscale running?)"
 }
 
+# Sync gateway auth token into openclaw.json so gateway validates the same token we show.
+# Call with: sync_gateway_tokens_to_config <worker_token> <guard_token>
+sync_gateway_tokens_to_config(){
+  local wt="$1" gt="$2"
+  [ -z "$wt" ] && [ -z "$gt" ] && return 0
+  WORKER_TKN="$wt" GUARD_TKN="$gt" python3 - <<'PY'
+import json, pathlib, os
+wt, gt = os.environ.get("WORKER_TKN", ""), os.environ.get("GUARD_TKN", "")
+worker_cfg = pathlib.Path("/var/lib/openclaw/state/openclaw.json")
+guard_cfg = pathlib.Path("/var/lib/openclaw/guard-state/openclaw.json")
+if wt and worker_cfg.exists():
+    d = json.loads(worker_cfg.read_text())
+    d.setdefault("gateway", {}).setdefault("auth", {})["token"] = wt
+    worker_cfg.write_text(json.dumps(d, indent=2) + "\n")
+if gt and guard_cfg.exists():
+    d = json.loads(guard_cfg.read_text())
+    d.setdefault("gateway", {}).setdefault("auth", {})["token"] = gt
+    guard_cfg.write_text(json.dumps(d, indent=2) + "\n")
+PY
+  chown 1000:1000 /var/lib/openclaw/state/openclaw.json /var/lib/openclaw/guard-state/openclaw.json 2>/dev/null || true
+}
+
 enable_tokenless_tailscale_auth(){
   python3 - <<'PY2'
 import json, pathlib
@@ -638,6 +660,7 @@ step_configure_worker(){
 step_auth_tokens(){
   say "Access OpenClaw dashboard and CLI"
   say "Here are your dashboard URLs and CLI commands."
+  echo "  Docs: https://docs.openclaw.ai/web"
   echo
   # Tokens for dashboard auth (paste into Control UI settings if prompted)
   worker_token=""
@@ -650,10 +673,16 @@ step_auth_tokens(){
     TSDNS=$(tailscale_dns)
     TSDNS=${TSDNS:-unavailable}
     echo "Dashboards (Tailscale HTTPS):"
-    echo "  Worker: https://${TSDNS}/"
-    [ -n "$worker_token" ] && echo "    Token: $worker_token"
-    echo "  Guard:  https://${TSDNS}:444/"
-    [ -n "$guard_token" ] && echo "    Token: $guard_token"
+    if [ -n "$worker_token" ]; then
+      echo "  Worker: https://${TSDNS}/#token=${worker_token}"
+    else
+      echo "  Worker: https://${TSDNS}/  (no token in env — run step 3 or rotate)"
+    fi
+    if [ -n "$guard_token" ]; then
+      echo "  Guard:  https://${TSDNS}:444/#token=${guard_token}"
+    else
+      echo "  Guard:  https://${TSDNS}:444/  (no token in env — run step 3 or rotate)"
+    fi
     echo "  Webtop: https://${TSDNS}:445/"
   else
     echo "Dashboards: not available yet — run option 7 (Run Tailscale setup)."
@@ -674,7 +703,10 @@ step_auth_tokens(){
     else
       sed -i "s#^OPENCLAW_GATEWAY_TOKEN=.*#OPENCLAW_GATEWAY_TOKEN=$(openssl rand -hex 32)#" "$ENV_FILE"
       sed -i "s#^OPENCLAW_GUARD_GATEWAY_TOKEN=.*#OPENCLAW_GUARD_GATEWAY_TOKEN=$(openssl rand -hex 24)#" "$ENV_FILE"
-      (cd "$STACK_DIR" && docker compose --env-file "$ENV_FILE" -f compose.yml restart openclaw-gateway openclaw-guard) && ok "Tokens rotated; worker and guard restarted. Re-run this step to see new tokens."
+      worker_token=$(grep -E '^OPENCLAW_GATEWAY_TOKEN=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '"' | head -1)
+      guard_token=$(grep -E '^OPENCLAW_GUARD_GATEWAY_TOKEN=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '"' | head -1)
+      sync_gateway_tokens_to_config "$worker_token" "$guard_token"
+      (cd "$STACK_DIR" && docker compose --env-file "$ENV_FILE" -f compose.yml restart openclaw-gateway openclaw-guard) && ok "Tokens rotated and synced to config; worker and guard restarted. Re-run this step to see new URLs."
     fi
   fi
 }

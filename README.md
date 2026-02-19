@@ -104,6 +104,10 @@ call "himalaya message read -a icloud 38400" --reason "User asked to read messag
 call "cd /opt/op-and-chloe && git pull && ./start.sh" --reason "Update stack" --timeout 600
 ```
 
+## Docs
+
+- **OpenClaw Web (Control UI, bind modes, Tailscale):** [https://docs.openclaw.ai/web](https://docs.openclaw.ai/web)
+
 ## Troubleshooting
 
 **Webtop URL (https://hostname:445/) not working:**
