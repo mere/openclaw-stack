@@ -43,7 +43,17 @@ It looks like this:
 
 - **🔑 Secure Credentials** pre-authenticated CLI bridge, so that Chloe, your worker openClaw instance has no access to any passwords!
 
+
+---
+
+<p align="center">
+  <img src="assets/highfive.png" alt="OpenClaw Setup Wizard" height="200">
+</p>
+
 ## Quick start
+
+Once you have bought a VPS with a provider, SSH in and work through the setup steps **in order**. No deep technical knowledge needed - just follow the wizard; each step runs once and returns you to the menu so you can verify before continuing.
+
 
 ```bash
 git clone https://github.com/mere/op-and-chloe.git
@@ -51,7 +61,6 @@ cd op-and-chloe
 sudo ./setup.sh
 ```
 
-Work through the setup steps 1–16 in order. No deep technical knowledge needed - just follow the wizard; each step runs once and returns you to the menu so you can verify before continuing.
 
 
 

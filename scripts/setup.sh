@@ -68,9 +68,9 @@ step_status(){
     11) configured_label worker ;;
     12) check_seed_done && echo "✅ Seeded" || echo "⚪ Not seeded" ;;
     13) if [ -n "${PAIRING_COMPLETED-}" ]; then echo "✅ Pairing completed"; else echo "⚪ Pending pairing"; fi ;;
-    14) echo "Run to verify" ;;
-    15) guard_admin_mode_enabled && echo "✅ Enabled" || echo "⚪ Disabled" ;;
-    16) echo "—" ;;
+    14) guard_admin_mode_enabled && echo "✅ Enabled" || echo "⚪ Disabled" ;;
+    15) echo "" ;;
+    16) echo "" ;;
     *) echo "—" ;;
   esac
 }
@@ -740,135 +740,165 @@ for line in text.splitlines():
 PY
 }
 
+# Extract paired count from "devices list" output (Paired (N) line).
+paired_count(){
+  local out="$1"
+  python3 - "$out" <<'PY'
+import re, sys
+text = sys.argv[1] if len(sys.argv) > 1 else ""
+m = re.search(r'[Pp]aired\s*\(\s*(\d+)\s*\)', text)
+print(m.group(1) if m else "0")
+PY
+}
+
 step_auth_tokens(){
   local rot=""
-  update_pairing_status || true
-  say "Configure Dashboards"
-  say "Dashboard URLs, CLI, and pending pairing requests."
-  # Ensure each CLI talks to its own gateway (guard→18790, worker→18789); fixes "device token mismatch" / wrong port
-  "$STACK_DIR/openclaw-guard" config set gateway.port 18790 >/dev/null 2>&1 || true
-  "$STACK_DIR/openclaw-worker" config set gateway.port 18789 >/dev/null 2>&1 || true
-  echo "  Docs: https://docs.openclaw.ai/web"
-  echo
-  # Tokens for dashboard auth (paste into Control UI settings if prompted)
-  worker_token=""
-  guard_token=""
-  if [ -f "$ENV_FILE" ]; then
-    worker_token=$(grep -E '^OPENCLAW_GATEWAY_TOKEN=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '"' | head -1)
-    guard_token=$(grep -E '^OPENCLAW_GUARD_GATEWAY_TOKEN=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '"' | head -1)
-  fi
-  if check_done tailscale; then
-    TSDNS=$(tailscale_dns)
-    TSDNS=${TSDNS:-unavailable}
-    echo "Dashboards (Tailscale HTTPS):"
-    if [ -n "$guard_token" ]; then
-      echo "  Guard:  https://${TSDNS}:444/#token=${guard_token}"
-    else
-      echo "  Guard:  https://${TSDNS}:444/  (no token in env — run step 3 or rotate)"
-    fi
-    if [ -n "$worker_token" ]; then
-      echo "  Worker: https://${TSDNS}/#token=${worker_token}"
-    else
-      echo "  Worker: https://${TSDNS}/  (no token in env — run step 3 or rotate)"
-    fi
-    echo "  Webtop: https://${TSDNS}:445/"
-  else
-    echo "Dashboards: not available yet — run option 6 (Tailscale setup)."
-    [ -n "$guard_token" ] && echo "  Guard token:  $guard_token"
-    [ -n "$worker_token" ] && echo "  Worker token: $worker_token"
-  fi
-  echo
-  # Check for pending pairing requests. Use docker exec -i (no -t) so we get plain output when not in a TTY.
-  guard_devices=""
-  worker_devices=""
-  if container_running "$guard_name"; then
-    guard_devices=$(docker exec -i "$guard_name" ./openclaw.mjs devices list 2>&1 || true)
-  fi
-  if container_running "$worker_name"; then
-    worker_devices=$(docker exec -i "$worker_name" ./openclaw.mjs devices list 2>&1 || true)
-  fi
-  # DEBUG: set DEBUG_PAIRING=1 when running setup to capture raw devices list output for parsing inspection
-  if [ -n "${DEBUG_PAIRING-}" ]; then
-    printf '%s' "$guard_devices" > "$STACK_DIR/scripts/.debug-guard-devices.txt" 2>/dev/null || true
-    printf '%s' "$worker_devices" > "$STACK_DIR/scripts/.debug-worker-devices.txt" 2>/dev/null || true
-  fi
-  guard_pending=()
-  worker_pending=()
-  while IFS= read -r id; do [ -n "$id" ] && guard_pending+=("$id"); done < <(pending_request_ids "$guard_devices")
-  while IFS= read -r id; do [ -n "$id" ] && worker_pending+=("$id"); done < <(pending_request_ids "$worker_devices")
-  # Build menu: 1 = Rotate, 2..N = Approve (one per pending), 0 = Return
-  options=("🔄 Rotate gateway tokens (only use this if you get token mismatch error)")
-  option_type=("rotate")
-  option_id=("")
-  for id in "${guard_pending[@]}"; do
-    short_id="${id:0:8}"
-    options+=("🤝 Approve pairing request for Guard — $short_id"); option_type+=("approve_guard"); option_id+=("$id")
-  done
-  for id in "${worker_pending[@]}"; do
-    short_id="${id:0:8}"
-    options+=("🤝 Approve pairing request for Worker — $short_id"); option_type+=("approve_worker"); option_id+=("$id")
-  done
-  num_opts=${#options[@]}
-  if [ "$num_opts" -gt 1 ]; then
-    echo "🤝 Pairing Request Detected!"
+  while true; do
+    update_pairing_status || true
+    say "Configure Dashboards"
+    say "Dashboard URLs, CLI, and pending pairing requests."
+    # Ensure each CLI talks to its own gateway (guard→18790, worker→18789); fixes "device token mismatch" / wrong port
+    "$STACK_DIR/openclaw-guard" config set gateway.port 18790 >/dev/null 2>&1 || true
+    "$STACK_DIR/openclaw-worker" config set gateway.port 18789 >/dev/null 2>&1 || true
+    echo "  Docs: https://docs.openclaw.ai/web"
     echo
-  fi
-  for i in "${!options[@]}"; do
-    printf "  %d. %s\n" $((i+1)) "${options[$i]}"
-  done
-  echo "  0. Return to main menu"
-  echo
-  read -r -p "$TIGER Choose [0-$num_opts]: " pick
-  pick=${pick:-0}
-  if [ "$pick" -eq 0 ] 2>/dev/null; then
-    :
-  elif [ "$pick" -ge 1 ] 2>/dev/null && [ "$pick" -le "$num_opts" ] 2>/dev/null; then
-    idx=$((pick-1))
-    case "${option_type[$idx]}" in
-      rotate)
-        read -r -p "$TIGER Rotate gateway tokens? [y/N] " rot
-        case "$rot" in [yY]|[yY][eE][sS]*) rot=yes ;; *) rot="" ;; esac
-        ;;
-      approve_guard)
-        docker exec -i "$guard_name" ./openclaw.mjs devices approve "${option_id[$idx]}" 2>&1 && ok "Approved Guard pairing ${option_id[$idx]}" || warn "Approve failed (device list may have changed)"
-        ;;
-      approve_worker)
-        docker exec -i "$worker_name" ./openclaw.mjs devices approve "${option_id[$idx]}" 2>&1 && ok "Approved Worker pairing ${option_id[$idx]}" || warn "Approve failed (device list may have changed)"
-        ;;
-    esac
-  fi
-  if [ -n "$rot" ]; then
-    if [ ! -f "$ENV_FILE" ]; then
-      warn "No env file at $ENV_FILE — run step 3 first."
-    else
-      sed -i "s#^OPENCLAW_GATEWAY_TOKEN=.*#OPENCLAW_GATEWAY_TOKEN=$(openssl rand -hex 32)#" "$ENV_FILE"
-      sed -i "s#^OPENCLAW_GUARD_GATEWAY_TOKEN=.*#OPENCLAW_GUARD_GATEWAY_TOKEN=$(openssl rand -hex 24)#" "$ENV_FILE"
+    # Tokens for dashboard auth (paste into Control UI settings if prompted)
+    worker_token=""
+    guard_token=""
+    if [ -f "$ENV_FILE" ]; then
       worker_token=$(grep -E '^OPENCLAW_GATEWAY_TOKEN=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '"' | head -1)
       guard_token=$(grep -E '^OPENCLAW_GUARD_GATEWAY_TOKEN=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '"' | head -1)
-      sync_gateway_tokens_to_config "$worker_token" "$guard_token"
-      # Recreate (not just restart) so containers pick up new tokens from env file; restart keeps stale env
-      if (cd "$STACK_DIR" && docker compose --env-file "$ENV_FILE" -f compose.yml up -d --force-recreate openclaw-gateway openclaw-guard); then
-        ok "Tokens rotated and synced to config; guard and worker recreated. Updated URLs below."
-        echo
+    fi
+    if check_done tailscale; then
+      TSDNS=$(tailscale_dns)
+      TSDNS=${TSDNS:-unavailable}
+      echo "Dashboards (Tailscale HTTPS):"
+      if [ -n "$guard_token" ]; then
+        echo "  Guard:  https://${TSDNS}:444/#token=${guard_token}"
+      else
+        echo "  Guard:  https://${TSDNS}:444/  (no token in env — run step 3 or rotate)"
+      fi
+      if [ -n "$worker_token" ]; then
+        echo "  Worker: https://${TSDNS}/#token=${worker_token}"
+      else
+        echo "  Worker: https://${TSDNS}/  (no token in env — run step 3 or rotate)"
+      fi
+      echo "  Webtop: https://${TSDNS}:445/"
+    else
+      echo "Dashboards: not available yet — run option 6 (Tailscale setup)."
+      [ -n "$guard_token" ] && echo "  Guard token:  $guard_token"
+      [ -n "$worker_token" ] && echo "  Worker token: $worker_token"
+    fi
+    echo
+    # Fetch devices list for pairing status and pending
+    guard_devices=""
+    worker_devices=""
+    if container_running "$guard_name"; then
+      guard_devices=$(docker exec -i "$guard_name" ./openclaw.mjs devices list 2>&1 || true)
+    fi
+    if container_running "$worker_name"; then
+      worker_devices=$(docker exec -i "$worker_name" ./openclaw.mjs devices list 2>&1 || true)
+    fi
+    # DEBUG: set DEBUG_PAIRING=1 when running setup to capture raw devices list output for parsing inspection
+    if [ -n "${DEBUG_PAIRING-}" ]; then
+      printf '%s' "$guard_devices" > "$STACK_DIR/scripts/.debug-guard-devices.txt" 2>/dev/null || true
+      printf '%s' "$worker_devices" > "$STACK_DIR/scripts/.debug-worker-devices.txt" 2>/dev/null || true
+    fi
+    # Pairing status (paired count per instance)
+    guard_paired=$(paired_count "$guard_devices")
+    worker_paired=$(paired_count "$worker_devices")
+    echo "Pairing status:"
+    if [ "${guard_paired:-0}" -gt 0 ] 2>/dev/null; then
+      echo "  Guard:  ✅ $guard_paired paired"
+    else
+      echo "  Guard:  ⚪ No devices paired yet"
+    fi
+    if [ "${worker_paired:-0}" -gt 0 ] 2>/dev/null; then
+      echo "  Worker: ✅ $worker_paired paired"
+    else
+      echo "  Worker: ⚪ No devices paired yet"
+    fi
+    echo
+    guard_pending=()
+    worker_pending=()
+    while IFS= read -r id; do [ -n "$id" ] && guard_pending+=("$id"); done < <(pending_request_ids "$guard_devices")
+    while IFS= read -r id; do [ -n "$id" ] && worker_pending+=("$id"); done < <(pending_request_ids "$worker_devices")
+    # Build menu: 1 = Rotate, 2..N = Approve (one per pending), 0 = Return
+    options=("🔄 Rotate gateway tokens (only use this if you get token mismatch error)")
+    option_type=("rotate")
+    option_id=("")
+    for id in "${guard_pending[@]}"; do
+      short_id="${id:0:8}"
+      options+=("🤝 Approve pairing request for Guard — $short_id"); option_type+=("approve_guard"); option_id+=("$id")
+    done
+    for id in "${worker_pending[@]}"; do
+      short_id="${id:0:8}"
+      options+=("🤝 Approve pairing request for Worker — $short_id"); option_type+=("approve_worker"); option_id+=("$id")
+    done
+    num_opts=${#options[@]}
+    if [ "$num_opts" -gt 1 ]; then
+      echo "🤝 Pairing Request Detected!"
+      echo
+    fi
+    for i in "${!options[@]}"; do
+      printf "  %d. %s\n" $((i+1)) "${options[$i]}"
+    done
+    echo "  0. Return to main menu"
+    echo
+    read -r -p "$TIGER Choose [0-$num_opts]: " pick
+    pick=${pick:-0}
+    if [ "$pick" -eq 0 ] 2>/dev/null; then
+      break
+    fi
+    rot=""
+    if [ "$pick" -ge 1 ] 2>/dev/null && [ "$pick" -le "$num_opts" ] 2>/dev/null; then
+      idx=$((pick-1))
+      case "${option_type[$idx]}" in
+        rotate)
+          read -r -p "$TIGER Rotate gateway tokens? [y/N] " rot
+          case "$rot" in [yY]|[yY][eE][sS]*) rot=yes ;; *) rot="" ;; esac
+          ;;
+        approve_guard)
+          docker exec -i "$guard_name" ./openclaw.mjs devices approve "${option_id[$idx]}" 2>&1 && ok "Approved Guard pairing ${option_id[$idx]}" || warn "Approve failed (device list may have changed)"
+          ;;
+        approve_worker)
+          docker exec -i "$worker_name" ./openclaw.mjs devices approve "${option_id[$idx]}" 2>&1 && ok "Approved Worker pairing ${option_id[$idx]}" || warn "Approve failed (device list may have changed)"
+          ;;
+      esac
+    fi
+    if [ -n "$rot" ]; then
+      if [ ! -f "$ENV_FILE" ]; then
+        warn "No env file at $ENV_FILE — run step 3 first."
+      else
+        sed -i "s#^OPENCLAW_GATEWAY_TOKEN=.*#OPENCLAW_GATEWAY_TOKEN=$(openssl rand -hex 32)#" "$ENV_FILE"
+        sed -i "s#^OPENCLAW_GUARD_GATEWAY_TOKEN=.*#OPENCLAW_GUARD_GATEWAY_TOKEN=$(openssl rand -hex 24)#" "$ENV_FILE"
         worker_token=$(grep -E '^OPENCLAW_GATEWAY_TOKEN=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '"' | head -1)
         guard_token=$(grep -E '^OPENCLAW_GUARD_GATEWAY_TOKEN=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '"' | head -1)
-        if check_done tailscale; then
-          TSDNS=$(tailscale_dns)
-          TSDNS=${TSDNS:-unavailable}
-          echo "Dashboards (Tailscale HTTPS):"
-          [ -n "$guard_token" ] && echo "  Guard:  https://${TSDNS}:444/#token=${guard_token}" || echo "  Guard:  https://${TSDNS}:444/  (no token in env)"
-          [ -n "$worker_token" ] && echo "  Worker: https://${TSDNS}/#token=${worker_token}" || echo "  Worker: https://${TSDNS}/  (no token in env)"
-          echo "  Webtop: https://${TSDNS}:445/"
+        sync_gateway_tokens_to_config "$worker_token" "$guard_token"
+        # Recreate (not just restart) so containers pick up new tokens from env file; restart keeps stale env
+        if (cd "$STACK_DIR" && docker compose --env-file "$ENV_FILE" -f compose.yml up -d --force-recreate openclaw-gateway openclaw-guard); then
+          ok "Tokens rotated and synced to config; guard and worker recreated. Updated URLs below."
+          echo
+          worker_token=$(grep -E '^OPENCLAW_GATEWAY_TOKEN=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '"' | head -1)
+          guard_token=$(grep -E '^OPENCLAW_GUARD_GATEWAY_TOKEN=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '"' | head -1)
+          if check_done tailscale; then
+            TSDNS=$(tailscale_dns)
+            TSDNS=${TSDNS:-unavailable}
+            echo "Dashboards (Tailscale HTTPS):"
+            [ -n "$guard_token" ] && echo "  Guard:  https://${TSDNS}:444/#token=${guard_token}" || echo "  Guard:  https://${TSDNS}:444/  (no token in env)"
+            [ -n "$worker_token" ] && echo "  Worker: https://${TSDNS}/#token=${worker_token}" || echo "  Worker: https://${TSDNS}/  (no token in env)"
+            echo "  Webtop: https://${TSDNS}:445/"
+          else
+            [ -n "$guard_token" ] && echo "  Guard token:  $guard_token"
+            [ -n "$worker_token" ] && echo "  Worker token: $worker_token"
+          fi
+          echo
         else
-          [ -n "$guard_token" ] && echo "  Guard token:  $guard_token"
-          [ -n "$worker_token" ] && echo "  Worker token: $worker_token"
+          warn "Tokens updated in env and config, but container restart failed."
         fi
-        echo
-      else
-        warn "Tokens updated in env and config, but container restart failed."
       fi
     fi
-  fi
+  done
   update_pairing_status || true
 }
 
@@ -919,8 +949,8 @@ run_step(){
     11) sync_core_workspaces; step_configure_worker ;;
     12) step_seed_instructions ;;
     13) step_auth_tokens ;;
-    14) step_verify ;;
-    15) step_guard_admin_mode ;;
+    14) step_guard_admin_mode ;;
+    15) step_verify ;;
     16) step_help_useful_commands ;;
     *) warn "Unknown step" ;;
   esac
@@ -948,8 +978,8 @@ menu_once(){
   printf "  %2d. %-24s | %s\n" 11 "configure worker"   "$(step_status 11)"
   printf "  %2d. %-24s | %s\n" 12 "seed instructions" "$(step_status 12)"
   printf "  %2d. %-24s | %s\n" 13 "configure Dashboards" "$(step_status 13)"
-  printf "  %2d. %-24s | %s\n" 14 "healthcheck"        "$(step_status 14)"
-  printf "  %2d. %-24s | %s\n" 15 "guard admin mode"   "$(step_status 15)"
+  printf "  %2d. %-24s | %s\n" 14 "guard admin mode"   "$(step_status 14)"
+  printf "  %2d. %-24s | %s\n" 15 "healthcheck"        "$(step_status 15)"
   printf "  %2d. %-24s | %s\n" 16 "help / useful cmds" "$(step_status 16)"
   echo
   read -r -p "$TIGER Select step [1-16] or 0 to exit: " pick
