@@ -700,6 +700,7 @@ pairing_done_for_output(){
 }
 
 # Run guard/worker devices list and set PAIRING_COMPLETED=1 only when both have pairing completed.
+# Use docker exec -i (no -t) so we get plain output when run from script/menu; openclaw-guard/openclaw-worker use -it and can fail without a TTY.
 # Only call this from step_auth_tokens (configure Dashboards) so the main menu stays fast.
 update_pairing_status(){
   if ! container_running "$guard_name" || ! container_running "$worker_name"; then
@@ -707,8 +708,8 @@ update_pairing_status(){
     return 1
   fi
   local guard_out worker_out
-  guard_out=$("$STACK_DIR/openclaw-guard" devices list 2>/dev/null || true)
-  worker_out=$("$STACK_DIR/openclaw-worker" devices list 2>/dev/null || true)
+  guard_out=$(docker exec -i "$guard_name" ./openclaw.mjs devices list 2>/dev/null || true)
+  worker_out=$(docker exec -i "$worker_name" ./openclaw.mjs devices list 2>/dev/null || true)
   if pairing_done_for_output "$guard_out" && pairing_done_for_output "$worker_out"; then
     export PAIRING_COMPLETED=1
     return 0

@@ -56,15 +56,17 @@ git clone https://github.com/mere/op-and-chloe.git
 cd op-and-chloe
 sudo ./setup.sh
 ```
-<p align="center">
-  <img src="assets/highfive.png" alt="OpenClaw Setup Wizard" height="250">
-</p>
 
-That's it! It takes about 20 minutes to follow the steps and your AI personal assistant is ready! ✨
+<p align="center">
+  <img src="assets/highfive.png" alt="OpenClaw Setup Wizard" height="300">
+</p>
+That's it!
+It takes about 20 minutes to follow the steps and your `AI personal assistant` is ready! ✨
 
 
 # Components
 
+The stack consists of:
 - **Three Docker containers:**
   - **🐕 Op**: the privileged guardian, keeps your stack safe and brokers privileged actions.
   - **🐯 Chloe**: your daily OpenClaw assistant.
@@ -99,7 +101,7 @@ This is where Op comes in:
 
 ## Op
 
-**Op** is a small OpenClaw instance designed to stay clean and minimal. No skills, no cron jobs, no day-to-day tasks, no custom installs. Its job is to:
+**Op** is a "small" OpenClaw instance designed to stay clean and minimal. No skills, no cron jobs, no day"-to-day tasks, no custom installs. Its job is to:
 - fix things when they go wrong,
 - oversee Chloe and 
 - proxy pre-authenticated tools to her so she never gets to see your passwords.
@@ -145,20 +147,12 @@ Stop and start (also rebuild) the docker images:
 sudo ./stop.sh
 sudo ./start.sh
 ```
-`start.sh` syncs the latest **core instructions** (Op and Chloe role text from `core/guard/` and `core/worker/`) into the workspaces at startup, so after a `git pull` a normal `./start.sh` gives you the latest behaviour.
-
-**Re-sync instructions without restarting:**  
-In the setup wizard, use step **12. seed instructions** to copy the latest `core/guard` and `core/worker` role text into the workspaces. You can also run:
-```bash
-sudo ./scripts/sync-workspaces.sh
-```
-The workspaces are bind-mounted, so guard and worker see the updated files on next use.
-
-You can also run the healthcheck without the full wizard:
 
 ```bash
 sudo ./healthcheck.sh
 ```
+
+
 
 ## System diagram
 
