@@ -2,10 +2,17 @@
 set -euo pipefail
 
 STACK_DIR=${STACK_DIR:-/opt/op-and-chloe}
+ENV_FILE=${ENV_FILE:-/etc/openclaw/stack.env}
 STATE_JSON=${STATE_JSON:-/var/lib/openclaw/state/openclaw.json}
-BROWSER_CONTAINER=${BROWSER_CONTAINER:-chloe-browser}
 CDP_PORT=${CDP_PORT:-9223}
-PROFILE_NAME=${PROFILE_NAME:-webtop}
+PROFILE_NAME=${PROFILE_NAME:-vps-chromium}
+
+# Use same instance naming as setup.sh and compose
+if [ -f "$ENV_FILE" ]; then
+  INSTANCE=$(grep -E '^INSTANCE=' "$ENV_FILE" | cut -d= -f2- | tr -d '"' | head -1)
+fi
+INSTANCE=${INSTANCE:-op-and-chloe}
+BROWSER_CONTAINER=${BROWSER_CONTAINER:-${INSTANCE}-browser}
 
 # If the stack pins a static IP, prefer it.
 if [ -n "${BROWSER_IPV4:-}" ]; then
@@ -38,6 +45,6 @@ PY
 chown -R 1000:1000 /var/lib/openclaw/state
 
 cd "$STACK_DIR"
-docker compose --env-file /etc/openclaw/stack.env -f compose.yml restart openclaw-gateway
+docker compose --env-file "${ENV_FILE}" -f compose.yml restart openclaw-gateway
 
 echo "OK: set cdpUrl to http://$BIP:$CDP_PORT"

@@ -67,7 +67,7 @@ step_status(){
     10) configured_label guard ;;
     11) configured_label worker ;;
     12) check_seed_done && echo "✅ Seeded" || echo "⚪ Not seeded" ;;
-    13) if [ -n "${PAIRING_COMPLETED-}" ]; then echo "✅ Pairing completed"; else echo "⚪ Pending pairing"; fi ;;
+    13) if [ -n "${PAIRING_COMPLETED-}" ] || [ -f "${OPENCLAW_STATE_DIR:-/var/lib/openclaw}/.pairing_completed" ]; then echo "✅ Pairing completed"; else echo "⚪ Pending pairing"; fi ;;
     14) guard_admin_mode_enabled && echo "✅ Enabled" || echo "⚪ Disabled" ;;
     15) echo "" ;;
     16) echo "" ;;
@@ -534,6 +534,14 @@ step_browser_init(){
   install -m 0755 "$STACK_DIR/scripts/webtop-init/30-start-socat-cdp-proxy" "$browser_dir/custom-cont-init.d/30-start-socat-cdp-proxy"
   chown -R 1000:1000 "$browser_dir/custom-cont-init.d"
   ok "CDP init scripts installed"
+
+  say "CDP watchdog (systemd timer)"
+  say "We install a timer that restarts the browser container if CDP becomes unreachable."
+  install -m 0644 "$STACK_DIR/systemd/openclaw-cdp-watchdog.timer" /etc/systemd/system/
+  sed "s#/opt/op-and-chloe#$STACK_DIR#g" "$STACK_DIR/systemd/openclaw-cdp-watchdog.service" > /etc/systemd/system/openclaw-cdp-watchdog.service
+  systemctl daemon-reload
+  systemctl enable --now openclaw-cdp-watchdog.timer 2>/dev/null || true
+  ok "CDP watchdog timer installed and enabled"
 }
 
 step_tailscale(){
@@ -700,11 +708,13 @@ pairing_done_for_output(){
 }
 
 # Run guard/worker devices list and set PAIRING_COMPLETED=1 only when both have pairing completed.
-# Use docker exec -i (no -t) so we get plain output when run from script/menu; openclaw-guard/openclaw-worker use -it and can fail without a TTY.
-# Only call this from step_auth_tokens (configure Dashboards) so the main menu stays fast.
+# Also write/remove a marker file so the main menu can show "✅ Pairing completed" without running docker (status persists across menu redraws and restarts).
+# Use docker exec -i (no -t) so we get plain output when run from script; openclaw-guard/openclaw-worker use -it and can fail without a TTY.
+PAIRING_STATUS_FILE="${OPENCLAW_STATE_DIR:-/var/lib/openclaw}/.pairing_completed"
 update_pairing_status(){
   if ! container_running "$guard_name" || ! container_running "$worker_name"; then
     unset PAIRING_COMPLETED
+    rm -f "$PAIRING_STATUS_FILE" 2>/dev/null || true
     return 1
   fi
   local guard_out worker_out
@@ -712,9 +722,11 @@ update_pairing_status(){
   worker_out=$(docker exec -i "$worker_name" ./openclaw.mjs devices list 2>/dev/null || true)
   if pairing_done_for_output "$guard_out" && pairing_done_for_output "$worker_out"; then
     export PAIRING_COMPLETED=1
+    touch "$PAIRING_STATUS_FILE" 2>/dev/null || true
     return 0
   fi
   unset PAIRING_COMPLETED
+  rm -f "$PAIRING_STATUS_FILE" 2>/dev/null || true
   return 1
 }
 
