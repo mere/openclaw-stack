@@ -6,3 +6,6 @@ __pycache__/
 *.pyc
 
 # accidental temp files
+
+# debug logs from setup (pairing detection)
+scripts/.debug-*.txt

@@ -717,11 +717,15 @@ update_pairing_status(){
   return 1
 }
 
-# Extract pending pairing request IDs from "devices list" output (first UUID per line in Pending table)
+# Extract pending pairing request IDs from "devices list" output (first UUID per line in Pending table).
+# Use awk for the Pending..Paired range so we don't rely on sed range behaviour (e.g. on macOS).
 pending_request_ids(){
   local out="$1"
-  # Match Pending (N) through Paired (N) section; tolerate different spacing/format
-  echo "$out" | sed -n '/Pending.*([0-9]/,/Paired.*([0-9]/p' | while IFS= read -r line; do
+  echo "$out" | awk '
+    /[Pp]ending.*[0-9]/ { pending=1; next }
+    /[Pp]aired.*[0-9]/  { pending=0; next }
+    pending { print }
+  ' | while IFS= read -r line; do
     echo "$line" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1
   done | grep -E '^[0-9a-f]{8}-'
 }
@@ -764,52 +768,64 @@ step_auth_tokens(){
     [ -n "$worker_token" ] && echo "  Worker token: $worker_token"
   fi
   echo
-  # Check for pending pairing requests (capture stderr too; some CLIs print tables to stderr)
+  # Check for pending pairing requests. Use docker exec -i (no -t) so we get plain output when not in a TTY.
   guard_devices=""
   worker_devices=""
   if container_running "$guard_name"; then
-    guard_devices=$(cd "$STACK_DIR" && "$STACK_DIR/openclaw-guard" devices list 2>&1 || true)
+    guard_devices=$(docker exec -i "$guard_name" ./openclaw.mjs devices list 2>&1 || true)
   fi
   if container_running "$worker_name"; then
-    worker_devices=$(cd "$STACK_DIR" && "$STACK_DIR/openclaw-worker" devices list 2>&1 || true)
+    worker_devices=$(docker exec -i "$worker_name" ./openclaw.mjs devices list 2>&1 || true)
+  fi
+  # DEBUG: set DEBUG_PAIRING=1 when running setup to capture raw devices list output for parsing inspection
+  if [ -n "${DEBUG_PAIRING-}" ]; then
+    printf '%s' "$guard_devices" > "$STACK_DIR/scripts/.debug-guard-devices.txt" 2>/dev/null || true
+    printf '%s' "$worker_devices" > "$STACK_DIR/scripts/.debug-worker-devices.txt" 2>/dev/null || true
   fi
   guard_pending=()
   worker_pending=()
   while IFS= read -r id; do [ -n "$id" ] && guard_pending+=("$id"); done < <(pending_request_ids "$guard_devices")
   while IFS= read -r id; do [ -n "$id" ] && worker_pending+=("$id"); done < <(pending_request_ids "$worker_devices")
-  # Build menu: 1 = Rotate keys, then each pending as "🤝 approve \"<id>\" (Guard|Worker) Pairing request"
-  options=("Rotate gateway tokens")
+  # Build menu: 1 = Rotate, 2..N = Approve (one per pending), 0 = Return
+  options=("🔄 Rotate gateway tokens (only use this if you get token mismatch error)")
   option_type=("rotate")
   option_id=("")
-  for id in "${guard_pending[@]}"; do options+=("🤝 approve \"$id\" (Guard) pairing request"); option_type+=("approve_guard"); option_id+=("$id"); done
-  for id in "${worker_pending[@]}"; do options+=("🤝 approve \"$id\" (Worker) pairing request"); option_type+=("approve_worker"); option_id+=("$id"); done
-  if [ ${#options[@]} -gt 1 ]; then
+  for id in "${guard_pending[@]}"; do
+    short_id="${id:0:8}"
+    options+=("🤝 Approve pairing request for Guard — $short_id"); option_type+=("approve_guard"); option_id+=("$id")
+  done
+  for id in "${worker_pending[@]}"; do
+    short_id="${id:0:8}"
+    options+=("🤝 Approve pairing request for Worker — $short_id"); option_type+=("approve_worker"); option_id+=("$id")
+  done
+  num_opts=${#options[@]}
+  if [ "$num_opts" -gt 1 ]; then
     echo "🤝 Pairing Request Detected!"
     echo
-    for i in "${!options[@]}"; do
-      printf "  %d. %s\n" $((i+1)) "${options[$i]}"
-    done
-    echo "  0. Skip (do nothing)"
-    read -r -p "$TIGER Choose [0-${#options[@]}]: " pick
-    pick=${pick:-0}
-    if [ "$pick" -ge 1 ] 2>/dev/null && [ "$pick" -le ${#options[@]} ] 2>/dev/null; then
-      idx=$((pick-1))
-      case "${option_type[$idx]}" in
-        rotate)
-          rot=yes
-          ;;
-        approve_guard)
-          "$STACK_DIR/openclaw-guard" devices approve "${option_id[$idx]}" 2>/dev/null && ok "Approved Guard pairing ${option_id[$idx]}" || warn "Approve failed (device list may have changed)"
-          ;;
-        approve_worker)
-          "$STACK_DIR/openclaw-worker" devices approve "${option_id[$idx]}" 2>/dev/null && ok "Approved Worker pairing ${option_id[$idx]}" || warn "Approve failed (device list may have changed)"
-          ;;
-      esac
-    fi
-  else
-    say "If the tokens above don't work, rotate them from step 3 or here."
-    read -r -p "$TIGER Rotate gateway tokens (e.g. if expired)? [y/N] " rot
-    case "$rot" in [yY]|[yY][eE][sS]*) rot=yes ;; *) rot="" ;; esac
+  fi
+  for i in "${!options[@]}"; do
+    printf "  %d. %s\n" $((i+1)) "${options[$i]}"
+  done
+  echo "  0. Return to main menu"
+  echo
+  read -r -p "$TIGER Choose [0-$num_opts]: " pick
+  pick=${pick:-0}
+  if [ "$pick" -eq 0 ] 2>/dev/null; then
+    :
+  elif [ "$pick" -ge 1 ] 2>/dev/null && [ "$pick" -le "$num_opts" ] 2>/dev/null; then
+    idx=$((pick-1))
+    case "${option_type[$idx]}" in
+      rotate)
+        read -r -p "$TIGER Rotate gateway tokens? [y/N] " rot
+        case "$rot" in [yY]|[yY][eE][sS]*) rot=yes ;; *) rot="" ;; esac
+        ;;
+      approve_guard)
+        docker exec -i "$guard_name" ./openclaw.mjs devices approve "${option_id[$idx]}" 2>&1 && ok "Approved Guard pairing ${option_id[$idx]}" || warn "Approve failed (device list may have changed)"
+        ;;
+      approve_worker)
+        docker exec -i "$worker_name" ./openclaw.mjs devices approve "${option_id[$idx]}" 2>&1 && ok "Approved Worker pairing ${option_id[$idx]}" || warn "Approve failed (device list may have changed)"
+        ;;
+    esac
   fi
   if [ -n "$rot" ]; then
     if [ ! -f "$ENV_FILE" ]; then
