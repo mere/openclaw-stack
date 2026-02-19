@@ -64,10 +64,10 @@ step_status(){
     7) container_running "$guard_name" && echo "✅ Currently running" || echo "⚪ Not running" ;;
     8) container_running "$worker_name" && echo "✅ Currently running" || echo "⚪ Not running" ;;
     9) container_running "$browser_name" && echo "✅ Currently running" || echo "⚪ Not running" ;;
-    10) configured_label guard ;;
-    11) configured_label worker ;;
-    12) check_seed_done && echo "✅ Seeded" || echo "⚪ Not seeded" ;;
-    13) if [ -n "${PAIRING_COMPLETED-}" ] || [ -f "${OPENCLAW_STATE_DIR:-/var/lib/openclaw}/.pairing_completed" ]; then echo "✅ Pairing completed"; else echo "⚪ Pending pairing"; fi ;;
+    10) if [ -n "${PAIRING_COMPLETED-}" ] || [ -f "${OPENCLAW_STATE_DIR:-/var/lib/openclaw}/.pairing_completed" ]; then echo "✅ Pairing completed"; else echo "⚪ Pending pairing"; fi ;;
+    11) configured_label guard ;;
+    12) configured_label worker ;;
+    13) check_seed_done && echo "✅ Seeded" || echo "⚪ Not seeded" ;;
     14) guard_admin_mode_enabled && echo "✅ Enabled" || echo "⚪ Disabled" ;;
     15) echo "" ;;
     16) echo "" ;;
@@ -277,7 +277,7 @@ step_bitwarden_secrets(){
   fi
 
   read -r -p "$TIGER BW client id: " BW_CLIENTID
-  read -r -s -p "$TIGER BW client secret (it won't be shown): " BW_CLIENTSECRET
+  read -r -s -p "$TIGER BW client secret (it won't be visible in this prompt): " BW_CLIENTSECRET
   echo
   read -r -p "$TIGER BW email [${cur_email:-}]: " BW_EMAIL
   BW_EMAIL=${BW_EMAIL:-$cur_email}
@@ -487,6 +487,7 @@ step_docker(){
   say "Step 2: Docker + Compose"
   say "We use Docker to run the guard, worker and browser as safe, isolated containers."
   if check_done docker; then ok "Docker already installed"; return; fi
+  say "Installing Docker..."
   export DEBIAN_FRONTEND=noninteractive
   apt-get update -y >/dev/null
   apt-get install -y ca-certificates curl gnupg >/dev/null
@@ -556,27 +557,24 @@ step_tailscale(){
     enable_tokenless_tailscale_auth && ok "Applied Tailscale auth compatibility settings"
     return
   fi
-  read -r -p "$TIGER Install Tailscale now? [y/N]: " ans
-  if [[ "$ans" =~ ^[Yy]$ ]]; then
-    curl -fsSL https://tailscale.com/install.sh | sh >/dev/null
-    ok "Tailscale installed"
-    say "Log in to Tailscale to join this machine to your tailnet."
-    say "Get an auth key from: https://login.tailscale.com/admin/settings/keys"
-    read -r -p "$TIGER Paste auth key (or Enter to run 'tailscale up' interactively): " authkey
-    if [ -n "$authkey" ]; then
-      tailscale up --authkey="$authkey" && ok "Tailscale joined tailnet" || warn "Tailscale up failed"
-    else
-      say "Running 'tailscale up' — follow the prompts (browser or URL) to authenticate."
-      tailscale up || warn "Run 'tailscale up' manually when ready."
-    fi
-    if check_done tailscale; then
-      apply_tailscale_serve && ok "Configured HTTPS Tailscale dashboard endpoints"
-      enable_tokenless_tailscale_auth && ok "Applied Tailscale auth compatibility settings"
-    else
-      say "After tailscale up succeeds, run option 7 again to configure HTTPS endpoints."
-    fi
+  read -r -p "$TIGER Install Tailscale now? [Y/n]: " ans
+  if [[ "$ans" =~ ^[Nn]$ ]]; then return; fi
+  curl -fsSL https://tailscale.com/install.sh | sh >/dev/null
+  ok "Tailscale installed"
+  say "Log in to Tailscale to join this machine to your tailnet."
+  say "Get an auth key from: https://login.tailscale.com/admin/settings/keys"
+  read -r -p "$TIGER Paste auth key (or Enter to run 'tailscale up' interactively): " authkey
+  if [ -n "$authkey" ]; then
+    tailscale up --authkey="$authkey" && ok "Tailscale joined tailnet" || warn "Tailscale up failed"
   else
-    ok "Skipped Tailscale install"
+    say "Running 'tailscale up' — follow the prompts (browser or URL) to authenticate."
+    tailscale up || warn "Run 'tailscale up' manually when ready."
+  fi
+  if check_done tailscale; then
+    apply_tailscale_serve && ok "Configured HTTPS Tailscale dashboard endpoints"
+    enable_tokenless_tailscale_auth && ok "Applied Tailscale auth compatibility settings"
+  else
+    say "After tailscale up succeeds, run option 7 again to configure HTTPS endpoints."
   fi
 }
 
@@ -656,6 +654,11 @@ step_configure_guard(){
   echo
   echo "Suggested bot name: ${pretty}-guard-bot"
   echo
+  echo "┌────────────────────────────────────────────────────────┐"
+  echo "│ ⚠️  If the onboard script exits early, run this to     │"
+  echo "│     launch it again: ./openclaw-guard onboard          │"
+  echo "└────────────────────────────────────────────────────────┘"
+  echo
   read -r -p "$TIGER Start guard onboarding now? [Y/n]: " go
   if [[ ! "$go" =~ ^[Nn]$ ]]; then
     if ! container_running "$guard_name"; then
@@ -684,6 +687,11 @@ step_configure_worker(){
   echo "  • Set up a dedicated Telegram bot for daily chat"
   echo "  • Suggested bot name: ${pretty}-bot"
   echo "  • Use ./openclaw-worker ... for worker-only commands"
+  echo
+  echo "┌────────────────────────────────────────────────────────┐"
+  echo "│ ⚠️  If the onboard script exits early, run this to     │"
+  echo "│     launch it again: ./openclaw-worker onboard         │"
+  echo "└────────────────────────────────────────────────────────┘"
   echo
   read -r -p "$TIGER Start worker onboarding now? [Y/n]: " go
   if [[ ! "$go" =~ ^[Nn]$ ]]; then
@@ -831,15 +839,22 @@ step_auth_tokens(){
     else
       echo "  Worker: ⚪ No devices paired yet"
     fi
-    echo
+    if [ "${guard_paired:-0}" -eq 0 ] 2>/dev/null || [ "${worker_paired:-0}" -eq 0 ] 2>/dev/null; then
+      echo
+      say "Let's set up your dashboards!"
+      say "First, open the Guard and Worker dashboards using the links above."
+      say "If you see Token mismatch, rotate the keys."
+      say "If you see disconnected (1008): pairing required — refresh the pairing status."
+      echo
+    fi
     guard_pending=()
     worker_pending=()
     while IFS= read -r id; do [ -n "$id" ] && guard_pending+=("$id"); done < <(pending_request_ids "$guard_devices")
     while IFS= read -r id; do [ -n "$id" ] && worker_pending+=("$id"); done < <(pending_request_ids "$worker_devices")
-    # Build menu: 1 = Rotate, 2..N = Approve (one per pending), 0 = Return
-    options=("🔄 Rotate gateway tokens (only use this if you get token mismatch error)")
-    option_type=("rotate")
-    option_id=("")
+    # Build menu: 1 = Rotate, 2 = Refresh, 3..N = Approve (one per pending), 0 = Return
+    options=("🔄 Rotate gateway tokens (only use this if you get token mismatch error)" "🔄 Refresh Pairing status")
+    option_type=("rotate" "refresh")
+    option_id=("" "")
     for id in "${guard_pending[@]}"; do
       short_id="${id:0:8}"
       options+=("🤝 Approve pairing request for Guard — $short_id"); option_type+=("approve_guard"); option_id+=("$id")
@@ -870,6 +885,10 @@ step_auth_tokens(){
         rotate)
           read -r -p "$TIGER Rotate gateway tokens? [y/N] " rot
           case "$rot" in [yY]|[yY][eE][sS]*) rot=yes ;; *) rot="" ;; esac
+          ;;
+        refresh)
+          update_pairing_status || true
+          ok "Refreshing pairing status..."
           ;;
         approve_guard)
           docker exec -i "$guard_name" ./openclaw.mjs devices approve "${option_id[$idx]}" 2>&1 && ok "Approved Guard pairing ${option_id[$idx]}" || warn "Approve failed (device list may have changed)"
@@ -958,10 +977,10 @@ run_step(){
     7) ensure_repo_writable_for_guard; sync_core_workspaces; step_start_guard; ensure_guard_approval_instructions ;;
     8) sync_core_workspaces; step_start_worker ;;
     9) step_start_browser; ensure_browser_profile; ensure_inline_buttons ;;
-    10) ensure_guard_bitwarden; sync_core_workspaces; step_configure_guard ;;
-    11) sync_core_workspaces; step_configure_worker ;;
-    12) step_seed_instructions ;;
-    13) step_auth_tokens ;;
+    10) step_auth_tokens ;;
+    11) ensure_guard_bitwarden; sync_core_workspaces; step_configure_guard ;;
+    12) sync_core_workspaces; step_configure_worker ;;
+    13) step_seed_instructions ;;
     14) step_guard_admin_mode ;;
     15) step_verify ;;
     16) step_help_useful_commands ;;
@@ -987,10 +1006,10 @@ menu_once(){
   printf "  %2d. %-24s | %s\n"  7 "start guard"        "$(step_status 7)"
   printf "  %2d. %-24s | %s\n"  8 "start worker"       "$(step_status 8)"
   printf "  %2d. %-24s | %s\n"  9 "start browser"      "$(step_status 9)"
-  printf "  %2d. %-24s | %s\n" 10 "configure guard"    "$(step_status 10)"
-  printf "  %2d. %-24s | %s\n" 11 "configure worker"   "$(step_status 11)"
-  printf "  %2d. %-24s | %s\n" 12 "seed instructions" "$(step_status 12)"
-  printf "  %2d. %-24s | %s\n" 13 "configure Dashboards" "$(step_status 13)"
+  printf "  %2d. %-24s | %s\n" 10 "configure Dashboards" "$(step_status 10)"
+  printf "  %2d. %-24s | %s\n" 11 "configure guard"    "$(step_status 11)"
+  printf "  %2d. %-24s | %s\n" 12 "configure worker"   "$(step_status 12)"
+  printf "  %2d. %-24s | %s\n" 13 "seed instructions" "$(step_status 13)"
   printf "  %2d. %-24s | %s\n" 14 "guard admin mode"   "$(step_status 14)"
   printf "  %2d. %-24s | %s\n" 15 "healthcheck"        "$(step_status 15)"
   printf "  %2d. %-24s | %s\n" 16 "help / useful cmds" "$(step_status 16)"
