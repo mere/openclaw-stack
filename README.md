@@ -6,8 +6,8 @@
 
 `op-and-chloe` ("openclaw-ey") is a two-instance OpenClaw stack for any VPS.
 
-- **🐯 Chloe**: friendly day-to-day assistant (safe container)
 - **🐕 Op**: operator/guard instance (admin + security approvals)
+- **🐯 Chloe**: friendly day-to-day assistant (safe container)
 - 🖥️ Webtop Chromium + CDP proxy for browser automation
 - 🔐 Safe credential storage with BitWarden
 - ❤️ Healthcheck + watchdog
@@ -26,11 +26,11 @@ By default it gives you:
 
 - **🖥️ A browser you can share with OpenClaw!** Log in to social sites (e.g. LinkedIn) in the Webtop browser and let OpenClaw use it to read messages and draft responses for you!
 
-- **🔐 A safe split between Chloe and Op.** Chloe does day-to-day tasks without touching credentials; Op handles privileged operations and approvals so you stay in control.
+- **🔐 A safe split between Op and Chloe.** Op handles privileged operations and approvals so you stay in control; Chloe does day-to-day tasks without touching credentials.
 
-- **📱 2 separate Telegram Chats.** You’ll get one chat for Chloe - this is where 99% of your conversations and commands will happen. The other chat is for Op, your personal security guard: it’s dedicated to approving requests and making changes to the stack, keeping privileged actions safe and separate.
+- **📱 2 separate Telegram Chats.** You’ll get one chat for Op (guard) and one for Chloe (worker): Op is for approving requests and making changes to the stack; Chloe is where 99% of your conversations and commands will happen.
 
-- **🔒 Private access via Tailscale.** Worker, Guard, and Webtop dashboards are served over your Tailscale network with optional HTTPS—no public ports required. You can access them safely on your phone or on your laptop.
+- **🔒 Private access via Tailscale.** Guard, Worker, and Webtop dashboards are served over your Tailscale network with optional HTTPS—no public ports required. You can access them safely on your phone or on your laptop.
 
 - **❤️ Healthcheck and watchdog.** Simple scripts to verify the stack and keep it running.
 
@@ -110,7 +110,7 @@ call "cd /opt/op-and-chloe && git pull && ./start.sh" --reason "Update stack" --
 
 ## Troubleshooting
 
-**Dashboard URLs (Worker/Guard) return HTTP 502 after `stop.sh` / `start.sh`:**
+**Dashboard URLs (Guard/Worker) return HTTP 502 after `stop.sh` / `start.sh`:**
 - The gateways can take 60–90 seconds to start listening. `start.sh` now waits for them before applying Tailscale serve. If you still see 502, wait a minute and refresh, or re-run: `sudo ./scripts/apply-tailscale-serve.sh`
 
 **Webtop URL (https://hostname:445/) not working:**

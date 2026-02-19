@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Apply Tailscale serve config: Worker (443), Guard (444), Webtop (445)
+# Apply Tailscale serve config: Guard (444), Worker (443), Webtop (445)
 # Run this after tailscale up and whenever the stack starts.
 set -euo pipefail
 

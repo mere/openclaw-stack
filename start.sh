@@ -26,7 +26,7 @@ docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ps
 echo "[start] warming up browser/CDP"
 sleep 10
 
-echo "[start] waiting for gateways to listen (worker 18789, guard 18790)..."
+echo "[start] waiting for gateways to listen (guard 18790, worker 18789)..."
 max=120
 for i in $(seq 1 "$max"); do
   w="$(curl -s -o /dev/null -w '%{http_code}' --connect-timeout 2 http://127.0.0.1:18789/ 2>/dev/null || echo 000)"
@@ -40,7 +40,7 @@ for i in $(seq 1 "$max"); do
 done
 
 if tailscale status >/dev/null 2>&1; then
-  echo "[start] applying Tailscale serve (Worker, Guard, Webtop)"
+  echo "[start] applying Tailscale serve (Guard, Worker, Webtop)"
   "$STACK_DIR/scripts/apply-tailscale-serve.sh" 2>/dev/null || true
 fi
 echo "[start] healthcheck"

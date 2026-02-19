@@ -31,8 +31,8 @@ welcome(){
   echo "┃ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ┃"
   echo "┃ Setup includes:                                            ┃"
   echo "┃   🖥️ Webtop browser (Chromium) for persistent logins       ┃"
-  echo "┃   🐯 Chloe (worker) OpenClaw instance (daily tasks)        ┃"
   echo "┃   🐕 Op (guard) OpenClaw instance (privileged operations)  ┃"
+  echo "┃   🐯 Chloe (worker) OpenClaw instance (daily tasks)        ┃"
   echo "┃   🔐 Tailscale for private network access                  ┃"
   echo "┃   🔑 Bitwarden env scaffold for secret workflow            ┃"
   echo "┃   ❤️ Healthcheck + watchdog validation                     ┃"
@@ -98,7 +98,7 @@ tailscale_dns(){
 }
 
 apply_tailscale_serve(){
-  "$STACK_DIR/scripts/apply-tailscale-serve.sh" && ok "Tailscale serve: 443→worker, 444→guard, 445→webtop" || warn "Tailscale serve failed (is tailscale running?)"
+  "$STACK_DIR/scripts/apply-tailscale-serve.sh" && ok "Tailscale serve: 444→guard, 443→worker, 445→webtop" || warn "Tailscale serve failed (is tailscale running?)"
 }
 
 # Sync gateway auth token into openclaw.json so gateway validates the same token we show.
@@ -456,7 +456,7 @@ step_preflight(){
 
 step_docker(){
   say "Step 2: Docker + Compose"
-  say "We use Docker to run the worker, guard and browser as safe, isolated containers."
+  say "We use Docker to run the guard, worker and browser as safe, isolated containers."
   if check_done docker; then ok "Docker already installed"; return; fi
   export DEBIAN_FRONTEND=noninteractive
   apt-get update -y >/dev/null
@@ -488,11 +488,11 @@ step_env(){
   echo
   echo "Created:"
   echo "  /etc/openclaw/"
+  echo "  /var/lib/openclaw/guard-state"
+  echo "  /var/lib/openclaw/guard-workspace"
   echo "  /var/lib/openclaw/state"
   echo "  /var/lib/openclaw/workspace"
   echo "  /var/lib/openclaw/browser"
-  echo "  /var/lib/openclaw/guard-state"
-  echo "  /var/lib/openclaw/guard-workspace"
   echo "  $ENV_FILE"
 }
 
@@ -660,6 +660,9 @@ step_configure_worker(){
 step_auth_tokens(){
   say "Access OpenClaw dashboard and CLI"
   say "Here are your dashboard URLs and CLI commands."
+  # Ensure each CLI talks to its own gateway (guard→18790, worker→18789); fixes "device token mismatch" / wrong port
+  "$STACK_DIR/openclaw-guard" config set gateway.port 18790 >/dev/null 2>&1 || true
+  "$STACK_DIR/openclaw-worker" config set gateway.port 18789 >/dev/null 2>&1 || true
   echo "  Docs: https://docs.openclaw.ai/web"
   echo
   # Tokens for dashboard auth (paste into Control UI settings if prompted)
@@ -673,21 +676,21 @@ step_auth_tokens(){
     TSDNS=$(tailscale_dns)
     TSDNS=${TSDNS:-unavailable}
     echo "Dashboards (Tailscale HTTPS):"
-    if [ -n "$worker_token" ]; then
-      echo "  Worker: https://${TSDNS}/#token=${worker_token}"
-    else
-      echo "  Worker: https://${TSDNS}/  (no token in env — run step 3 or rotate)"
-    fi
     if [ -n "$guard_token" ]; then
       echo "  Guard:  https://${TSDNS}:444/#token=${guard_token}"
     else
       echo "  Guard:  https://${TSDNS}:444/  (no token in env — run step 3 or rotate)"
     fi
+    if [ -n "$worker_token" ]; then
+      echo "  Worker: https://${TSDNS}/#token=${worker_token}"
+    else
+      echo "  Worker: https://${TSDNS}/  (no token in env — run step 3 or rotate)"
+    fi
     echo "  Webtop: https://${TSDNS}:445/"
   else
     echo "Dashboards: not available yet — run option 7 (Run Tailscale setup)."
-    [ -n "$worker_token" ] && echo "  Worker token: $worker_token"
     [ -n "$guard_token" ] && echo "  Guard token:  $guard_token"
+    [ -n "$worker_token" ] && echo "  Worker token: $worker_token"
   fi
   echo
   echo "CLI:"
@@ -695,10 +698,11 @@ step_auth_tokens(){
   echo "  ./openclaw-worker <command>"
   echo
   say "Pairing required: if the dashboard shows \"Pairing required\", approve this device from here:"
-  echo "  ./openclaw-worker devices list     # Worker dashboard"
-  echo "  ./openclaw-worker devices approve <requestId>"
   echo "  ./openclaw-guard devices list      # Guard dashboard"
   echo "  ./openclaw-guard devices approve <requestId>"
+  echo "  ./openclaw-worker devices list     # Worker dashboard"
+  echo "  ./openclaw-worker devices approve <requestId>"
+  echo "  (If you see \"device token mismatch\" or \"Gateway target: ws://127.0.0.1:18789\" for guard, re-run step 12 to fix the port.)"
   echo
   say "If the tokens above don't work, you need to rotate them."
   read -r -p "$TIGER Rotate gateway tokens (e.g. if expired)? [y/N] " rot
@@ -713,7 +717,7 @@ step_auth_tokens(){
       guard_token=$(grep -E '^OPENCLAW_GUARD_GATEWAY_TOKEN=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '"' | head -1)
       sync_gateway_tokens_to_config "$worker_token" "$guard_token"
       if (cd "$STACK_DIR" && docker compose --env-file "$ENV_FILE" -f compose.yml restart openclaw-gateway openclaw-guard); then
-        ok "Tokens rotated and synced to config; worker and guard restarted. Updated URLs below."
+        ok "Tokens rotated and synced to config; guard and worker restarted. Updated URLs below."
         echo
         worker_token=$(grep -E '^OPENCLAW_GATEWAY_TOKEN=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '"' | head -1)
         guard_token=$(grep -E '^OPENCLAW_GUARD_GATEWAY_TOKEN=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '"' | head -1)
@@ -721,12 +725,12 @@ step_auth_tokens(){
           TSDNS=$(tailscale_dns)
           TSDNS=${TSDNS:-unavailable}
           echo "Dashboards (Tailscale HTTPS):"
-          [ -n "$worker_token" ] && echo "  Worker: https://${TSDNS}/#token=${worker_token}" || echo "  Worker: https://${TSDNS}/  (no token in env)"
           [ -n "$guard_token" ] && echo "  Guard:  https://${TSDNS}:444/#token=${guard_token}" || echo "  Guard:  https://${TSDNS}:444/  (no token in env)"
+          [ -n "$worker_token" ] && echo "  Worker: https://${TSDNS}/#token=${worker_token}" || echo "  Worker: https://${TSDNS}/  (no token in env)"
           echo "  Webtop: https://${TSDNS}:445/"
         else
-          [ -n "$worker_token" ] && echo "  Worker token: $worker_token"
           [ -n "$guard_token" ] && echo "  Guard token:  $guard_token"
+          [ -n "$worker_token" ] && echo "  Worker token: $worker_token"
         fi
         echo
         echo "CLI:"
@@ -743,25 +747,25 @@ step_help_useful_commands(){
   say "Help and useful commands"
   echo
   echo "Roles:"
-  echo "  cat /var/lib/openclaw/workspace/ROLE.md"
   echo "  cat /var/lib/openclaw/guard-workspace/ROLE.md"
+  echo "  cat /var/lib/openclaw/workspace/ROLE.md"
   echo
   echo "Devices:"
-  echo "  ./openclaw-worker devices list"
   echo "  ./openclaw-guard devices list"
-  echo "  ./openclaw-worker devices approve <requestId>"
   echo "  ./openclaw-guard devices approve <requestId>"
+  echo "  ./openclaw-worker devices list"
+  echo "  ./openclaw-worker devices approve <requestId>"
   echo
   echo "Pairing:"
-  echo "  ./openclaw-worker pairing approve telegram <CODE>"
   echo "  ./openclaw-guard pairing approve telegram <CODE>"
+  echo "  ./openclaw-worker pairing approve telegram <CODE>"
   echo
   echo "Config / tokens:"
-  echo "  ./openclaw-worker config get gateway.auth.token"
   echo "  ./openclaw-guard config get gateway.auth.token"
   echo "  ./openclaw-guard config get channels.telegram.capabilities.inlineButtons"
-  echo "  ./openclaw-worker doctor --generate-gateway-token"
   echo "  ./openclaw-guard doctor --generate-gateway-token"
+  echo "  ./openclaw-worker config get gateway.auth.token"
+  echo "  ./openclaw-worker doctor --generate-gateway-token"
   echo
   echo "Run OpenClaw CLI:"
   echo "  ./openclaw-guard"
