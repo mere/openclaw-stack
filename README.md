@@ -49,7 +49,7 @@ It looks like this:
 
 ## Quick start
 
-After purchasing your VPS from any provider, simply SSH into your server and follow the setup wizard step-by-step. No advanced technical skills required - just run each guided step **in order**. The wizard makes it easy: after each action, you’ll return to the menu so you can check your progress before moving on.
+After purchasing your VPS from a provider, simply SSH into your server and follow the setup wizard step-by-step. No advanced technical skills required - just run each guided step **in order**. The wizard makes it easy: after each action, you’ll return to the menu so you can check your progress before moving on.
 
 ```bash
 git clone https://github.com/mere/op-and-chloe.git

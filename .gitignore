@@ -1,5 +1,14 @@
 compose.yml.bak.*
+*.bak
+*.swp
+*.swo
+*~
 /vendor/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
 
 # Secrets and local env (never commit)
 .env
@@ -12,11 +21,20 @@ config/env
 **/secrets/*.env
 **/secrets/*.txt
 
-# python bytecode
+# Python
 __pycache__/
 *.pyc
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+.eggs/
 
 # accidental temp files
+*.log
+*.tmp
+.cache/
 
 # debug logs from setup (pairing detection)
 scripts/.debug-*.txt
