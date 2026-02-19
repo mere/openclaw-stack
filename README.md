@@ -148,10 +148,10 @@ sudo ./stop.sh
 sudo ./start.sh
 ```
 
+Run full health check on the stack:
 ```bash
 sudo ./healthcheck.sh
 ```
-
 
 
 ## System diagram
