@@ -67,7 +67,7 @@ step_status(){
     10) configured_label guard ;;
     11) configured_label worker ;;
     12) check_seed_done && echo "✅ Seeded" || echo "⚪ Not seeded" ;;
-    13) if [ -n "${PAIRING_COMPLETED-}" ]; then echo "✅ Pairing completed"; else check_pairing_completed && echo "✅ Pairing completed" || echo "⚪ Pending pairing"; fi ;;
+    13) if [ -n "${PAIRING_COMPLETED-}" ]; then echo "✅ Pairing completed"; else echo "⚪ Pending pairing"; fi ;;
     14) echo "Run to verify" ;;
     15) guard_admin_mode_enabled && echo "✅ Enabled" || echo "⚪ Disabled" ;;
     16) echo "—" ;;
@@ -699,12 +699,13 @@ pairing_done_for_output(){
   echo "$out" | grep -q 'Paired ([1-9]' && ! echo "$out" | grep -q 'Pending ([1-9]'
 }
 
-# True if both guard and worker have pairing completed (containers running and each has Paired (N>=1), no Pending (N>=1)).
-# Sets PAIRING_COMPLETED=1 when both are done so step_status can show "✅ Pairing completed" without re-running CLIs.
-check_pairing_completed(){
-  if [ -n "${PAIRING_COMPLETED-}" ]; then return 0; fi
-  container_running "$guard_name" || return 1
-  container_running "$worker_name" || return 1
+# Run guard/worker devices list and set PAIRING_COMPLETED=1 only when both have pairing completed.
+# Only call this from step_auth_tokens (configure Dashboards) so the main menu stays fast.
+update_pairing_status(){
+  if ! container_running "$guard_name" || ! container_running "$worker_name"; then
+    unset PAIRING_COMPLETED
+    return 1
+  fi
   local guard_out worker_out
   guard_out=$("$STACK_DIR/openclaw-guard" devices list 2>/dev/null || true)
   worker_out=$("$STACK_DIR/openclaw-worker" devices list 2>/dev/null || true)
@@ -712,6 +713,7 @@ check_pairing_completed(){
     export PAIRING_COMPLETED=1
     return 0
   fi
+  unset PAIRING_COMPLETED
   return 1
 }
 
@@ -725,6 +727,7 @@ pending_request_ids(){
 
 step_auth_tokens(){
   local rot=""
+  update_pairing_status || true
   say "Configure Dashboards"
   say "Dashboard URLs, CLI, and pending pairing requests."
   # Ensure each CLI talks to its own gateway (guard→18790, worker→18789); fixes "device token mismatch" / wrong port
@@ -759,10 +762,6 @@ step_auth_tokens(){
     [ -n "$guard_token" ] && echo "  Guard token:  $guard_token"
     [ -n "$worker_token" ] && echo "  Worker token: $worker_token"
   fi
-  echo
-  echo "CLI:"
-  echo "  ./openclaw-guard <command>"
-  echo "  ./openclaw-worker <command>"
   echo
   # Check for pending pairing requests
   guard_devices=""
@@ -837,14 +836,12 @@ step_auth_tokens(){
           [ -n "$worker_token" ] && echo "  Worker token: $worker_token"
         fi
         echo
-        echo "CLI:"
-        echo "  ./openclaw-guard <command>"
-        echo "  ./openclaw-worker <command>"
       else
         warn "Tokens updated in env and config, but container restart failed."
       fi
     fi
   fi
+  update_pairing_status || true
 }
 
 step_help_useful_commands(){
