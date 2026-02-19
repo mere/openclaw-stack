@@ -66,10 +66,10 @@ step_status(){
     9) container_running "$browser_name" && echo "✅ Currently running" || echo "⚪ Not running" ;;
     10) configured_label guard ;;
     11) configured_label worker ;;
-    12) echo "⚪ Not ready" ;;
-    13) echo "Run to verify" ;;
-    14) guard_admin_mode_enabled && echo "✅ Enabled" || echo "⚪ Disabled" ;;
-    15) check_seed_done && echo "✅ Seeded" || echo "⚪ Not seeded" ;;
+    12) check_seed_done && echo "✅ Seeded" || echo "⚪ Not seeded" ;;
+    13) if [ -n "${PAIRING_COMPLETED-}" ]; then echo "✅ Pairing completed"; else check_pairing_completed && echo "✅ Pairing completed" || echo "⚪ Pending pairing"; fi ;;
+    14) echo "Run to verify" ;;
+    15) guard_admin_mode_enabled && echo "✅ Enabled" || echo "⚪ Disabled" ;;
     16) echo "—" ;;
     *) echo "—" ;;
   esac
@@ -693,9 +693,40 @@ step_configure_worker(){
 }
 
 
+# True if this instance's "devices list" output shows pairing completed: at least one Paired, no Pending (N) with N>=1
+pairing_done_for_output(){
+  local out="$1"
+  echo "$out" | grep -q 'Paired ([1-9]' && ! echo "$out" | grep -q 'Pending ([1-9]'
+}
+
+# True if both guard and worker have pairing completed (containers running and each has Paired (N>=1), no Pending (N>=1)).
+# Sets PAIRING_COMPLETED=1 when both are done so step_status can show "✅ Pairing completed" without re-running CLIs.
+check_pairing_completed(){
+  if [ -n "${PAIRING_COMPLETED-}" ]; then return 0; fi
+  container_running "$guard_name" || return 1
+  container_running "$worker_name" || return 1
+  local guard_out worker_out
+  guard_out=$("$STACK_DIR/openclaw-guard" devices list 2>/dev/null || true)
+  worker_out=$("$STACK_DIR/openclaw-worker" devices list 2>/dev/null || true)
+  if pairing_done_for_output "$guard_out" && pairing_done_for_output "$worker_out"; then
+    export PAIRING_COMPLETED=1
+    return 0
+  fi
+  return 1
+}
+
+# Extract pending pairing request IDs from "devices list" output (first UUID per line in Pending table)
+pending_request_ids(){
+  local out="$1"
+  echo "$out" | sed -n '/Pending ([0-9]/,/Paired ([0-9]/p' | while IFS= read -r line; do
+    echo "$line" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1
+  done | grep -E '^[0-9a-f]{8}-'
+}
+
 step_auth_tokens(){
-  say "Access OpenClaw dashboard and CLI"
-  say "Here are your dashboard URLs and CLI commands."
+  local rot=""
+  say "Configure Dashboards"
+  say "Dashboard URLs, CLI, and pending pairing requests."
   # Ensure each CLI talks to its own gateway (guard→18790, worker→18789); fixes "device token mismatch" / wrong port
   "$STACK_DIR/openclaw-guard" config set gateway.port 18790 >/dev/null 2>&1 || true
   "$STACK_DIR/openclaw-worker" config set gateway.port 18789 >/dev/null 2>&1 || true
@@ -724,7 +755,7 @@ step_auth_tokens(){
     fi
     echo "  Webtop: https://${TSDNS}:445/"
   else
-    echo "Dashboards: not available yet — run option 7 (Run Tailscale setup)."
+    echo "Dashboards: not available yet — run option 6 (Tailscale setup)."
     [ -n "$guard_token" ] && echo "  Guard token:  $guard_token"
     [ -n "$worker_token" ] && echo "  Worker token: $worker_token"
   fi
@@ -733,16 +764,52 @@ step_auth_tokens(){
   echo "  ./openclaw-guard <command>"
   echo "  ./openclaw-worker <command>"
   echo
-  say "Pairing required: if the dashboard shows \"Pairing required\", approve this device from here:"
-  echo "  ./openclaw-guard devices list      # Guard dashboard"
-  echo "  ./openclaw-guard devices approve <requestId>"
-  echo "  ./openclaw-worker devices list     # Worker dashboard"
-  echo "  ./openclaw-worker devices approve <requestId>"
-  echo "  (If you see \"device token mismatch\", recreate containers to pick up env: sudo ./stop.sh && sudo ./start.sh)"
-  echo
-  say "If the tokens above don't work, you need to rotate them."
-  read -r -p "$TIGER Rotate gateway tokens (e.g. if expired)? [y/N] " rot
-  case "$rot" in [yY]|[yY][eE][sS]*) ;; *) rot="" ;; esac
+  # Check for pending pairing requests
+  guard_devices=""
+  worker_devices=""
+  if container_running "$guard_name"; then
+    guard_devices=$("$STACK_DIR/openclaw-guard" devices list 2>/dev/null || true)
+  fi
+  if container_running "$worker_name"; then
+    worker_devices=$("$STACK_DIR/openclaw-worker" devices list 2>/dev/null || true)
+  fi
+  guard_pending=()
+  worker_pending=()
+  while IFS= read -r id; do [ -n "$id" ] && guard_pending+=("$id"); done < <(pending_request_ids "$guard_devices")
+  while IFS= read -r id; do [ -n "$id" ] && worker_pending+=("$id"); done < <(pending_request_ids "$worker_devices")
+  # Build menu: 1 = Rotate keys, then each pending as "🤝 approve \"<id>\" (Guard|Worker) Pairing request"
+  options=("Rotate gateway tokens")
+  option_type=("rotate")
+  option_id=("")
+  for id in "${guard_pending[@]}"; do options+=("🤝 approve \"$id\" (Guard) pairing request"); option_type+=("approve_guard"); option_id+=("$id"); done
+  for id in "${worker_pending[@]}"; do options+=("🤝 approve \"$id\" (Worker) pairing request"); option_type+=("approve_worker"); option_id+=("$id"); done
+  if [ ${#options[@]} -gt 1 ]; then
+    say "Pending pairing requests (or rotate tokens):"
+    for i in "${!options[@]}"; do
+      printf "  %d. %s\n" $((i+1)) "${options[$i]}"
+    done
+    echo "  0. Skip (do nothing)"
+    read -r -p "$TIGER Choose [0-${#options[@]}]: " pick
+    pick=${pick:-0}
+    if [ "$pick" -ge 1 ] 2>/dev/null && [ "$pick" -le ${#options[@]} ] 2>/dev/null; then
+      idx=$((pick-1))
+      case "${option_type[$idx]}" in
+        rotate)
+          rot=yes
+          ;;
+        approve_guard)
+          "$STACK_DIR/openclaw-guard" devices approve "${option_id[$idx]}" 2>/dev/null && ok "Approved Guard pairing ${option_id[$idx]}" || warn "Approve failed (device list may have changed)"
+          ;;
+        approve_worker)
+          "$STACK_DIR/openclaw-worker" devices approve "${option_id[$idx]}" 2>/dev/null && ok "Approved Worker pairing ${option_id[$idx]}" || warn "Approve failed (device list may have changed)"
+          ;;
+      esac
+    fi
+  else
+    say "If the tokens above don't work, rotate them from step 3 or here."
+    read -r -p "$TIGER Rotate gateway tokens (e.g. if expired)? [y/N] " rot
+    case "$rot" in [yY]|[yY][eE][sS]*) rot=yes ;; *) rot="" ;; esac
+  fi
   if [ -n "$rot" ]; then
     if [ ! -f "$ENV_FILE" ]; then
       warn "No env file at $ENV_FILE — run step 3 first."
@@ -825,10 +892,10 @@ run_step(){
     9) step_start_browser; ensure_browser_profile; ensure_inline_buttons ;;
     10) ensure_guard_bitwarden; sync_core_workspaces; step_configure_guard ;;
     11) sync_core_workspaces; step_configure_worker ;;
-    12) step_auth_tokens ;;
-    13) step_verify ;;
-    14) step_guard_admin_mode ;;
-    15) step_seed_instructions ;;
+    12) step_seed_instructions ;;
+    13) step_auth_tokens ;;
+    14) step_verify ;;
+    15) step_guard_admin_mode ;;
     16) step_help_useful_commands ;;
     *) warn "Unknown step" ;;
   esac
@@ -854,10 +921,10 @@ menu_once(){
   printf "  %2d. %-24s | %s\n"  9 "start browser"      "$(step_status 9)"
   printf "  %2d. %-24s | %s\n" 10 "configure guard"    "$(step_status 10)"
   printf "  %2d. %-24s | %s\n" 11 "configure worker"   "$(step_status 11)"
-  printf "  %2d. %-24s | %s\n" 12 "dashboard URLs"     "$(step_status 12)"
-  printf "  %2d. %-24s | %s\n" 13 "healthcheck"        "$(step_status 13)"
-  printf "  %2d. %-24s | %s\n" 14 "guard admin mode"   "$(step_status 14)"
-  printf "  %2d. %-24s | %s\n" 15 "seed instructions" "$(step_status 15)"
+  printf "  %2d. %-24s | %s\n" 12 "seed instructions" "$(step_status 12)"
+  printf "  %2d. %-24s | %s\n" 13 "configure Dashboards" "$(step_status 13)"
+  printf "  %2d. %-24s | %s\n" 14 "healthcheck"        "$(step_status 14)"
+  printf "  %2d. %-24s | %s\n" 15 "guard admin mode"   "$(step_status 15)"
   printf "  %2d. %-24s | %s\n" 16 "help / useful cmds" "$(step_status 16)"
   echo
   read -r -p "$TIGER Select step [1-16] or 0 to exit: " pick

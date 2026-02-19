@@ -129,7 +129,7 @@ sudo ./start.sh
 `start.sh` syncs the latest **core instructions** (Op and Chloe role text from `core/guard/` and `core/worker/`) into the workspaces at startup, so after a `git pull` a normal `./start.sh` gives you the latest behaviour.
 
 **Re-sync instructions without restarting:**  
-In the setup wizard, use step **15. seed instructions** to copy the latest `core/guard` and `core/worker` role text into the workspaces. You can also run:
+In the setup wizard, use step **12. seed instructions** to copy the latest `core/guard` and `core/worker` role text into the workspaces. You can also run:
 ```bash
 sudo ./scripts/sync-workspaces.sh
 ```
