@@ -1,6 +1,17 @@
 compose.yml.bak.*
 /vendor/
 
+# Secrets and local env (never commit)
+.env
+.env.local
+.env.*.local
+stack.env
+config/env
+!config/env.example
+**/bitwarden.env
+**/secrets/*.env
+**/secrets/*.txt
+
 # python bytecode
 __pycache__/
 *.pyc

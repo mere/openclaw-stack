@@ -212,3 +212,11 @@ call "cd /opt/op-and-chloe && git pull && ./start.sh" --reason "Update stack" --
   - Chloe gets `/var/lib/openclaw/bridge/inbox` as the only writable bridge path.
   - Op keeps full bridge access for approvals, policy, and audit.
 - Prefer minimal, explicit command policy rules.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+
+## Contributing
+
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to get started.

@@ -718,16 +718,16 @@ update_pairing_status(){
 }
 
 # Extract pending pairing request IDs from "devices list" output (first UUID per line in Pending table).
-# Use awk for the Pending..Paired range so we don't rely on sed range behaviour (e.g. on macOS).
+# Use awk for the Pending..Paired range. Inner grep must not exit 1 (no match) or the pipeline can break.
 pending_request_ids(){
   local out="$1"
   echo "$out" | awk '
-    /[Pp]ending.*[0-9]/ { pending=1; next }
-    /[Pp]aired.*[0-9]/  { pending=0; next }
+    /[Pp]ending/ { pending=1; next }
+    /[Pp]aired/  { pending=0; next }
     pending { print }
   ' | while IFS= read -r line; do
-    echo "$line" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1
-  done | grep -E '^[0-9a-f]{8}-'
+    echo "$line" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1 || true
+  done | grep -E '^[0-9a-f]{8}-' || true
 }
 
 step_auth_tokens(){
