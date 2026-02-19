@@ -69,9 +69,19 @@ step_status(){
     12) echo "⚪ Not ready" ;;
     13) echo "Run to verify" ;;
     14) guard_admin_mode_enabled && echo "✅ Enabled" || echo "⚪ Disabled" ;;
-    15) echo "—" ;;
+    15) check_seed_done && echo "✅ Seeded" || echo "⚪ Not seeded" ;;
+    16) echo "—" ;;
     *) echo "—" ;;
   esac
+}
+
+# True if both guard and worker ROLE.md contain the seeded core block (CORE:BEGIN marker)
+check_seed_done(){
+  local gws="${OPENCLAW_GUARD_WORKSPACE_DIR:-/var/lib/openclaw/guard-workspace}"
+  local wws="${OPENCLAW_WORKSPACE_DIR:-/var/lib/openclaw/workspace}"
+  [ -f "$gws/ROLE.md" ] && grep -q '<!-- CORE:BEGIN -->' "$gws/ROLE.md" || return 1
+  [ -f "$wws/ROLE.md" ] && grep -q '<!-- CORE:BEGIN -->' "$wws/ROLE.md" || return 1
+  return 0
 }
 
 configured_label(){
@@ -377,6 +387,9 @@ EOF
 
 
 
+# Injects core/guard/*.md and core/worker/*.md into guard-workspace and workspace.
+# Run before starting guard/worker (steps 7–8) so containers see ROLE.md on first start,
+# and before configuring them (steps 10–11) so onboarding uses the latest core.
 sync_core_workspaces(){
   "$STACK_DIR/scripts/sync-workspaces.sh" >/dev/null 2>&1 || true
 }
@@ -590,6 +603,13 @@ step_verify(){
   ok "Healthcheck executed"
 }
 
+step_seed_instructions(){
+  say "Seed guard / worker instructions"
+  say "Copies the latest role text from core/guard and core/worker into the guard and worker workspaces. Run this after a git pull or when you edit core/ to refresh Op and Chloe instructions."
+  "$STACK_DIR/scripts/sync-workspaces.sh"
+  ok "Guard and worker workspaces updated from core/"
+}
+
 title_case_name(){ local n="$1"; echo "${n^}"; }
 
 step_configure_guard(){
@@ -750,6 +770,7 @@ step_help_useful_commands(){
   echo "Roles:"
   echo "  cat /var/lib/openclaw/guard-workspace/ROLE.md"
   echo "  cat /var/lib/openclaw/workspace/ROLE.md"
+  echo "  Refresh after git pull or editing core/: sudo ./scripts/sync-workspaces.sh"
   echo
   echo "Devices:"
   echo "  ./openclaw-guard devices list"
@@ -786,12 +807,13 @@ run_step(){
     7) ensure_repo_writable_for_guard; sync_core_workspaces; step_start_guard; ensure_guard_approval_instructions ;;
     8) sync_core_workspaces; step_start_worker ;;
     9) step_start_browser; ensure_browser_profile; ensure_inline_buttons ;;
-    10) ensure_guard_bitwarden; step_configure_guard ;;
-    11) step_configure_worker ;;
+    10) ensure_guard_bitwarden; sync_core_workspaces; step_configure_guard ;;
+    11) sync_core_workspaces; step_configure_worker ;;
     12) step_auth_tokens ;;
     13) step_verify ;;
     14) step_guard_admin_mode ;;
-    15) step_help_useful_commands ;;
+    15) step_seed_instructions ;;
+    16) step_help_useful_commands ;;
     *) warn "Unknown step" ;;
   esac
   echo
@@ -819,12 +841,13 @@ menu_once(){
   printf "  %2d. %-24s | %s\n" 12 "dashboard URLs"     "$(step_status 12)"
   printf "  %2d. %-24s | %s\n" 13 "healthcheck"        "$(step_status 13)"
   printf "  %2d. %-24s | %s\n" 14 "guard admin mode"   "$(step_status 14)"
-  printf "  %2d. %-24s | %s\n" 15 "help / useful cmds" "—"
+  printf "  %2d. %-24s | %s\n" 15 "seed instructions" "$(step_status 15)"
+  printf "  %2d. %-24s | %s\n" 16 "help / useful cmds" "$(step_status 16)"
   echo
-  read -r -p "$TIGER Select step [1-15] or 0 to exit: " pick
+  read -r -p "$TIGER Select step [1-16] or 0 to exit: " pick
   case "$pick" in
     0) say "Exiting setup wizard. See you soon."; return 1 ;;
-    1|2|3|4|5|6|7|8|9|10|11|12|13|14|15) run_step "$pick" ;;
+    1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16) run_step "$pick" ;;
     *) warn "Invalid choice" ;;
   esac
   return 0
