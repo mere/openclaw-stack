@@ -69,6 +69,7 @@ step_status(){
     12) echo "⚪ Not ready" ;;
     13) echo "Run to verify" ;;
     14) guard_admin_mode_enabled && echo "✅ Enabled" || echo "⚪ Disabled" ;;
+    15) echo "—" ;;
     *) echo "—" ;;
   esac
 }
@@ -664,24 +665,50 @@ step_auth_tokens(){
   echo "  ./openclaw-guard <command>"
   echo "  ./openclaw-worker <command>"
   echo
+  say "If the tokens above don't work, you need to rotate them."
+  read -r -p "$TIGER Rotate gateway tokens (e.g. if expired)? [y/N] " rot
+  case "$rot" in [yY]|[yY][eE][sS]*) ;; *) rot="" ;; esac
+  if [ -n "$rot" ]; then
+    if [ ! -f "$ENV_FILE" ]; then
+      warn "No env file at $ENV_FILE — run step 3 first."
+    else
+      sed -i "s#^OPENCLAW_GATEWAY_TOKEN=.*#OPENCLAW_GATEWAY_TOKEN=$(openssl rand -hex 32)#" "$ENV_FILE"
+      sed -i "s#^OPENCLAW_GUARD_GATEWAY_TOKEN=.*#OPENCLAW_GUARD_GATEWAY_TOKEN=$(openssl rand -hex 24)#" "$ENV_FILE"
+      (cd "$STACK_DIR" && docker compose --env-file "$ENV_FILE" -f compose.yml restart openclaw-gateway openclaw-guard) && ok "Tokens rotated; worker and guard restarted. Re-run this step to see new tokens."
+    fi
+  fi
+}
 
-  echo "Useful commands:"
+step_help_useful_commands(){
+  say "Help and useful commands"
+  echo
+  echo "Roles:"
   echo "  cat /var/lib/openclaw/workspace/ROLE.md"
   echo "  cat /var/lib/openclaw/guard-workspace/ROLE.md"
+  echo
+  echo "Devices:"
   echo "  ./openclaw-worker devices list"
   echo "  ./openclaw-guard devices list"
   echo "  ./openclaw-worker devices approve <requestId>"
   echo "  ./openclaw-guard devices approve <requestId>"
+  echo
+  echo "Pairing:"
   echo "  ./openclaw-worker pairing approve telegram <CODE>"
   echo "  ./openclaw-guard pairing approve telegram <CODE>"
+  echo
+  echo "Config / tokens:"
   echo "  ./openclaw-worker config get gateway.auth.token"
   echo "  ./openclaw-guard config get gateway.auth.token"
   echo "  ./openclaw-guard config get channels.telegram.capabilities.inlineButtons"
   echo "  ./openclaw-worker doctor --generate-gateway-token"
   echo "  ./openclaw-guard doctor --generate-gateway-token"
+  echo
+  echo "Example calls:"
   echo "  call \"git status --short\" --reason \"User asked for repo status\" --timeout 30"
   echo "  call \"himalaya envelope list -a icloud -s 20 -o json\" --reason \"User asked for inbox\" --timeout 120"
   echo "  call \"himalaya message read -a icloud 38400\" --reason \"User asked to read email\" --timeout 120"
+  echo
+  echo "Scripts:"
   echo "  ./scripts/guard-tool-sync.sh"
   echo "  ./scripts/guard-bridge.sh pending"
 }
@@ -704,6 +731,7 @@ run_step(){
     12) step_auth_tokens ;;
     13) step_verify ;;
     14) step_guard_admin_mode ;;
+    15) step_help_useful_commands ;;
     *) warn "Unknown step" ;;
   esac
   echo
@@ -731,11 +759,12 @@ menu_once(){
   printf "  %2d. %-24s | %s\n" 12 "dashboard URLs"     "$(step_status 12)"
   printf "  %2d. %-24s | %s\n" 13 "healthcheck"        "$(step_status 13)"
   printf "  %2d. %-24s | %s\n" 14 "guard admin mode"   "$(step_status 14)"
+  printf "  %2d. %-24s | %s\n" 15 "help / useful cmds" "—"
   echo
-  read -r -p "$TIGER Select step [1-14] or 0 to exit: " pick
+  read -r -p "$TIGER Select step [1-15] or 0 to exit: " pick
   case "$pick" in
     0) say "Exiting setup wizard. See you soon."; return 1 ;;
-    1|2|3|4|5|6|7|8|9|10|11|12|13|14) run_step "$pick" ;;
+    1|2|3|4|5|6|7|8|9|10|11|12|13|14|15) run_step "$pick" ;;
     *) warn "Invalid choice" ;;
   esac
   return 0
