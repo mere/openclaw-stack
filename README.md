@@ -56,15 +56,25 @@ git clone https://github.com/mere/op-and-chloe.git
 cd op-and-chloe
 sudo ./setup.sh
 ```
-
-That's it! It takes about 20 minutes to follow the steps and your AI personal assistant is ready! ✨
-
 <p align="center">
   <img src="assets/highfive.png" alt="OpenClaw Setup Wizard" height="250">
 </p>
 
+That's it! It takes about 20 minutes to follow the steps and your AI personal assistant is ready! ✨
+
 
 # Components
+
+- **Three Docker containers:**
+  - **🐕 Op**: the privileged guardian, keeps your stack safe and brokers privileged actions.
+  - **🐯 Chloe**: your daily OpenClaw assistant.
+  - **🖥️ Webtop browser**: provides a shared browser for both you and Chloe, enabling secure co-working even on a headless server.
+- **🔗 Bridge scripts:** Lightweight scripts connect Chloe and Op, letting Op securely handle secrets and privileged commands for Chloe—without exposing credentials.
+
+**Technical overview:** For diagrams and deeper details, see [ARCHITECTURE.md](./ARCHITECTURE.md).
+
+
+---
 
 <p align="center">
   <img src="assets/chloe.png" alt="OpenClaw Setup Wizard" height="200">
