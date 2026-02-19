@@ -578,17 +578,27 @@ step_configure_guard(){
   say "The guard oversees privileged operations — connect a model and Telegram bot for approvals."
   echo
   sep
-  echo "Recommended guard setup:"
-  echo "  • Keep it minimal (ideally no extra skills)"
-  echo "  • Add a reliable model (e.g., OpenAI Codex auth)"
-  echo "  • Set up a dedicated Telegram bot for approvals"
-  echo "  • Suggested bot name: ${pretty}-guard-bot"
-  echo "  • Use ./openclaw-guard ... for guard-only commands"
+  echo "Tips for guard onboarding:"
+  echo "  1. Select QuickStart."
+  echo "  2. If you already pay for ChatGPT, we recommend: OpenAI (Codex OAuth + API key)"
+  echo "  3. Select: OpenAI Codex (ChatGPT OAuth)"
+  echo "  4. After you log in to OpenAI, you may see a \"This site can't be reached\" page — that's expected. Simply copy the URL from the browser and paste it into the terminal when asked."
+  echo "  5. Default Model: Keep current"
+  echo "  6. Select channel: we recommend Telegram (Bot API). Install Telegram on your phone if you don't have it yet."
+  echo "  7. Follow the instructions and paste back the Telegram token."
+  echo
+  echo "Suggested bot name: ${pretty}-guard-bot"
   echo
   read -r -p "$TIGER Start guard onboarding now? [Y/n]: " go
   if [[ ! "$go" =~ ^[Nn]$ ]]; then
-    docker exec -it "$guard_name" ./openclaw.mjs onboard || true
-    ok "Guard setup command finished. If config is already present, this exits quickly — that's normal."
+    if ! container_running "$guard_name"; then
+      warn "Guard container is not running. Run step 7 first, then try again."
+      return
+    fi
+    echo
+    say "Launching guard onboarding in this terminal (not a subprocess). When you're done, run: sudo ./scripts/setup.sh"
+    echo
+    exec docker exec -it "$guard_name" ./openclaw.mjs onboard
   else
     ok "Skipped guard onboarding"
   fi
@@ -610,8 +620,14 @@ step_configure_worker(){
   echo
   read -r -p "$TIGER Start worker onboarding now? [Y/n]: " go
   if [[ ! "$go" =~ ^[Nn]$ ]]; then
-    docker exec -it "$worker_name" ./openclaw.mjs onboard || true
-    ok "Worker setup command finished. If config is already present, this exits quickly — that's normal."
+    if ! container_running "$worker_name"; then
+      warn "Worker container is not running. Run step 8 first, then try again."
+      return
+    fi
+    echo
+    say "Launching worker onboarding in this terminal (not a subprocess). When you're done, run: sudo ./scripts/setup.sh"
+    echo
+    exec docker exec -it "$worker_name" ./openclaw.mjs onboard
   else
     ok "Skipped worker onboarding"
   fi
