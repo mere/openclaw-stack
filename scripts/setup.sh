@@ -706,7 +706,29 @@ step_auth_tokens(){
       worker_token=$(grep -E '^OPENCLAW_GATEWAY_TOKEN=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '"' | head -1)
       guard_token=$(grep -E '^OPENCLAW_GUARD_GATEWAY_TOKEN=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '"' | head -1)
       sync_gateway_tokens_to_config "$worker_token" "$guard_token"
-      (cd "$STACK_DIR" && docker compose --env-file "$ENV_FILE" -f compose.yml restart openclaw-gateway openclaw-guard) && ok "Tokens rotated and synced to config; worker and guard restarted. Re-run this step to see new URLs."
+      if (cd "$STACK_DIR" && docker compose --env-file "$ENV_FILE" -f compose.yml restart openclaw-gateway openclaw-guard); then
+        ok "Tokens rotated and synced to config; worker and guard restarted. Updated URLs below."
+        echo
+        worker_token=$(grep -E '^OPENCLAW_GATEWAY_TOKEN=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '"' | head -1)
+        guard_token=$(grep -E '^OPENCLAW_GUARD_GATEWAY_TOKEN=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '"' | head -1)
+        if check_done tailscale; then
+          TSDNS=$(tailscale_dns)
+          TSDNS=${TSDNS:-unavailable}
+          echo "Dashboards (Tailscale HTTPS):"
+          [ -n "$worker_token" ] && echo "  Worker: https://${TSDNS}/#token=${worker_token}" || echo "  Worker: https://${TSDNS}/  (no token in env)"
+          [ -n "$guard_token" ] && echo "  Guard:  https://${TSDNS}:444/#token=${guard_token}" || echo "  Guard:  https://${TSDNS}:444/  (no token in env)"
+          echo "  Webtop: https://${TSDNS}:445/"
+        else
+          [ -n "$worker_token" ] && echo "  Worker token: $worker_token"
+          [ -n "$guard_token" ] && echo "  Guard token:  $guard_token"
+        fi
+        echo
+        echo "CLI:"
+        echo "  ./openclaw-guard <command>"
+        echo "  ./openclaw-worker <command>"
+      else
+        warn "Tokens updated in env and config, but container restart failed."
+      fi
     fi
   fi
 }
