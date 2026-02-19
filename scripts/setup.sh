@@ -638,15 +638,26 @@ step_auth_tokens(){
   say "Access OpenClaw dashboard and CLI"
   say "Here are your dashboard URLs and CLI commands."
   echo
+  # Tokens for dashboard auth (paste into Control UI settings if prompted)
+  worker_token=""
+  guard_token=""
+  if [ -f "$ENV_FILE" ]; then
+    worker_token=$(grep -E '^OPENCLAW_GATEWAY_TOKEN=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '"' | head -1)
+    guard_token=$(grep -E '^OPENCLAW_GUARD_GATEWAY_TOKEN=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '"' | head -1)
+  fi
   if check_done tailscale; then
     TSDNS=$(tailscale_dns)
     TSDNS=${TSDNS:-unavailable}
     echo "Dashboards (Tailscale HTTPS):"
     echo "  Worker: https://${TSDNS}/"
+    [ -n "$worker_token" ] && echo "    Token: $worker_token"
     echo "  Guard:  https://${TSDNS}:444/"
+    [ -n "$guard_token" ] && echo "    Token: $guard_token"
     echo "  Webtop: https://${TSDNS}:445/"
   else
     echo "Dashboards: not available yet — run option 7 (Run Tailscale setup)."
+    [ -n "$worker_token" ] && echo "  Worker token: $worker_token"
+    [ -n "$guard_token" ] && echo "  Guard token:  $guard_token"
   fi
   echo
   echo "CLI:"
