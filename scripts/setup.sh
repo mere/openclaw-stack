@@ -75,13 +75,29 @@ step_status(){
   esac
 }
 
-# True if both guard and worker ROLE.md contain the seeded core block (CORE:BEGIN marker)
+# True if both guard and worker ROLE.md contain a CORE block that matches current repo core/
+# (so "seeded" means up-to-date with core/, not just ever run)
 check_seed_done(){
   local gws="${OPENCLAW_GUARD_WORKSPACE_DIR:-/var/lib/openclaw/guard-workspace}"
   local wws="${OPENCLAW_WORKSPACE_DIR:-/var/lib/openclaw/workspace}"
-  [ -f "$gws/ROLE.md" ] && grep -q '<!-- CORE:BEGIN -->' "$gws/ROLE.md" || return 1
-  [ -f "$wws/ROLE.md" ] && grep -q '<!-- CORE:BEGIN -->' "$wws/ROLE.md" || return 1
-  return 0
+  python3 - "$STACK_DIR" "$gws" "$wws" <<'PY' || return 1
+import pathlib, re, sys
+stack = pathlib.Path(sys.argv[1])
+gws = pathlib.Path(sys.argv[2])
+wws = pathlib.Path(sys.argv[3])
+def core_current(p): return p.read_text().rstrip() if p.exists() else None
+def core_in_target(t): 
+  if not t.exists(): return None
+  m = re.search(r'<!-- CORE:BEGIN -->\s*(.*?)\s*<!-- CORE:END -->', t.read_text(), re.S)
+  return m.group(1).strip() if m else None
+for profile, ws in (('guard', gws), ('worker', wws)):
+  core_file = stack / 'core' / profile / 'ROLE.md'
+  target_file = ws / 'ROLE.md'
+  want, have = core_current(core_file), core_in_target(target_file)
+  if want is None or have is None or want != have:
+    sys.exit(1)
+sys.exit(0)
+PY
 }
 
 configured_label(){
