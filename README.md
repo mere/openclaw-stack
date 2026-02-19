@@ -46,14 +46,10 @@ It looks like this:
 
 ---
 
-<p align="center">
-  <img src="assets/highfive.png" alt="OpenClaw Setup Wizard" height="200">
-</p>
 
 ## Quick start
 
-Once you have bought a VPS with a provider, SSH in and work through the setup steps **in order**. No deep technical knowledge needed - just follow the wizard; each step runs once and returns you to the menu so you can verify before continuing.
-
+After purchasing your VPS from any provider, simply SSH into your server and follow the setup wizard step-by-step. No advanced technical skills required - just run each guided step **in order**. The wizard makes it easy: after each action, you’ll return to the menu so you can check your progress before moving on.
 
 ```bash
 git clone https://github.com/mere/op-and-chloe.git
@@ -61,7 +57,11 @@ cd op-and-chloe
 sudo ./setup.sh
 ```
 
+That's it! It takes about 20 minutes to follow the steps and your AI personal assistant is ready! ✨
 
+<p align="center">
+  <img src="assets/highfive.png" alt="OpenClaw Setup Wizard" height="250">
+</p>
 
 
 # Components
