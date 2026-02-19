@@ -110,6 +110,9 @@ call "cd /opt/op-and-chloe && git pull && ./start.sh" --reason "Update stack" --
 
 ## Troubleshooting
 
+**Dashboard URLs (Worker/Guard) return HTTP 502 after `stop.sh` / `start.sh`:**
+- The gateways can take 60–90 seconds to start listening. `start.sh` now waits for them before applying Tailscale serve. If you still see 502, wait a minute and refresh, or re-run: `sudo ./scripts/apply-tailscale-serve.sh`
+
 **Webtop URL (https://hostname:445/) not working:**
 1. Ensure the browser container is running: `docker ps | grep browser`
 2. Ensure Tailscale serve is configured: `tailscale serve status` — you should see port 445 → 127.0.0.1:6080

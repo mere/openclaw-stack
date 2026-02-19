@@ -735,14 +735,9 @@ step_help_useful_commands(){
   echo "  ./openclaw-worker doctor --generate-gateway-token"
   echo "  ./openclaw-guard doctor --generate-gateway-token"
   echo
-  echo "Example calls:"
-  echo "  call \"git status --short\" --reason \"User asked for repo status\" --timeout 30"
-  echo "  call \"himalaya envelope list -a icloud -s 20 -o json\" --reason \"User asked for inbox\" --timeout 120"
-  echo "  call \"himalaya message read -a icloud 38400\" --reason \"User asked to read email\" --timeout 120"
-  echo
-  echo "Scripts:"
-  echo "  ./scripts/guard-tool-sync.sh"
-  echo "  ./scripts/guard-bridge.sh pending"
+  echo "Run OpenClaw CLI:"
+  echo "  ./openclaw-guard"
+  echo "  ./openclaw-worker"
 }
 
 run_step(){

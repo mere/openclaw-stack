@@ -26,6 +26,19 @@ docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ps
 echo "[start] warming up browser/CDP"
 sleep 10
 
+echo "[start] waiting for gateways to listen (worker 18789, guard 18790)..."
+max=120
+for i in $(seq 1 "$max"); do
+  w="$(curl -s -o /dev/null -w '%{http_code}' --connect-timeout 2 http://127.0.0.1:18789/ 2>/dev/null || echo 000)"
+  g="$(curl -s -o /dev/null -w '%{http_code}' --connect-timeout 2 http://127.0.0.1:18790/ 2>/dev/null || echo 000)"
+  if [ "$w" = "200" ] && [ "$g" = "200" ]; then
+    echo "[start] gateways ready after ${i}s"
+    break
+  fi
+  [ "$i" -eq "$max" ] && { echo "[start] WARN: gateways not ready after ${max}s; Tailscale serve may 502 until they are up"; break; }
+  sleep 1
+done
+
 if tailscale status >/dev/null 2>&1; then
   echo "[start] applying Tailscale serve (Worker, Guard, Webtop)"
   "$STACK_DIR/scripts/apply-tailscale-serve.sh" 2>/dev/null || true
