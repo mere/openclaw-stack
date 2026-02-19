@@ -702,7 +702,7 @@ step_auth_tokens(){
   echo "  ./openclaw-guard devices approve <requestId>"
   echo "  ./openclaw-worker devices list     # Worker dashboard"
   echo "  ./openclaw-worker devices approve <requestId>"
-  echo "  (If you see \"device token mismatch\" or \"Gateway target: ws://127.0.0.1:18789\" for guard, re-run step 12 to fix the port.)"
+  echo "  (If you see \"device token mismatch\", recreate containers to pick up env: sudo ./stop.sh && sudo ./start.sh)"
   echo
   say "If the tokens above don't work, you need to rotate them."
   read -r -p "$TIGER Rotate gateway tokens (e.g. if expired)? [y/N] " rot
@@ -716,8 +716,9 @@ step_auth_tokens(){
       worker_token=$(grep -E '^OPENCLAW_GATEWAY_TOKEN=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '"' | head -1)
       guard_token=$(grep -E '^OPENCLAW_GUARD_GATEWAY_TOKEN=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '"' | head -1)
       sync_gateway_tokens_to_config "$worker_token" "$guard_token"
-      if (cd "$STACK_DIR" && docker compose --env-file "$ENV_FILE" -f compose.yml restart openclaw-gateway openclaw-guard); then
-        ok "Tokens rotated and synced to config; guard and worker restarted. Updated URLs below."
+      # Recreate (not just restart) so containers pick up new tokens from env file; restart keeps stale env
+      if (cd "$STACK_DIR" && docker compose --env-file "$ENV_FILE" -f compose.yml up -d --force-recreate openclaw-gateway openclaw-guard); then
+        ok "Tokens rotated and synced to config; guard and worker recreated. Updated URLs below."
         echo
         worker_token=$(grep -E '^OPENCLAW_GATEWAY_TOKEN=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '"' | head -1)
         guard_token=$(grep -E '^OPENCLAW_GUARD_GATEWAY_TOKEN=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '"' | head -1)

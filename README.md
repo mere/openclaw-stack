@@ -110,6 +110,9 @@ call "cd /opt/op-and-chloe && git pull && ./start.sh" --reason "Update stack" --
 
 ## Troubleshooting
 
+**`./openclaw-guard devices list` (or worker) shows "device token mismatch":**
+- The container was started with an old gateway token. Recreate so they pick up the current env file: `sudo ./stop.sh && sudo ./start.sh` (wait ~90s for gateways to be ready, then try again).
+
 **Dashboard URLs (Guard/Worker) return HTTP 502 after `stop.sh` / `start.sh`:**
 - The gateways can take 60–90 seconds to start listening. `start.sh` now waits for them before applying Tailscale serve. If you still see 502, wait a minute and refresh, or re-run: `sudo ./scripts/apply-tailscale-serve.sh`
 
