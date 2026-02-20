@@ -60,8 +60,8 @@ container_running(){
 # Status for 2-column menu display
 step_status(){
   case "$1" in
-    1) if [ -n "${OPENCLAW_VOLUME_ROOT:-}" ]; then echo "✅ ${OPENCLAW_VOLUME_ROOT}"; else echo "⚪ Not set"; fi ;;
-    2) command -v apt-get >/dev/null 2>&1 && [ -f /etc/os-release ] && echo "✅ Ready" || echo "⚪ Not ready" ;;
+    1) command -v apt-get >/dev/null 2>&1 && [ -f /etc/os-release ] && echo "✅ Ready" || echo "⚪ Not ready" ;;
+    2) if [ -n "${OPENCLAW_VOLUME_ROOT:-}" ]; then echo "✅ ${OPENCLAW_VOLUME_ROOT}"; else echo "⚪ Not set"; fi ;;
     3) command -v docker >/dev/null 2>&1 && echo "✅ Installed" || echo "⚪ Not installed" ;;
     4) [ -f "$ENV_FILE" ] && echo "✅ Created" || echo "⚪ Not created" ;;
     5) check_done browser_init && echo "✅ CDP scripts installed" || echo "⚪ Not installed" ;;
@@ -481,41 +481,58 @@ check_done(){
 }
 
 step_volume_root(){
-  say "Step 1: OpenClaw data location (persistent volume)"
+  say "Step 2: OpenClaw data location (persistent volume)"
   say "On a VPS with a persistent volume, choose where OpenClaw config and state should live."
-  say "Example: /mnt/volume-hel1-2  (Hetzner block volume mount point)"
   echo
-  if [ -n "${OPENCLAW_VOLUME_ROOT:-}" ]; then
-    ok "Current location: $OPENCLAW_VOLUME_ROOT"
-    read -r -p "$TIGER Change it? [y/N]: " ans
-    if [[ ! "$ans" =~ ^[Yy]$ ]]; then return; fi
+  # Build menu: 0 = back, 1..n = /mnt/* dirs, last = default location
+  local idx=0
+  local -a options=()
+  local -a paths=()
+  options+=("Return to main menu")
+  paths+=("")
+  if [ -d /mnt ]; then
+    local d
+    for d in /mnt/*/; do
+      [ -d "$d" ] || continue
+      d=${d%/}
+      options+=("$d")
+      paths+=("$d")
+    done
   fi
+  options+=("Default location (no volume): /var/lib/openclaw and /etc/openclaw")
+  paths+=("default")
+  echo "  Current: ${OPENCLAW_VOLUME_ROOT:-<default>}"
   echo
-  read -r -p "$TIGER Where should OpenClaw folders be created and mounted from? (e.g. /mnt/volume-hel1-2): " vol
-  vol=$(echo "$vol" | sed 's/#.*//; s/^[[:space:]]*//; s/[[:space:]]*$//')
-  if [ -z "$vol" ]; then
-    warn "Empty path — clearing volume root (will use default /var/lib and /etc on next env step)"
+  local i=0
+  while [ "$i" -lt "${#options[@]}" ]; do
+    printf "  %d. %s\n" "$i" "${options[$i]}"
+    i=$((i + 1))
+  done
+  echo
+  read -r -p "$TIGER Select [0-$(( ${#options[@]} - 1 ))]: " pick
+  if ! [[ "$pick" =~ ^[0-9]+$ ]] || [ "$pick" -lt 0 ] || [ "$pick" -ge "${#options[@]}" ]; then
+    warn "Invalid choice"
+    return 0
+  fi
+  if [ "$pick" -eq 0 ]; then
+    say "No change."
+    return 0
+  fi
+  local chosen_path="${paths[$pick]}"
+  if [ "$chosen_path" = "default" ]; then
     rm -f "$VOLUME_ROOT_FILE"
     unset OPENCLAW_VOLUME_ROOT
-    return
+    ok "Using default location: /var/lib/openclaw and /etc/openclaw (no persistent volume)"
+    return 0
   fi
-  if [ ! -d "$vol" ]; then
-    read -r -p "$TIGER Path $vol does not exist. Create it? [Y/n]: " ans
-    if [[ ! "$ans" =~ ^[Nn]$ ]]; then
-      mkdir -p "$vol" && ok "Created $vol" || { warn "Could not create $vol"; return 1; }
-    else
-      warn "Skipped. Create the directory and run this step again."
-      return 1
-    fi
-  fi
-  echo "$vol" > "$VOLUME_ROOT_FILE"
-  OPENCLAW_VOLUME_ROOT=$vol
+  echo "$chosen_path" > "$VOLUME_ROOT_FILE"
+  OPENCLAW_VOLUME_ROOT=$chosen_path
   ok "OpenClaw data will use: $OPENCLAW_VOLUME_ROOT"
-  say "Run step 4 (environment) to create dirs and symlinks there."
+  say "Run step 4 (environment) next to create dirs and symlinks there."
 }
 
 step_preflight(){
-  say "Step 2: Preflight checks"
+  say "Step 1: Preflight checks"
   say "We verify your host is ready (Ubuntu/Debian, disk space) before proceeding."
   command -v apt-get >/dev/null
   . /etc/os-release
@@ -1026,8 +1043,8 @@ run_step(){
   local n="$1"
   sep
   case "$n" in
-    1) step_volume_root ;;
-    2) step_preflight ;;
+    1) step_preflight ;;
+    2) step_volume_root ;;
     3) step_docker ;;
     4) step_env ;;
     5) step_browser_init ;;
@@ -1056,8 +1073,8 @@ menu_once(){
   echo
   echo "Follow these steps one by one:"
   echo
-  printf "  %2d. %-24s | %s\n"  1 "data location (volume)" "$(step_status 1)"
-  printf "  %2d. %-24s | %s\n"  2 "preflight"           "$(step_status 2)"
+  printf "  %2d. %-24s | %s\n"  1 "preflight"           "$(step_status 1)"
+  printf "  %2d. %-24s | %s\n"  2 "data location (volume)" "$(step_status 2)"
   printf "  %2d. %-24s | %s\n"  3 "docker"              "$(step_status 3)"
   printf "  %2d. %-24s | %s\n"  4 "environment"        "$(step_status 4)"
   printf "  %2d. %-24s | %s\n"  5 "browser init"       "$(step_status 5)"
