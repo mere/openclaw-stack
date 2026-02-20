@@ -17,6 +17,7 @@ compose.yml.bak.*
 stack.env
 config/env
 !config/env.example
+.openclaw-volume-root
 **/bitwarden.env
 **/secrets/*.env
 **/secrets/*.txt

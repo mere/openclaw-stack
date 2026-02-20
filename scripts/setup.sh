@@ -3,6 +3,11 @@ set -euo pipefail
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 STACK_DIR=$(cd "$SCRIPT_DIR/.." && pwd)
+# Persistent volume root (e.g. /mnt/volume-hel1-2); set by setup step 1 or .openclaw-volume-root
+VOLUME_ROOT_FILE="$STACK_DIR/.openclaw-volume-root"
+if [ -f "$VOLUME_ROOT_FILE" ] && [ -s "$VOLUME_ROOT_FILE" ]; then
+  OPENCLAW_VOLUME_ROOT=$(cat "$VOLUME_ROOT_FILE" | sed 's/#.*//; s/^[[:space:]]*//; s/[[:space:]]*$//' | head -1)
+fi
 ENV_FILE=${ENV_FILE:-/etc/openclaw/stack.env}
 # Load INSTANCE from env file so we check the same container names as docker compose
 if [ -f "$ENV_FILE" ]; then
@@ -55,22 +60,23 @@ container_running(){
 # Status for 2-column menu display
 step_status(){
   case "$1" in
-    1) command -v apt-get >/dev/null 2>&1 && [ -f /etc/os-release ] && echo "✅ Ready" || echo "⚪ Not ready" ;;
-    2) command -v docker >/dev/null 2>&1 && echo "✅ Installed" || echo "⚪ Not installed" ;;
-    3) [ -f "$ENV_FILE" ] && echo "✅ Created" || echo "⚪ Not created" ;;
-    4) check_done browser_init && echo "✅ CDP scripts installed" || echo "⚪ Not installed" ;;
-    5) check_done bitwarden && echo "✅ Configured" || echo "⚪ Not configured" ;;
-    6) if check_done tailscale; then tsip=$(tailscale_ip); echo "✅ Running${tsip:+ ($tsip)}"; else echo "⚪ Not running"; fi ;;
-    7) container_running "$guard_name" && echo "✅ Currently running" || echo "⚪ Not running" ;;
-    8) container_running "$worker_name" && echo "✅ Currently running" || echo "⚪ Not running" ;;
-    9) container_running "$browser_name" && echo "✅ Currently running" || echo "⚪ Not running" ;;
-    10) if [ -n "${PAIRING_COMPLETED-}" ] || [ -f "${OPENCLAW_STATE_DIR:-/var/lib/openclaw}/.pairing_completed" ]; then echo "✅ Pairing completed"; else echo "⚪ Pending pairing"; fi ;;
-    11) configured_label guard ;;
-    12) configured_label worker ;;
-    13) check_seed_done && echo "✅ Seeded" || echo "⚪ Not seeded" ;;
-    14) guard_admin_mode_enabled && echo "✅ Enabled" || echo "⚪ Disabled" ;;
-    15) echo "" ;;
+    1) if [ -n "${OPENCLAW_VOLUME_ROOT:-}" ]; then echo "✅ ${OPENCLAW_VOLUME_ROOT}"; else echo "⚪ Not set"; fi ;;
+    2) command -v apt-get >/dev/null 2>&1 && [ -f /etc/os-release ] && echo "✅ Ready" || echo "⚪ Not ready" ;;
+    3) command -v docker >/dev/null 2>&1 && echo "✅ Installed" || echo "⚪ Not installed" ;;
+    4) [ -f "$ENV_FILE" ] && echo "✅ Created" || echo "⚪ Not created" ;;
+    5) check_done browser_init && echo "✅ CDP scripts installed" || echo "⚪ Not installed" ;;
+    6) check_done bitwarden && echo "✅ Configured" || echo "⚪ Not configured" ;;
+    7) if check_done tailscale; then tsip=$(tailscale_ip); echo "✅ Running${tsip:+ ($tsip)}"; else echo "⚪ Not running"; fi ;;
+    8) container_running "$guard_name" && echo "✅ Currently running" || echo "⚪ Not running" ;;
+    9) container_running "$worker_name" && echo "✅ Currently running" || echo "⚪ Not running" ;;
+    10) container_running "$browser_name" && echo "✅ Currently running" || echo "⚪ Not running" ;;
+    11) if [ -n "${PAIRING_COMPLETED-}" ] || [ -f "${OPENCLAW_STATE_DIR:-/var/lib/openclaw}/.pairing_completed" ]; then echo "✅ Pairing completed"; else echo "⚪ Pending pairing"; fi ;;
+    12) configured_label guard ;;
+    13) configured_label worker ;;
+    14) check_seed_done && echo "✅ Seeded" || echo "⚪ Not seeded" ;;
+    15) guard_admin_mode_enabled && echo "✅ Enabled" || echo "⚪ Disabled" ;;
     16) echo "" ;;
+    17) echo "" ;;
     *) echo "—" ;;
   esac
 }
@@ -474,8 +480,42 @@ check_done(){
   esac
 }
 
+step_volume_root(){
+  say "Step 1: OpenClaw data location (persistent volume)"
+  say "On a VPS with a persistent volume, choose where OpenClaw config and state should live."
+  say "Example: /mnt/volume-hel1-2  (Hetzner block volume mount point)"
+  echo
+  if [ -n "${OPENCLAW_VOLUME_ROOT:-}" ]; then
+    ok "Current location: $OPENCLAW_VOLUME_ROOT"
+    read -r -p "$TIGER Change it? [y/N]: " ans
+    if [[ ! "$ans" =~ ^[Yy]$ ]]; then return; fi
+  fi
+  echo
+  read -r -p "$TIGER Where should OpenClaw folders be created and mounted from? (e.g. /mnt/volume-hel1-2): " vol
+  vol=$(echo "$vol" | sed 's/#.*//; s/^[[:space:]]*//; s/[[:space:]]*$//')
+  if [ -z "$vol" ]; then
+    warn "Empty path — clearing volume root (will use default /var/lib and /etc on next env step)"
+    rm -f "$VOLUME_ROOT_FILE"
+    unset OPENCLAW_VOLUME_ROOT
+    return
+  fi
+  if [ ! -d "$vol" ]; then
+    read -r -p "$TIGER Path $vol does not exist. Create it? [Y/n]: " ans
+    if [[ ! "$ans" =~ ^[Nn]$ ]]; then
+      mkdir -p "$vol" && ok "Created $vol" || { warn "Could not create $vol"; return 1; }
+    else
+      warn "Skipped. Create the directory and run this step again."
+      return 1
+    fi
+  fi
+  echo "$vol" > "$VOLUME_ROOT_FILE"
+  OPENCLAW_VOLUME_ROOT=$vol
+  ok "OpenClaw data will use: $OPENCLAW_VOLUME_ROOT"
+  say "Run step 4 (environment) to create dirs and symlinks there."
+}
+
 step_preflight(){
-  say "Step 1: Preflight checks"
+  say "Step 2: Preflight checks"
   say "We verify your host is ready (Ubuntu/Debian, disk space) before proceeding."
   command -v apt-get >/dev/null
   . /etc/os-release
@@ -484,7 +524,7 @@ step_preflight(){
 }
 
 step_docker(){
-  say "Step 2: Docker + Compose"
+  say "Step 3: Docker + Compose"
   say "We use Docker to run the guard, worker and browser as safe, isolated containers."
   if check_done docker; then ok "Docker already installed"; return; fi
   say "Installing Docker..."
@@ -502,10 +542,28 @@ step_docker(){
 }
 
 step_env(){
-  say "Step 3: State dirs + environment"
+  say "Step 4: State dirs + environment"
   say "We create directories and an env file so your config and state survive restarts."
-  mkdir -p /etc/openclaw /var/lib/openclaw/{state,workspace,browser,guard-state,guard-workspace}
-  chown -R 1000:1000 /var/lib/openclaw/state /var/lib/openclaw/workspace /var/lib/openclaw/browser /var/lib/openclaw/guard-state /var/lib/openclaw/guard-workspace
+  if [ -n "${OPENCLAW_VOLUME_ROOT:-}" ]; then
+    local etc_dest="$OPENCLAW_VOLUME_ROOT/openclaw/etc/openclaw"
+    local lib_dest="$OPENCLAW_VOLUME_ROOT/openclaw/var/lib/openclaw"
+    mkdir -p "$etc_dest" "$lib_dest"/{state,workspace,browser,guard-state,guard-workspace}
+    chown -R 1000:1000 "$lib_dest"
+    if [ ! -L /etc/openclaw ] && [ -e /etc/openclaw ] && [ "$(readlink -f /etc/openclaw 2>/dev/null)" != "$(readlink -f "$etc_dest" 2>/dev/null)" ]; then
+      warn "/etc/openclaw already exists and is not a symlink; skipping symlink (data stays under /etc/openclaw)"
+    else
+      ln -snf "$etc_dest" /etc/openclaw
+    fi
+    if [ ! -L /var/lib/openclaw ] && [ -e /var/lib/openclaw ] && [ "$(readlink -f /var/lib/openclaw 2>/dev/null)" != "$(readlink -f "$lib_dest" 2>/dev/null)" ]; then
+      warn "/var/lib/openclaw already exists and is not a symlink; skipping symlink (data stays under /var/lib/openclaw)"
+    else
+      ln -snf "$lib_dest" /var/lib/openclaw
+    fi
+    ok "Created dirs under $OPENCLAW_VOLUME_ROOT and linked /etc/openclaw, /var/lib/openclaw"
+  else
+    mkdir -p /etc/openclaw /var/lib/openclaw/{state,workspace,browser,guard-state,guard-workspace}
+    chown -R 1000:1000 /var/lib/openclaw/state /var/lib/openclaw/workspace /var/lib/openclaw/browser /var/lib/openclaw/guard-state /var/lib/openclaw/workspace
+  fi
   if [ ! -f "$ENV_FILE" ]; then
     cp "$STACK_DIR/config/env.example" "$ENV_FILE"
     sed -i "s#^OPENCLAW_GATEWAY_TOKEN=.*#OPENCLAW_GATEWAY_TOKEN=$(openssl rand -hex 32)#" "$ENV_FILE"
@@ -527,7 +585,7 @@ step_env(){
 }
 
 step_browser_init(){
-  say "Step 4: Browser CDP init scripts"
+  say "Step 5: Browser CDP init scripts"
   say "We install scripts so Chromium starts with remote-debugging on port 9222, proxied to 9223 for automation."
   local browser_dir="/var/lib/openclaw/browser"
   mkdir -p "$browser_dir/custom-cont-init.d"
@@ -546,7 +604,7 @@ step_browser_init(){
 }
 
 step_tailscale(){
-  say "Step 5: Tailscale setup (opinionated default)"
+  say "Step 7: Tailscale setup (opinionated default)"
   say "We use Tailscale so you can access the dashboards privately over your tailnet, without exposing ports to the internet."
   if check_done tailscale; then
     local tsip
@@ -968,22 +1026,23 @@ run_step(){
   local n="$1"
   sep
   case "$n" in
-    1) step_preflight ;;
-    2) step_docker ;;
-    3) step_env ;;
-    4) step_browser_init ;;
-    5) step_bitwarden_secrets ;;
-    6) step_tailscale ;;
-    7) ensure_repo_writable_for_guard; sync_core_workspaces; step_start_guard; ensure_guard_approval_instructions ;;
-    8) sync_core_workspaces; step_start_worker ;;
-    9) step_start_browser; ensure_browser_profile; ensure_inline_buttons ;;
-    10) step_auth_tokens ;;
-    11) ensure_guard_bitwarden; sync_core_workspaces; step_configure_guard ;;
-    12) sync_core_workspaces; step_configure_worker ;;
-    13) step_seed_instructions ;;
-    14) step_guard_admin_mode ;;
-    15) step_verify ;;
-    16) step_help_useful_commands ;;
+    1) step_volume_root ;;
+    2) step_preflight ;;
+    3) step_docker ;;
+    4) step_env ;;
+    5) step_browser_init ;;
+    6) step_bitwarden_secrets ;;
+    7) step_tailscale ;;
+    8) ensure_repo_writable_for_guard; sync_core_workspaces; step_start_guard; ensure_guard_approval_instructions ;;
+    9) sync_core_workspaces; step_start_worker ;;
+    10) step_start_browser; ensure_browser_profile; ensure_inline_buttons ;;
+    11) step_auth_tokens ;;
+    12) ensure_guard_bitwarden; sync_core_workspaces; step_configure_guard ;;
+    13) sync_core_workspaces; step_configure_worker ;;
+    14) step_seed_instructions ;;
+    15) step_guard_admin_mode ;;
+    16) step_verify ;;
+    17) step_help_useful_commands ;;
     *) warn "Unknown step" ;;
   esac
   echo
@@ -997,27 +1056,28 @@ menu_once(){
   echo
   echo "Follow these steps one by one:"
   echo
-  printf "  %2d. %-24s | %s\n"  1 "preflight"           "$(step_status 1)"
-  printf "  %2d. %-24s | %s\n"  2 "docker"              "$(step_status 2)"
-  printf "  %2d. %-24s | %s\n"  3 "environment"        "$(step_status 3)"
-  printf "  %2d. %-24s | %s\n"  4 "browser init"       "$(step_status 4)"
-  printf "  %2d. %-24s | %s\n"  5 "bitwarden"          "$(step_status 5)"
-  printf "  %2d. %-24s | %s\n"  6 "tailscale"          "$(step_status 6)"
-  printf "  %2d. %-24s | %s\n"  7 "start guard"        "$(step_status 7)"
-  printf "  %2d. %-24s | %s\n"  8 "start worker"       "$(step_status 8)"
-  printf "  %2d. %-24s | %s\n"  9 "start browser"      "$(step_status 9)"
-  printf "  %2d. %-24s | %s\n" 10 "configure Dashboards" "$(step_status 10)"
-  printf "  %2d. %-24s | %s\n" 11 "configure guard"    "$(step_status 11)"
-  printf "  %2d. %-24s | %s\n" 12 "configure worker"   "$(step_status 12)"
-  printf "  %2d. %-24s | %s\n" 13 "seed instructions" "$(step_status 13)"
-  printf "  %2d. %-24s | %s\n" 14 "guard admin mode"   "$(step_status 14)"
-  printf "  %2d. %-24s | %s\n" 15 "healthcheck"        "$(step_status 15)"
-  printf "  %2d. %-24s | %s\n" 16 "help / useful cmds" "$(step_status 16)"
+  printf "  %2d. %-24s | %s\n"  1 "data location (volume)" "$(step_status 1)"
+  printf "  %2d. %-24s | %s\n"  2 "preflight"           "$(step_status 2)"
+  printf "  %2d. %-24s | %s\n"  3 "docker"              "$(step_status 3)"
+  printf "  %2d. %-24s | %s\n"  4 "environment"        "$(step_status 4)"
+  printf "  %2d. %-24s | %s\n"  5 "browser init"       "$(step_status 5)"
+  printf "  %2d. %-24s | %s\n"  6 "bitwarden"          "$(step_status 6)"
+  printf "  %2d. %-24s | %s\n"  7 "tailscale"          "$(step_status 7)"
+  printf "  %2d. %-24s | %s\n"  8 "start guard"        "$(step_status 8)"
+  printf "  %2d. %-24s | %s\n"  9 "start worker"       "$(step_status 9)"
+  printf "  %2d. %-24s | %s\n" 10 "start browser"      "$(step_status 10)"
+  printf "  %2d. %-24s | %s\n" 11 "configure Dashboards" "$(step_status 11)"
+  printf "  %2d. %-24s | %s\n" 12 "configure guard"    "$(step_status 12)"
+  printf "  %2d. %-24s | %s\n" 13 "configure worker"   "$(step_status 13)"
+  printf "  %2d. %-24s | %s\n" 14 "seed instructions" "$(step_status 14)"
+  printf "  %2d. %-24s | %s\n" 15 "guard admin mode"   "$(step_status 15)"
+  printf "  %2d. %-24s | %s\n" 16 "healthcheck"        "$(step_status 16)"
+  printf "  %2d. %-24s | %s\n" 17 "help / useful cmds" "$(step_status 17)"
   echo
-  read -r -p "$TIGER Select step [1-16] or 0 to exit: " pick
+  read -r -p "$TIGER Select step [1-17] or 0 to exit: " pick
   case "$pick" in
     0) say "Exiting setup wizard. See you soon."; return 1 ;;
-    1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16) run_step "$pick" ;;
+    1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17) run_step "$pick" ;;
     *) warn "Invalid choice" ;;
   esac
   return 0
