@@ -441,6 +441,46 @@ ensure_bridge_dirs(){
   chown -R 1000:1000 /var/lib/openclaw/bridge /var/lib/openclaw/guard-state/bridge 2>/dev/null || true
 }
 
+ensure_worker_bridge_client(){
+  local scripts_dir="$STACK_DIR/scripts"
+  mkdir -p "$scripts_dir"
+
+  # Keep worker bridge entrypoints deterministic and executable.
+  cat > "$scripts_dir/call" <<'EOF'
+#!/usr/bin/env bash
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+exec "$SCRIPT_DIR/worker-bridge.sh" call "$@"
+EOF
+
+  cat > "$scripts_dir/catalog" <<'EOF'
+#!/usr/bin/env bash
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+exec "$SCRIPT_DIR/worker-bridge.sh" catalog
+EOF
+
+  chmod 0755 "$scripts_dir/call" "$scripts_dir/catalog" "$scripts_dir/worker-bridge.sh" 2>/dev/null || true
+  chown 1000:1000 "$scripts_dir/call" "$scripts_dir/catalog" "$scripts_dir/worker-bridge.sh" 2>/dev/null || true
+}
+
+ensure_worker_bridge_mounts(){
+  local c="$STACK_DIR/compose.yml"
+  local needle='/var/lib/openclaw/bridge/outbox:/var/lib/openclaw/bridge/outbox:rw'
+  if grep -q "$needle" "$c"; then
+    return
+  fi
+
+  python3 - "$c" <<'PY2'
+import pathlib, sys
+p = pathlib.Path(sys.argv[1])
+s = p.read_text()
+old = "      - /var/lib/openclaw/bridge/inbox:/var/lib/openclaw/bridge/inbox:rw\n"
+new = old + "      - /var/lib/openclaw/bridge/outbox:/var/lib/openclaw/bridge/outbox:rw\n"
+if old not in s:
+    raise SystemExit("compose patch failed: inbox mount anchor not found")
+p.write_text(s.replace(old, new, 1))
+PY2
+}
+
 check_done(){
   local id="$1"
   case "$id" in
@@ -665,6 +705,9 @@ step_start_guard(){
 
 step_start_worker(){
   sync_core_workspaces
+  ensure_bridge_dirs
+  ensure_worker_bridge_client
+  ensure_worker_bridge_mounts
   say "Start worker service"
   say "The worker is your main assistant — you'll chat with it daily and run tasks through it."
   if container_running "$worker_name"; then ok "Worker already running"; return; fi
@@ -685,6 +728,9 @@ step_start_browser(){
 step_start_all(){
   sync_core_workspaces
   ensure_repo_writable_for_guard
+  ensure_bridge_dirs
+  ensure_worker_bridge_client
+  ensure_worker_bridge_mounts
   ensure_browser_profile
   ensure_inline_buttons
   say "Start full stack"
