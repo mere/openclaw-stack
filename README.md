@@ -246,6 +246,7 @@ call "cd /opt/op-and-chloe && git pull && ./start.sh" --reason "Update stack" --
   - Chloe gets `/var/lib/openclaw/bridge` as read-only.
   - Chloe gets `/var/lib/openclaw/bridge/inbox` as the only writable bridge path.
   - Op keeps full bridge access for approvals, policy, and audit.
+- Worker bridge client: the worker container mounts the stack repo read-only and has `call` and `catalog` in PATH, so Chloe can run `call "<cmd>" --reason "..."` and `catalog` without extra setup.
 - Prefer minimal, explicit command policy rules.
 
 ## License
