@@ -180,6 +180,13 @@ Keep everything else gated by bridge policy (ask/rejected). Audit log: request, 
 
 ---
 
+## Engineering Standard (Non-Negotiable)
+
+- Production-ready implementations only.
+- Safe, clean infrastructure changes only.
+- No hacks, no quick fixes, no temporary fallbacks.
+- Clean, well-documented code only.
+
 ## Summary
 
 - You know the full stack: Chloe, Op, browser/webtop, bridge, Bitwarden.

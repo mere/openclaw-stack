@@ -32,6 +32,7 @@ services:
       - ${OPENCLAW_WORKSPACE_DIR:-/var/lib/openclaw/workspace}:/home/node/.openclaw/workspace
       - /var/lib/openclaw/bridge:/var/lib/openclaw/bridge:ro
       - /var/lib/openclaw/bridge/inbox:/var/lib/openclaw/bridge/inbox:rw
+      - /var/lib/openclaw/bridge/outbox:/var/lib/openclaw/bridge/outbox:rw
       - ${OPENCLAW_STACK_DIR:-/opt/op-and-chloe}:/opt/op-and-chloe:ro
     init: true
     restart: unless-stopped
@@ -55,6 +56,9 @@ services:
     volumes:
       - ${OPENCLAW_GUARD_STATE_DIR:-/var/lib/openclaw/guard-state}:/home/node/.openclaw
       - ${OPENCLAW_GUARD_WORKSPACE_DIR:-/var/lib/openclaw/guard-workspace}:/home/node/.openclaw/workspace
+      - /var/lib/openclaw:/mnt/openclaw-data
+      - /etc/openclaw:/mnt/etc-openclaw
+      - /var/lib/openclaw/guard-state/ssh:/home/node/.ssh:ro
       - /var/lib/openclaw/bridge:/var/lib/openclaw/bridge
       - ${OPENCLAW_STACK_DIR:-/opt/op-and-chloe}:/opt/op-and-chloe
       - /var/run/docker.sock:/var/run/docker.sock
