@@ -54,7 +54,15 @@ need_root(){
 container_running(){
   local name="$1"
   command -v docker >/dev/null 2>&1 || return 1
-  docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${name}$"
+  # Match exact name or Compose-prefixed name (e.g. project_op-and-chloe-openclaw-guard)
+  docker ps --format '{{.Names}}' 2>/dev/null | grep -qE "^${name}$|_${name}$"
+}
+
+# Return the actual running container name for docker exec (Compose may prefix e.g. 31f2873beb14_op-and-chloe-openclaw-guard).
+resolve_container_name(){
+  local logical="$1"
+  command -v docker >/dev/null 2>&1 || return 1
+  docker ps --format '{{.Names}}' 2>/dev/null | grep -E "^${logical}$|_${logical}$" | head -1
 }
 
 # Status for 2-column menu display
@@ -344,13 +352,14 @@ ensure_guard_bitwarden(){
     warn "Guard Bitwarden env not found at /var/lib/openclaw/guard-state/secrets/bitwarden.env"
     return
   fi
-  if docker exec "$guard_name" sh -lc 'command -v bw >/dev/null 2>&1'; then
+  local guard_actual; guard_actual=$(resolve_container_name "$guard_name" 2>/dev/null); guard_actual=${guard_actual:-$guard_name}
+  if docker exec "$guard_actual" sh -lc 'command -v bw >/dev/null 2>&1'; then
     ok "Guard Bitwarden CLI available"
     return
   fi
   say "Installing Bitwarden CLI in guard..."
-  docker exec "$guard_name" sh -lc 'npm i -g @bitwarden/cli --prefix /home/node/.openclaw/npm-global >/dev/null 2>&1 || true'
-  if docker exec "$guard_name" sh -lc 'command -v bw >/dev/null 2>&1'; then
+  docker exec "$guard_actual" sh -lc 'npm i -g @bitwarden/cli --prefix /home/node/.openclaw/npm-global >/dev/null 2>&1 || true'
+  if docker exec "$guard_actual" sh -lc 'command -v bw >/dev/null 2>&1'; then
     ok "Guard Bitwarden CLI installed"
   else
     warn "Guard Bitwarden CLI install failed (can retry manually)."
@@ -483,7 +492,8 @@ ensure_repo_writable_for_guard(){
 
   # Also inside guard container (path is /opt/op-and-chloe)
   if container_running "$guard_name"; then
-    docker exec "$guard_name" sh -lc 'git config --global --add safe.directory /opt/op-and-chloe >/dev/null 2>&1 || true'
+    guard_actual=$(resolve_container_name "$guard_name" 2>/dev/null); guard_actual=${guard_actual:-$guard_name}
+    docker exec "$guard_actual" sh -lc 'git config --global --add safe.directory /opt/op-and-chloe >/dev/null 2>&1 || true'
   fi
 
   ok "Repo permissions/safe.directory configured"
@@ -555,7 +565,8 @@ check_done(){
         [ -n "$want_h" ] && [ "$want_h" = "$got_h" ] && return 0
       fi
       container_running "$guard_name" || return 1
-      docker exec "$guard_name" sh -lc '
+      guard_actual=$(resolve_container_name "$guard_name" 2>/dev/null); guard_actual=${guard_actual:-$guard_name}
+      docker exec "$guard_actual" sh -lc '
         set -e
         command -v bw >/dev/null 2>&1
         . /home/node/.openclaw/secrets/bitwarden.env
@@ -836,10 +847,11 @@ step_configure_guard(){
       warn "Guard container is not running. Run step 7 first, then try again."
       return
     fi
+    guard_actual=$(resolve_container_name "$guard_name" 2>/dev/null); guard_actual=${guard_actual:-$guard_name}
     echo
     say "Launching guard onboarding in this terminal (not a subprocess). When you're done, run: sudo ./scripts/setup.sh"
     echo
-    exec docker exec -it "$guard_name" ./openclaw.mjs onboard
+    exec docker exec -it "$guard_actual" ./openclaw.mjs onboard
   else
     ok "Skipped guard onboarding"
   fi
@@ -870,10 +882,11 @@ step_configure_worker(){
       warn "Worker container is not running. Run step 8 first, then try again."
       return
     fi
+    worker_actual=$(resolve_container_name "$worker_name" 2>/dev/null); worker_actual=${worker_actual:-$worker_name}
     echo
     say "Launching worker onboarding in this terminal (not a subprocess). When you're done, run: sudo ./scripts/setup.sh"
     echo
-    exec docker exec -it "$worker_name" ./openclaw.mjs onboard
+    exec docker exec -it "$worker_actual" ./openclaw.mjs onboard
   else
     ok "Skipped worker onboarding"
   fi
@@ -896,9 +909,11 @@ update_pairing_status(){
     rm -f "$PAIRING_STATUS_FILE" 2>/dev/null || true
     return 1
   fi
-  local guard_out worker_out
-  guard_out=$(docker exec -i "$guard_name" ./openclaw.mjs devices list 2>/dev/null || true)
-  worker_out=$(docker exec -i "$worker_name" ./openclaw.mjs devices list 2>/dev/null || true)
+  local guard_actual worker_actual guard_out worker_out
+  guard_actual=$(resolve_container_name "$guard_name" 2>/dev/null) || guard_actual="$guard_name"
+  worker_actual=$(resolve_container_name "$worker_name" 2>/dev/null) || worker_actual="$worker_name"
+  guard_out=$(docker exec -i "$guard_actual" ./openclaw.mjs devices list 2>/dev/null || true)
+  worker_out=$(docker exec -i "$worker_actual" ./openclaw.mjs devices list 2>/dev/null || true)
   if pairing_done_for_output "$guard_out" && pairing_done_for_output "$worker_out"; then
     export PAIRING_COMPLETED=1
     touch "$PAIRING_STATUS_FILE" 2>/dev/null || true
@@ -982,14 +997,16 @@ step_auth_tokens(){
       [ -n "$worker_token" ] && echo "  Worker token: $worker_token"
     fi
     echo
-    # Fetch devices list for pairing status and pending
+    # Fetch devices list for pairing status and pending (use resolved names for Compose-prefixed containers)
     guard_devices=""
     worker_devices=""
+    guard_actual=$(resolve_container_name "$guard_name" 2>/dev/null); guard_actual=${guard_actual:-$guard_name}
+    worker_actual=$(resolve_container_name "$worker_name" 2>/dev/null); worker_actual=${worker_actual:-$worker_name}
     if container_running "$guard_name"; then
-      guard_devices=$(docker exec -i "$guard_name" ./openclaw.mjs devices list 2>&1 || true)
+      guard_devices=$(docker exec -i "$guard_actual" ./openclaw.mjs devices list 2>&1 || true)
     fi
     if container_running "$worker_name"; then
-      worker_devices=$(docker exec -i "$worker_name" ./openclaw.mjs devices list 2>&1 || true)
+      worker_devices=$(docker exec -i "$worker_actual" ./openclaw.mjs devices list 2>&1 || true)
     fi
     # DEBUG: set DEBUG_PAIRING=1 when running setup to capture raw devices list output for parsing inspection
     if [ -n "${DEBUG_PAIRING-}" ]; then
@@ -1062,10 +1079,10 @@ step_auth_tokens(){
           ok "Refreshing pairing status..."
           ;;
         approve_guard)
-          docker exec -i "$guard_name" ./openclaw.mjs devices approve "${option_id[$idx]}" 2>&1 && ok "Approved Guard pairing ${option_id[$idx]}" || warn "Approve failed (device list may have changed)"
+          docker exec -i "$guard_actual" ./openclaw.mjs devices approve "${option_id[$idx]}" 2>&1 && ok "Approved Guard pairing ${option_id[$idx]}" || warn "Approve failed (device list may have changed)"
           ;;
         approve_worker)
-          docker exec -i "$worker_name" ./openclaw.mjs devices approve "${option_id[$idx]}" 2>&1 && ok "Approved Worker pairing ${option_id[$idx]}" || warn "Approve failed (device list may have changed)"
+          docker exec -i "$worker_actual" ./openclaw.mjs devices approve "${option_id[$idx]}" 2>&1 && ok "Approved Worker pairing ${option_id[$idx]}" || warn "Approve failed (device list may have changed)"
           ;;
       esac
     fi
