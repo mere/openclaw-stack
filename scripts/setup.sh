@@ -571,6 +571,38 @@ ensure_guard_bridge_service(){
   systemctl enable --now openclaw-guard-bridge.timer >/dev/null 2>&1 || true
 }
 
+
+ensure_m365_bridge_policy(){
+  local cp="/var/lib/openclaw/guard-state/bridge/command-policy.json"
+  mkdir -p /var/lib/openclaw/guard-state/bridge
+  [ -f "$cp" ] || echo '{"rules":[]}' > "$cp"
+  python3 - "$cp" <<'PY2'
+import json, pathlib, sys
+p=pathlib.Path(sys.argv[1])
+try:
+    d=json.loads(p.read_text())
+except Exception:
+    d={"rules":[]}
+rules=d.setdefault("rules",[])
+
+def upsert(rule_id, pattern, decision):
+    for r in rules:
+        if r.get("id")==rule_id:
+            r["pattern"]=pattern; r["decision"]=decision; return
+    rules.append({"id":rule_id,"pattern":pattern,"decision":decision})
+
+upsert("m365-auth-login", r"^python3\s+/opt/op-and-chloe/scripts/guard-m365\.py\s+auth\s+login\b", "ask")
+upsert("m365-auth-status", r"^python3\s+/opt/op-and-chloe/scripts/guard-m365\.py\s+auth\s+status\b", "approved")
+upsert("m365-mail-list", r"^python3\s+/opt/op-and-chloe/scripts/guard-m365\.py\s+mail\s+list\b", "approved")
+upsert("m365-mail-read", r"^python3\s+/opt/op-and-chloe/scripts/guard-m365\.py\s+mail\s+read\b", "approved")
+upsert("m365-calendar-events", r"^python3\s+/opt/op-and-chloe/scripts/guard-m365\.py\s+calendar\s+events\b", "approved")
+upsert("m365-calendar-list", r"^python3\s+/opt/op-and-chloe/scripts/guard-m365\.py\s+calendar\s+list\b", "approved")
+
+p.write_text(json.dumps(d, indent=2)+"\n")
+PY2
+  chown 1000:1000 "$cp" 2>/dev/null || true
+}
+
 check_done(){
   local id="$1"
   case "$id" in
@@ -797,6 +829,7 @@ step_start_worker(){
   ensure_bridge_dirs
   ensure_worker_bridge_client
   ensure_worker_bridge_mounts
+  ensure_m365_bridge_policy
   say "Start worker service"
   say "The worker is your main assistant — you'll chat with it daily and run tasks through it."
   if container_running "$worker_name"; then ok "Worker already running"; return; fi
@@ -822,6 +855,7 @@ step_start_all(){
   ensure_bridge_dirs
   ensure_worker_bridge_client
   ensure_worker_bridge_mounts
+  ensure_m365_bridge_policy
   ensure_browser_profile
   ensure_inline_buttons
   say "Start full stack"
