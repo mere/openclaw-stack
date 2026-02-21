@@ -54,4 +54,4 @@ Match by stable identity (provider + chatId). The script updates pending state a
 - **Shared (host):** inbox `/var/lib/openclaw/bridge/inbox/*.json`, outbox `/var/lib/openclaw/bridge/outbox/*.json`, audit `/var/lib/openclaw/bridge/audit/bridge-audit.jsonl`
 - **Guard state (in container):** policy `/home/node/.openclaw/bridge/policy.json`, command policy `/home/node/.openclaw/bridge/command-policy.json`, pending `/home/node/.openclaw/bridge/pending.json`
 
-For full policy profile and bridge protocol, see ROLE.md and (on the repo) GUARD_BRIDGE.md / GUARD_POLICY_PROFILE.md.
+For full policy profile and bridge protocol, see ROLE.md and (on the repo) `core/common/GUARD_BRIDGE.md` and `core/common/GUARD_POLICY_PROFILE.md`.

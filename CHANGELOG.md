@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Common Changelog](https://common-changelog.org).
 
+## [0.2.1] - 2026-02-21
+
+### Changed
+
+- **Bridge docs in core/common**: Moved `GUARD_BRIDGE.md` and `GUARD_POLICY_PROFILE.md` from repo root to `core/common/` to reduce root noise. Both Guard and Worker see the repo at `/opt/op-and-chloe`, so no seed step needed. Added `core/common/README.md` documenting the shared-docs folder.
+- **Skill references**: `core/guard/skills/opch-approvals/SKILL.md` and `core/worker/skills/opch-bridge/SKILL.md` now point to `core/common/GUARD_BRIDGE.md` and `core/common/GUARD_POLICY_PROFILE.md`. CONTRIBUTING.md updated to mention `core/common/` docs.
+
+[0.2.1]: https://github.com/mere/op-and-chloe/compare/v0.2.0...v0.2.1
+
 ## [0.2.0] - 2025-02-19
 
 ### Added

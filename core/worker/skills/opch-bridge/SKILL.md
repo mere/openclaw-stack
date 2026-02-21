@@ -33,4 +33,4 @@ Use longer timeouts (e.g. 120–300 s) when the action may need user approval.
 - Do **not** ask the user to SSH or run shell commands; tell them to **ask Op**.
 - Do **not** ask for or handle passwords or API keys; Op exposes pre-authenticated commands via the bridge.
 
-For full bridge protocol and policy details, see ROLE.md. The repo is mounted read-only at `/opt/op-and-chloe` in this container; GUARD_BRIDGE.md and GUARD_POLICY_PROFILE.md there have guard-side protocol and policy reference.
+For full bridge protocol and policy details, see ROLE.md. On the repo (mounted at `/opt/op-and-chloe`): `core/common/GUARD_BRIDGE.md` and `core/common/GUARD_POLICY_PROFILE.md` have guard-side protocol and policy reference.
