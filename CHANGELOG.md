@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Common Changelog](https://common-changelog.org).
 
+## [0.2.5] - 2026-02-21
+
+### Fixed
+
+- **update-webtop-cdp-url.sh**: When profile already had `color: null` or invalid value, `setdefault` did not overwrite it. Now force `prof["color"] = "#00AAFF"` when `color` is missing or not a string so one run of the script fixes the gateway config and healthcheck passes.
+
+[0.2.5]: https://github.com/mere/op-and-chloe/compare/v0.2.4...v0.2.5
+
 ## [0.2.4] - 2026-02-21
 
 ### Fixed

@@ -41,7 +41,8 @@ bip = os.environ["BIP"]
 port = os.environ.get("CDP_PORT", "9223")
 prof = j["browser"]["profiles"].setdefault(profile, {})
 prof["cdpUrl"] = f"http://{bip}:{port}"
-prof.setdefault("color", "#00AAFF")  # required by OpenClaw schema (string)
+if not isinstance(prof.get("color"), str):
+    prof["color"] = "#00AAFF"  # required by OpenClaw schema (string)
 j["browser"]["defaultProfile"] = profile
 p.write_text(json.dumps(j, indent=2) + "\n")
 print("Updated", p)
