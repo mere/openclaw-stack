@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Common Changelog](https://common-changelog.org).
 
+## [0.2.3] - 2026-02-21
+
+### Fixed
+
+- **update-webtop-cdp-url.sh**: Python SyntaxError when building `cdpUrl` — f-string expression cannot include a backslash. Script now passes `STATE_JSON`, `PROFILE_NAME`, `BIP`, and `CDP_PORT` via the environment and uses a quoted heredoc so Python reads them with `os.environ` and builds the URL without shell interpolation inside the f-string.
+
+[0.2.3]: https://github.com/mere/op-and-chloe/compare/v0.2.2...v0.2.3
+
 ## [0.2.2] - 2026-02-21
 
 ### Fixed

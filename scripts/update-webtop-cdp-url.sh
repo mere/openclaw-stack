@@ -28,17 +28,20 @@ fi
 
 echo "Using browser IP: $BIP"
 
-python3 - <<PY
-import json
+STATE_JSON="$STATE_JSON" PROFILE_NAME="$PROFILE_NAME" BIP="$BIP" CDP_PORT="$CDP_PORT" python3 - <<'PY'
+import json, os
 from pathlib import Path
-p=Path("$STATE_JSON")
-j=json.loads(p.read_text())
-j.setdefault("browser",{})
-j["browser"]["enabled"]=True
-j["browser"].setdefault("profiles",{})
-j["browser"]["profiles"].setdefault("$PROFILE_NAME",{})["cdpUrl"]=f"http://{\"$BIP\"}:$CDP_PORT"
-j["browser"]["defaultProfile"]="$PROFILE_NAME"
-p.write_text(json.dumps(j,indent=2)+"\n")
+p = Path(os.environ["STATE_JSON"])
+j = json.loads(p.read_text())
+j.setdefault("browser", {})
+j["browser"]["enabled"] = True
+j["browser"].setdefault("profiles", {})
+profile = os.environ.get("PROFILE_NAME", "vps-chromium")
+bip = os.environ["BIP"]
+port = os.environ.get("CDP_PORT", "9223")
+j["browser"]["profiles"].setdefault(profile, {})["cdpUrl"] = f"http://{bip}:{port}"
+j["browser"]["defaultProfile"] = profile
+p.write_text(json.dumps(j, indent=2) + "\n")
 print("Updated", p)
 PY
 
