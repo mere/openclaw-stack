@@ -483,12 +483,17 @@ sync_core_workspaces(){
   "$STACK_DIR/scripts/sync-workspaces.sh" >/dev/null 2>&1 || true
 }
 
+# Ensure repo files are writable by the runtime user (avoid root-owned drift)
+fix_repo_ownership(){
+  local repo="${STACK_DIR:-/opt/op-and-chloe}"
+  chown -R 1000:1000 "$repo" 2>/dev/null || true
+}
+
 ensure_repo_writable_for_guard(){
   say "Ensure repo is writable for guard"
   say "We set permissions so the guard can edit stack scripts when needed."
 
-  # Host repo permissions (guard runs as uid 1000 inside container)
-  chown -R 1000:1000 "$STACK_DIR" 2>/dev/null || true
+  fix_repo_ownership
 
   # Avoid git ownership/filemode noise
   git -C "$STACK_DIR" config core.fileMode false 2>/dev/null || true
@@ -1250,6 +1255,7 @@ run_step(){
     17) step_help_useful_commands ;;
     *) warn "Unknown step" ;;
   esac
+  fix_repo_ownership
   echo
   read -r -p "$TIGER Press Enter to return to menu..." _
 }

@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Common Changelog](https://common-changelog.org).
 
+## [0.2.12] - 2026-02-21
+
+### Fixed
+
+- **setup.sh (repo ownership)**: Added `fix_repo_ownership()` so repo files are always writable by the runtime user (uid 1000), avoiding root-owned drift when setup is run with sudo. Op (guard) and worker can edit the repo and run scripts. The function runs at the end of every setup step and is used by `ensure_repo_writable_for_guard`. Repo path uses `STACK_DIR` or `/opt/op-and-chloe`.
+
+[0.2.12]: https://github.com/mere/op-and-chloe/compare/v0.2.11...v0.2.12
+
 ## [0.2.11] - 2026-02-21
 
 ### Fixed
