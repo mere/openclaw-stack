@@ -12,6 +12,7 @@ You and the user share **one** browser: the **webtop**. You drive it via CDP (br
 
 - **Webtop** = a Chromium instance (webtop + CDP) running on the stack. You control it via the browser tool (CDP). The user gets a URL (e.g. from the **Dashboard URLs** section in setup) to open the webtop in their browser — often `https://<hostname>:445/` over Tailscale.
 - **Same session**: When the user logs in on a site in webtop, you see that session. When you open a page via CDP, the user can see it in webtop. One shared session.
+- **Profile names**: This stack exposes the webtop CDP as **vps-chromium** (primary) and as **chrome** (so clients that default to profile=chrome connect to the same webtop). If your client uses "chrome", that is correct here — it points at the shared webtop, not a local relay.
 
 ## When the user asks to open a page (LinkedIn, BBC, social, etc.)
 

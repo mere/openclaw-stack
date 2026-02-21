@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Common Changelog](https://common-changelog.org).
 
+## [0.2.9] - 2026-02-21
+
+### Changed
+
+- **update-webtop-cdp-url.sh**: Also set a **chrome** profile with the same webtop CDP (and color) so clients that default to `profile=chrome` connect to the shared webtop without client config. Primary profile remains vps-chromium; chrome is documented as a compatibility alias.
+- **opch-webtop skill**: Note that the stack exposes webtop as vps-chromium and as chrome; if the client uses "chrome", that correctly points at the shared webtop on this stack.
+
+[0.2.9]: https://github.com/mere/op-and-chloe/compare/v0.2.8...v0.2.9
+
 ## [0.2.8] - 2026-02-21
 
 ### Fixed

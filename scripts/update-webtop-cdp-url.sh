@@ -39,11 +39,19 @@ j["browser"].setdefault("profiles", {})
 profile = os.environ.get("PROFILE_NAME", "vps-chromium")
 bip = os.environ["BIP"]
 port = os.environ.get("CDP_PORT", "9223")
-prof = j["browser"]["profiles"].setdefault(profile, {})
-prof["cdpUrl"] = f"http://{bip}:{port}"
-if not isinstance(prof.get("color"), str):
-    prof["color"] = "#00AAFF"  # required by OpenClaw schema (string)
+cdp_url = f"http://{bip}:{port}"
+color = "#00AAFF"
+
+def set_profile(name):
+    pr = j["browser"]["profiles"].setdefault(name, {})
+    pr["cdpUrl"] = cdp_url
+    if not isinstance(pr.get("color"), str):
+        pr["color"] = color
+
+set_profile(profile)
 j["browser"]["defaultProfile"] = profile
+# Many clients default to profile=chrome; expose same webtop CDP so they connect without client config
+set_profile("chrome")
 p.write_text(json.dumps(j, indent=2) + "\n")
 print("Updated", p)
 PY
