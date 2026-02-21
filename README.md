@@ -231,6 +231,9 @@ call "cd /opt/op-and-chloe && git pull && ./start.sh" --reason "Update stack" --
 **Dashboard URLs (Guard/Worker) return HTTP 502 after `stop.sh` / `start.sh`:**
 - The gateways can take 60–90 seconds to start listening. `start.sh` now waits for them before applying Tailscale serve. If you still see 502, wait a minute and refresh, or re-run: `sudo ./scripts/apply-tailscale-serve.sh`
 
+**Chloe's browser tool shows wrong URL or cdpReady: false:**
+- The worker state must point at the browser container's CDP endpoint. On every `start.sh` we refresh it automatically. To fix immediately: `sudo ./scripts/update-webtop-cdp-url.sh` (then use the worker dashboard or reconnect so Chloe picks up the new config).
+
 **Webtop URL (https://hostname:445/) not working:**
 1. Ensure the browser container is running: `docker ps | grep browser`
 2. Ensure Tailscale serve is configured: `tailscale serve status`  -  you should see port 445 → 127.0.0.1:6080

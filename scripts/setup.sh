@@ -200,8 +200,21 @@ PY2
 }
 
 ensure_browser_profile(){
-  python3 - <<'PY2'
-import json, pathlib
+  # Prefer dynamic CDP URL from running browser container so Chloe's browser tool stays correct
+  if container_running "$browser_name"; then
+    if STACK_DIR="$STACK_DIR" ENV_FILE="$ENV_FILE" "$STACK_DIR/scripts/update-webtop-cdp-url.sh" 2>/dev/null; then
+      return 0
+    fi
+  fi
+  # Fallback: set profile with CDP URL from env or default (when browser not running yet)
+  local bip="172.31.0.10"
+  if [ -f "$ENV_FILE" ]; then
+    bip=$(grep -E '^BROWSER_IPV4=' "$ENV_FILE" | cut -d= -f2- | tr -d '"' | head -1)
+    [ -z "$bip" ] && bip="172.31.0.10"
+  fi
+  BIP="$bip" python3 - <<'PY2'
+import json, os, pathlib
+bip = os.environ.get("BIP", "172.31.0.10")
 worker=pathlib.Path('/var/lib/openclaw/state/openclaw.json')
 guard=pathlib.Path('/var/lib/openclaw/guard-state/openclaw.json')
 if worker.exists() and worker.stat().st_size>0:
@@ -211,7 +224,7 @@ if worker.exists() and worker.stat().st_size>0:
     b['defaultProfile']='vps-chromium'
     prof=b.setdefault('profiles',{})
     p=prof.setdefault('vps-chromium',{})
-    p['cdpUrl']='http://172.31.0.10:9223'
+    p['cdpUrl']=f'http://{bip}:9223'
     p.setdefault('color','#00AAFF')
     worker.write_text(json.dumps(d,indent=2)+"\n")
 if guard.exists() and guard.stat().st_size>0:

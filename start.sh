@@ -5,6 +5,8 @@ ENV_FILE=${ENV_FILE:-/etc/openclaw/stack.env}
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 STACK_DIR=${STACK_DIR:-$SCRIPT_DIR}
 COMPOSE_FILE=${COMPOSE_FILE:-$STACK_DIR/compose.yml}
+[ -f "$ENV_FILE" ] && INSTANCE=$(grep -E '^INSTANCE=' "$ENV_FILE" | cut -d= -f2- | tr -d '"' | head -1)
+INSTANCE=${INSTANCE:-op-and-chloe}
 
 cd "$STACK_DIR"
 
@@ -25,6 +27,12 @@ docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ps
 
 echo "[start] warming up browser/CDP"
 sleep 10
+
+# Refresh worker state with current browser container CDP URL so Chloe's browser tool works
+if docker ps -q -f "name=${INSTANCE:-op-and-chloe}-browser" | grep -q . 2>/dev/null; then
+  echo "[start] updating webtop CDP URL in worker state"
+  STACK_DIR="$STACK_DIR" ENV_FILE="$ENV_FILE" "$STACK_DIR/scripts/update-webtop-cdp-url.sh" 2>/dev/null || true
+fi
 
 echo "[start] waiting for gateways to listen (guard 18790, worker 18789)..."
 max=120

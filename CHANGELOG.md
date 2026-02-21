@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Common Changelog](https://common-changelog.org).
 
+## [0.2.2] - 2026-02-21
+
+### Fixed
+
+- **Chloe browser tool (webtop CDP)**: Worker state `cdpUrl` was sometimes wrong or stale (e.g. 127.0.0.1:18792), so Chloe's browser tool showed `cdpReady: false` even when CDP was reachable at the browser container (e.g. 172.31.0.10:9223). Fixes applied so the correct CDP URL is written and used consistently.
+
+### Changed
+
+- **ensure_browser_profile** (setup.sh): When the browser container is running, calls `update-webtop-cdp-url.sh` to set `cdpUrl` from the live container IP; fallback uses `BROWSER_IPV4` from env (or 172.31.0.10) when the container is not up.
+- **start.sh**: After bringing the stack up, runs `update-webtop-cdp-url.sh` when the browser container is present so every start refreshes the worker CDP URL and restarts the gateway with correct config. Loads `INSTANCE` from the env file for the browser check.
+- **cdp-watchdog.sh**: After restarting the browser, runs `update-webtop-cdp-url.sh` so worker state is updated and the gateway gets the correct CDP URL on recovery.
+- **README**: Added troubleshooting entry for "Chloe's browser tool shows wrong URL or cdpReady: false" with one-off fix: `sudo ./scripts/update-webtop-cdp-url.sh`.
+
+[0.2.2]: https://github.com/mere/op-and-chloe/compare/v0.2.1...v0.2.2
+
 ## [0.2.1] - 2026-02-21
 
 ### Changed
