@@ -1013,17 +1013,24 @@ step_auth_tokens(){
       printf '%s' "$guard_devices" > "$STACK_DIR/scripts/.debug-guard-devices.txt" 2>/dev/null || true
       printf '%s' "$worker_devices" > "$STACK_DIR/scripts/.debug-worker-devices.txt" 2>/dev/null || true
     fi
-    # Pairing status (paired count per instance)
+    # Pairing status (paired count per instance). If CLI returns token mismatch, we can't read the list.
     guard_paired=$(paired_count "$guard_devices")
     worker_paired=$(paired_count "$worker_devices")
+    guard_token_err=0; worker_token_err=0
+    echo "$guard_devices" | grep -qi "token mismatch\|unauthorized.*device" && guard_token_err=1
+    echo "$worker_devices" | grep -qi "token mismatch\|unauthorized.*device" && worker_token_err=1
     echo "Pairing status:"
     if [ "${guard_paired:-0}" -gt 0 ] 2>/dev/null; then
       echo "  Guard:  ✅ $guard_paired paired"
+    elif [ "$guard_token_err" -eq 1 ]; then
+      echo "  Guard:  ⚠️ Token mismatch — rotate keys (option 1) to connect"
     else
       echo "  Guard:  ⚪ No devices paired yet"
     fi
     if [ "${worker_paired:-0}" -gt 0 ] 2>/dev/null; then
       echo "  Worker: ✅ $worker_paired paired"
+    elif [ "$worker_token_err" -eq 1 ]; then
+      echo "  Worker: ⚠️ Token mismatch — rotate keys (option 1) to connect"
     else
       echo "  Worker: ⚪ No devices paired yet"
     fi
