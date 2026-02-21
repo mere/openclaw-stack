@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Common Changelog](https://common-changelog.org).
 
+## [0.2.8] - 2026-02-21
+
+### Fixed
+
+- **sync-workspaces.sh**: With `set -u`, `$1` was unbound when the script was run with no arguments (e.g. after git pull), causing "unbound variable" and a non-zero exit. Use `${1:-}` so the profile-arg check is safe when no args are passed.
+
+[0.2.8]: https://github.com/mere/op-and-chloe/compare/v0.2.7...v0.2.8
+
 ## [0.2.7] - 2026-02-21
 
 ### Changed

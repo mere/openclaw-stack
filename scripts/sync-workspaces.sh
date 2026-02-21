@@ -26,7 +26,7 @@ for arg in "$@"; do
     --profile)   : ;; # next arg will be consumed below if needed
   esac
 done
-[ "$1" = "--profile" ] && [ -n "${2:-}" ] && SYNC_PROFILE="$2"
+[ "${1:-}" = "--profile" ] && [ -n "${2:-}" ] && SYNC_PROFILE="$2"
 
 sync_one() {
   local profile="$1" ws="$2"
