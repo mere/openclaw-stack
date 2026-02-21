@@ -97,6 +97,9 @@ PY
     mkdir -p "$ws/skills"
     rsync -a --delete "$skills_src/" "$ws/skills/" 2>/dev/null || cp -R "$skills_src"/* "$ws/skills/" 2>/dev/null || true
   fi
+
+  # Store hash of core/<profile> so setup can show ✅ Seeded only when workspace matches repo
+  python3 "$STACK_DIR/scripts/seed-hash.py" set "$STACK_DIR" "$profile" "$ws"
 }
 
 if [ -z "$SYNC_PROFILE" ]; then

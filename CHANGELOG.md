@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Common Changelog](https://common-changelog.org).
 
+## [0.2.7] - 2026-02-21
+
+### Changed
+
+- **Seed status (✅ Seeded)**: Now hash-based. `check_seed_done` compares a SHA256 of all seedable content under `core/<profile>` (ROLE.md + skills) to the hash stored in `workspace/.seed_hash` when sync last ran. Any change in core—new or updated skill, or ROLE.md—makes the status show ⚪ Not seeded until step 14 (or `sync-workspaces.sh`) is run again. Replaces the previous check (ROLE CORE block + skill dir names only).
+
+### Added
+
+- **scripts/seed-hash.py**: Computes or stores the hash of `core/<profile>`. `get <stack_dir> <profile>` prints hash; `set <stack_dir> <profile> <workspace_dir>` writes `<workspace>/.seed_hash`. Used by sync-workspaces.sh (store on seed) and setup.sh (compare for status).
+
+[0.2.7]: https://github.com/mere/op-and-chloe/compare/v0.2.6...v0.2.7
+
 ## [0.2.6] - 2026-02-21
 
 ### Added
