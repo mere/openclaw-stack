@@ -31,3 +31,4 @@ Create changelog entry summarizing completed implementation.
    - Determine version bump based on the nature of changes in the session
 6. **Add** all changed files to git (not just changelog)
 7. **Commit** all changes with Conventional Commits + emoji
+8. **Push** git push the changes
