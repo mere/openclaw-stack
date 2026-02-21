@@ -545,6 +545,32 @@ p.write_text(s.replace(old, new, 1))
 PY2
 }
 
+
+ensure_stack_repo_alias(){
+  # Keep /opt/op-and-chloe available for scripts that rely on canonical path.
+  local canonical="/opt/op-and-chloe"
+  mkdir -p /opt
+  if [ -L "$canonical" ]; then
+    local cur
+    cur=$(readlink -f "$canonical" 2>/dev/null || true)
+    if [ "$cur" != "$STACK_DIR" ]; then
+      ln -snf "$STACK_DIR" "$canonical"
+    fi
+  elif [ -e "$canonical" ]; then
+    warn "$canonical exists and is not a symlink; leaving as-is"
+  else
+    ln -snf "$STACK_DIR" "$canonical"
+  fi
+}
+
+ensure_guard_bridge_service(){
+  # Install and enable the guard bridge timer/service with current STACK_DIR path.
+  install -m 0644 "$STACK_DIR/systemd/openclaw-guard-bridge.timer" /etc/systemd/system/openclaw-guard-bridge.timer
+  sed "s#/opt/op-and-chloe#$STACK_DIR#g" "$STACK_DIR/systemd/openclaw-guard-bridge.service" > /etc/systemd/system/openclaw-guard-bridge.service
+  systemctl daemon-reload
+  systemctl enable --now openclaw-guard-bridge.timer >/dev/null 2>&1 || true
+}
+
 check_done(){
   local id="$1"
   case "$id" in
@@ -756,6 +782,8 @@ step_tailscale(){
 
 step_start_guard(){
   sync_core_workspaces
+  ensure_stack_repo_alias
+  ensure_guard_bridge_service
   say "Start guard service"
   say "The guard oversees privileged operations and approves Chloe's requests for credentials and tools."
   if container_running "$guard_name"; then ok "Guard already running"; return; fi
@@ -788,6 +816,8 @@ step_start_browser(){
 
 step_start_all(){
   sync_core_workspaces
+  ensure_stack_repo_alias
+  ensure_guard_bridge_service
   ensure_repo_writable_for_guard
   ensure_bridge_dirs
   ensure_worker_bridge_client
