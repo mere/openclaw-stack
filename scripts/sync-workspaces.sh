@@ -1,11 +1,32 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Seeds guard and worker workspaces from core/guard and core/worker.
+#
+# What gets seeded (per profile):
+#   - Identity:  IDENTITY.md (Op / Chloe)
+#   - Role:      ROLE.md (and any other core/<profile>/*.md)
+#   - Skills:    core/<profile>/skills/ -> workspace/skills/
+#
+# Run manually after git pull (e.g. via setup step 14 or ./scripts/sync-workspaces.sh).
+#
+# Optional: sync only one profile.
+#   SYNC_PROFILE=worker ./sync-workspaces.sh   OR   ./sync-workspaces.sh --profile worker
+SYNC_PROFILE="${SYNC_PROFILE:-}"
+
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 STACK_DIR=$(cd "$SCRIPT_DIR/.." && pwd)
 
 WORKER_WS=${WORKER_WORKSPACE_DIR:-/var/lib/openclaw/workspace}
 GUARD_WS=${GUARD_WORKSPACE_DIR:-/var/lib/openclaw/guard-workspace}
+
+for arg in "$@"; do
+  case "$arg" in
+    --profile=*) SYNC_PROFILE="${arg#--profile=}" ;;
+    --profile)   : ;; # next arg will be consumed below if needed
+  esac
+done
+[ "$1" = "--profile" ] && [ -n "${2:-}" ] && SYNC_PROFILE="$2"
 
 sync_one() {
   local profile="$1" ws="$2"
@@ -69,11 +90,24 @@ PY
   done
 
   shopt -u nullglob
+
+  # Sync skills subtree if present (core/<profile>/skills/ -> workspace/skills/)
+  local skills_src="$core_dir/skills"
+  if [ -d "$skills_src" ]; then
+    mkdir -p "$ws/skills"
+    rsync -a --delete "$skills_src/" "$ws/skills/" 2>/dev/null || cp -R "$skills_src"/* "$ws/skills/" 2>/dev/null || true
+  fi
 }
 
-sync_one worker "$WORKER_WS"
-sync_one guard "$GUARD_WS"
-
-chown -R 1000:1000 "$WORKER_WS" "$GUARD_WS" 2>/dev/null || true
-
-echo "[sync] workspaces refreshed from core profiles"
+if [ -z "$SYNC_PROFILE" ]; then
+  sync_one worker "$WORKER_WS"
+  sync_one guard "$GUARD_WS"
+  chown -R 1000:1000 "$WORKER_WS" "$GUARD_WS" 2>/dev/null || true
+  echo "[sync] workspaces refreshed from core profiles"
+else
+  case "$SYNC_PROFILE" in
+    worker) sync_one worker "$WORKER_WS"; chown -R 1000:1000 "$WORKER_WS" 2>/dev/null || true; echo "[sync] worker workspace refreshed from core/worker" ;;
+    guard)  sync_one guard  "$GUARD_WS";  chown -R 1000:1000 "$GUARD_WS"  2>/dev/null || true; echo "[sync] guard workspace refreshed from core/guard" ;;
+    *) echo "[sync] unknown SYNC_PROFILE=$SYNC_PROFILE (use worker or guard)" >&2; exit 1 ;;
+  esac
+fi
