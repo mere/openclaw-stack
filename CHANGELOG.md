@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Common Changelog](https://common-changelog.org).
 
+## [0.2.4] - 2026-02-21
+
+### Fixed
+
+- **update-webtop-cdp-url.sh**: Ensure browser profile includes `color` (e.g. `#00AAFF`) so OpenClaw config validation does not fail with "browser.profiles.vps-chromium.color: expected string, received undefined".
+
+[0.2.4]: https://github.com/mere/op-and-chloe/compare/v0.2.3...v0.2.4
+
 ## [0.2.3] - 2026-02-21
 
 ### Fixed
