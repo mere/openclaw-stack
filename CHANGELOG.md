@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Common Changelog](https://common-changelog.org).
 
+## [0.2.10] - 2026-02-21
+
+### Fixed
+
+- **setup.sh (step 6 – Bitwarden)**: Run `bw logout` before `bw config server` so the Bitwarden CLI does not fail with "Logout required before server config update" when reconfiguring server (e.g. switching .com vs .eu) or when existing session data is present. Applied in both the local-CLI and Docker paths; stderr from `bw config server` is no longer suppressed so real errors are visible.
+
+[0.2.10]: https://github.com/mere/op-and-chloe/compare/v0.2.9...v0.2.10
+
 ## [0.2.9] - 2026-02-21
 
 ### Changed

@@ -313,7 +313,8 @@ EOF
   say "Log in to Bitwarden now (email, master password, and 2FA if enabled). Your credentials are not saved."
   do_bw_login(){
     export BITWARDENCLI_APPDATA_DIR="$bw_data_dir"
-    bw config server "$BW_SERVER" 2>/dev/null && bw login
+    bw logout 2>/dev/null || true
+    bw config server "$BW_SERVER" && bw login
   }
   if command -v bw >/dev/null 2>&1; then
     if ! do_bw_login; then
@@ -327,7 +328,7 @@ EOF
       -v "$state_dir:/home/node/.openclaw:rw" \
       -e BITWARDENCLI_APPDATA_DIR="$BW_CLI_DATA_DIR_GUARD" \
       -e BW_SERVER="$BW_SERVER" \
-      node:20-alpine sh -c 'npm install -g @bitwarden/cli >/dev/null 2>&1 && bw config server "$BW_SERVER" && bw login'; then
+      node:20-alpine sh -c 'npm install -g @bitwarden/cli >/dev/null 2>&1 && bw logout 2>/dev/null || true && bw config server "$BW_SERVER" && bw login'; then
       warn "Bitwarden login failed or was cancelled"
       return
     fi
