@@ -73,11 +73,11 @@ sequenceDiagram
   G-->>W: sanitized result (no raw secret)
 ```
 
-**Bitwarden credentials (where they live):**
+**Bitwarden (where it lives, no credentials in env):**
 
-- In this container the Bitwarden env file is at **`/home/node/.openclaw/secrets/bitwarden.env`**.
-- On the host it is **`/var/lib/openclaw/guard-state/secrets/bitwarden.env`** (guard-state is mounted as `/home/node/.openclaw`). Use this path when creating or checking the file from the host; in guard, use the `.openclaw/secrets` path.
-- That file holds `BW_CLIENTID`, `BW_CLIENTSECRET`, and `BW_SERVER` for the Bitwarden CLI. Source it or export those vars before running `bw` (e.g. for Himalaya or other tools that need secrets).
+- In this container the Bitwarden env file is at **`/home/node/.openclaw/secrets/bitwarden.env`** (on the host: **`/var/lib/openclaw/guard-state/secrets/bitwarden.env`**). It holds only **`BW_SERVER`**; no API key or master password is stored there.
+- Login is done interactively during setup via **`bw login`**; the CLI stores state in **`/home/node/.openclaw/bitwarden-cli`** (host: `guard-state/bitwarden-cli`). Source `bitwarden.env` and set **`BITWARDENCLI_APPDATA_DIR=/home/node/.openclaw/bitwarden-cli`** before running `bw`.
+- For unattended unlock (e.g. email setup), the user can create **`/home/node/.openclaw/secrets/bw-master-password`** (one line = master password, chmod 600); otherwise run **`bw unlock`** in the guard container when needed.
 
 ---
 

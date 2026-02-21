@@ -74,7 +74,7 @@ step_status(){
     12) configured_label guard ;;
     13) configured_label worker ;;
     14) check_seed_done && echo "✅ Seeded" || echo "⚪ Not seeded" ;;
-    15) guard_admin_mode_enabled && echo "✅ Enabled" || echo "⚪ Disabled" ;;
+    15) guard_admin_mode_enabled && echo "⚠️ Enabled (full VPS access—disable when not needed)" || echo "⚪ Disabled" ;;
     16) echo "" ;;
     17) echo "" ;;
     *) echo "—" ;;
@@ -215,6 +215,10 @@ PY2
 }
 
 
+# Bitwarden CLI data dir: shared between host (setup) and guard container (same path under mount).
+BW_CLI_DATA_DIR_HOST="/var/lib/openclaw/guard-state/bitwarden-cli"
+BW_CLI_DATA_DIR_GUARD="/home/node/.openclaw/bitwarden-cli"
+
 bitwarden_env_hash(){
   local f="$1"
   [ -f "$f" ] || return 1
@@ -223,18 +227,25 @@ bitwarden_env_hash(){
 
 verify_bitwarden_credentials(){
   local secrets_file="$1"
+  local secrets_dir="$2"
   if ! command -v docker >/dev/null 2>&1; then
     return 1
   fi
-  if docker run --rm --env-file "$secrets_file" node:20-alpine sh -c '
-    npm install -g @bitwarden/cli >/dev/null 2>&1 &&
-    bw config server "$BW_SERVER" >/dev/null 2>&1 &&
-    BW_CLIENTID="$BW_CLIENTID" BW_CLIENTSECRET="$BW_CLIENTSECRET" bw login --apikey --nointeraction >/dev/null 2>&1 &&
-    bw status 2>/dev/null | grep -qv "unauthenticated"
-  ' >/dev/null 2>&1; then
+  local state_dir
+  state_dir="$(dirname "$secrets_dir")"
+  # Use same guard-state mount as guard so CLI data dir is visible; only BW_SERVER is in env.
+  if docker run --rm \
+    -v "$state_dir:/home/node/.openclaw:rw" \
+    --env-file "$secrets_file" \
+    -e BITWARDENCLI_APPDATA_DIR="$BW_CLI_DATA_DIR_GUARD" \
+    node:20-alpine sh -c '
+      npm install -g @bitwarden/cli >/dev/null 2>&1 &&
+      bw config server "$BW_SERVER" >/dev/null 2>&1 &&
+      bw status 2>/dev/null | grep -qv "unauthenticated"
+    ' >/dev/null 2>&1; then
     local h
     h=$(bitwarden_env_hash "$secrets_file")
-    [ -n "$h" ] && echo "$h" > "$(dirname "$secrets_file")/.bw_verified" && chmod 600 "$(dirname "$secrets_file")/.bw_verified" 2>/dev/null
+    [ -n "$h" ] && echo "$h" > "$secrets_dir/.bw_verified" && chmod 600 "$secrets_dir/.bw_verified" 2>/dev/null
     return 0
   fi
   return 1
@@ -243,37 +254,36 @@ verify_bitwarden_credentials(){
 step_bitwarden_secrets(){
   local secrets_dir="/var/lib/openclaw/guard-state/secrets"
   local secrets_file="$secrets_dir/bitwarden.env"
-  mkdir -p "$secrets_dir"
-  chmod 700 "$secrets_dir"
+  local bw_data_dir="$BW_CLI_DATA_DIR_HOST"
+  mkdir -p "$secrets_dir" "$bw_data_dir"
+  chmod 700 "$secrets_dir" "$bw_data_dir"
+  chown 1000:1000 "$secrets_dir" "$bw_data_dir" 2>/dev/null || true
 
   if [ -f "$secrets_file" ]; then
     say "Configure Bitwarden for guard"
-    say "Verifying existing credentials..."
-    if verify_bitwarden_credentials "$secrets_file"; then
-      ok "Bitwarden credentials verified"
+    say "Verifying existing login state..."
+    if verify_bitwarden_credentials "$secrets_file" "$secrets_dir"; then
+      ok "Bitwarden already logged in (credentials verified)"
       return
     fi
-    warn "Previous credentials failed — re-enter them below"
+    warn "Existing login missing or expired — you will log in again below"
     echo
   fi
 
   say "Configure Bitwarden for guard"
-  say "We use Bitwarden to share credentials safely with OpenClaw, straight from your phone."
+  say "We use Bitwarden to share credentials safely with OpenClaw. You will log in interactively; we do not store your master password or API key."
   say "Create a free account on https://vault.bitwarden.com or https://vault.bitwarden.eu — whichever is closer to you."
-  say "Then, go to Settings → Security → Keys to create an API key."
 
   local cur_server=""
-  local cur_email=""
   local default_choice="1"
   if [ -f "$secrets_file" ]; then
     cur_server=$(grep '^BW_SERVER=' "$secrets_file" | cut -d= -f2- || true)
-    cur_email=$(grep '^BW_EMAIL=' "$secrets_file" | cut -d= -f2- || true)
     ok "Existing bitwarden.env found"
     [[ "$cur_server" == *".com"* ]] && default_choice="1" || default_choice="2"
   fi
 
-  echo "  1) I registered on https://vault.bitwarden.com"
-  echo "  2) I registered on https://vault.bitwarden.eu"
+  echo "  1) I use https://vault.bitwarden.com"
+  echo "  2) I use https://vault.bitwarden.eu"
   read -r -p "$TIGER BW server [1 or 2]: " ans
   ans=${ans:-$default_choice}
   if [[ "$ans" == "1" ]]; then
@@ -282,38 +292,47 @@ step_bitwarden_secrets(){
     BW_SERVER="https://vault.bitwarden.eu"
   fi
 
-  read -r -p "$TIGER BW client id: " BW_CLIENTID
-  read -r -s -p "$TIGER BW client secret (it won't be visible in this prompt): " BW_CLIENTSECRET
-  echo
-  read -r -p "$TIGER BW email [${cur_email:-}]: " BW_EMAIL
-  BW_EMAIL=${BW_EMAIL:-$cur_email}
-  read -r -s -p "$TIGER BW master password: " BW_PASSWORD
-  echo
-
-  [ -n "$BW_CLIENTID" ] || { warn "BW client id is required"; return; }
-  [ -n "$BW_CLIENTSECRET" ] || { warn "BW client secret is required"; return; }
-  [ -n "$BW_EMAIL" ] || { warn "BW email is required"; return; }
-  [ -n "$BW_PASSWORD" ] || { warn "BW master password is required"; return; }
-
   rm -f "$secrets_dir/.bw_verified"
   cat > "$secrets_file" <<EOF
 BW_SERVER=$BW_SERVER
-BW_CLIENTID=$BW_CLIENTID
-BW_CLIENTSECRET=$BW_CLIENTSECRET
-BW_PASSWORD=$BW_PASSWORD
-BW_EMAIL=$BW_EMAIL
 EOF
-
   chmod 600 "$secrets_file"
-  chown 1000:1000 "$secrets_dir" "$secrets_file" 2>/dev/null || true
-  ok "Saved $secrets_file"
+  chown 1000:1000 "$secrets_file" 2>/dev/null || true
+  ok "Saved $secrets_file (server only; no credentials stored)"
 
-  say "Verifying Bitwarden credentials..."
-  if verify_bitwarden_credentials "$secrets_file"; then
+  say "Log in to Bitwarden now (email, master password, and 2FA if enabled). Your credentials are not saved."
+  do_bw_login(){
+    export BITWARDENCLI_APPDATA_DIR="$bw_data_dir"
+    bw config server "$BW_SERVER" 2>/dev/null && bw login
+  }
+  if command -v bw >/dev/null 2>&1; then
+    if ! do_bw_login; then
+      warn "Bitwarden login failed or was cancelled"
+      return
+    fi
+  elif command -v docker >/dev/null 2>&1; then
+    local state_dir
+    state_dir="$(dirname "$secrets_dir")"
+    if ! docker run -it --rm \
+      -v "$state_dir:/home/node/.openclaw:rw" \
+      -e BITWARDENCLI_APPDATA_DIR="$BW_CLI_DATA_DIR_GUARD" \
+      -e BW_SERVER="$BW_SERVER" \
+      node:20-alpine sh -c 'npm install -g @bitwarden/cli >/dev/null 2>&1 && bw config server "$BW_SERVER" && bw login'; then
+      warn "Bitwarden login failed or was cancelled"
+      return
+    fi
+  else
+    warn "Install Bitwarden CLI (npm install -g @bitwarden/cli) or Docker, then re-run this step"
+    return
+  fi
+
+  say "Verifying Bitwarden login state..."
+  if verify_bitwarden_credentials "$secrets_file" "$secrets_dir"; then
     ok "Bitwarden credentials verified"
+    say "For unattended guard access (e.g. email setup), you can optionally create a password file: $secrets_dir/bw-master-password (one line = master password, chmod 600). Otherwise run 'bw unlock' in the guard container when needed."
   else
     if command -v docker >/dev/null 2>&1; then
-      warn "Bitwarden login failed — check your client id, secret, and server URL"
+      warn "Verification failed — ensure guard-state is at the default path or run this step again"
     else
       warn "Docker not installed — skipping verification (run step 2 first)"
     fi
@@ -344,17 +363,48 @@ guard_admin_mode_enabled(){
   grep -q '/var/lib/openclaw:/mnt/openclaw-data' "$STACK_DIR/compose.yml"
 }
 
+# SSH key for Op to connect back to host (Admin Mode). Stored in guard-state, mounted into container when admin mode on.
+ensure_guard_ssh_to_host(){
+  local ssh_dir="/var/lib/openclaw/guard-state/ssh"
+  local key_file="$ssh_dir/id_ed25519"
+  local auth_keys="/root/.ssh/authorized_keys"
+  mkdir -p "$ssh_dir"
+  if [ ! -f "$key_file" ]; then
+    ssh-keygen -t ed25519 -f "$key_file" -N "" -C "openclaw-guard-admin" -q
+    ok "Generated SSH key for Op→host at $ssh_dir"
+  fi
+  chown -R 1000:1000 "$ssh_dir"
+  chmod 700 "$ssh_dir"
+  [ -f "$key_file" ] && chmod 600 "$key_file"
+  mkdir -p /root/.ssh
+  touch "$auth_keys"
+  chmod 600 "$auth_keys"
+  if ! grep -q "openclaw-guard-admin" "$auth_keys" 2>/dev/null; then
+    cat "${key_file}.pub" >> "$auth_keys"
+    ok "Added Op SSH public key to $auth_keys (Op can ssh root@localhost when Admin Mode is on)"
+  fi
+}
+
 set_guard_admin_mode(){
   local mode="$1"  # on|off
   local c="$STACK_DIR/compose.yml"
   if [ "$mode" = "on" ]; then
-    grep -q '/var/lib/openclaw:/mnt/openclaw-data' "$c" || sed -i '/OPENCLAW_GUARD_WORKSPACE_DIR.*workspace/a\      - /var/lib/openclaw:/mnt/openclaw-data
-      - /etc/openclaw:/mnt/etc-openclaw' "$c"
-    ok "Guard admin mode enabled (full host OpenClaw data/config mounted)"
+    ensure_guard_ssh_to_host
+    if ! grep -q '/var/lib/openclaw:/mnt/openclaw-data' "$c"; then
+      sed -i '/OPENCLAW_GUARD_WORKSPACE_DIR.*workspace/a\
+      - /var/lib/openclaw:/mnt/openclaw-data\
+      - /etc/openclaw:/mnt/etc-openclaw\
+      - /var/lib/openclaw/guard-state/ssh:/home/node/.ssh:ro' "$c"
+    elif ! grep -q '/var/lib/openclaw/guard-state/ssh:/home/node/.ssh' "$c"; then
+      sed -i '\# /etc/openclaw:/mnt/etc-openclaw#a\
+      - /var/lib/openclaw/guard-state/ssh:/home/node/.ssh:ro' "$c"
+    fi
+    ok "Guard admin mode enabled (full host data/config mounted; Op can SSH to host as root@localhost)"
   else
     sed -i '\# /var/lib/openclaw:/mnt/openclaw-data#d' "$c"
     sed -i '\# /etc/openclaw:/mnt/etc-openclaw#d' "$c"
-    ok "Guard admin mode disabled (minimal mounts)"
+    sed -i '\# /var/lib/openclaw/guard-state/ssh:/home/node/.ssh#d' "$c"
+    ok "Guard admin mode disabled (minimal mounts; Op cannot SSH to host)"
   fi
   cd "$STACK_DIR"
   docker compose --env-file "$ENV_FILE" -f compose.yml up -d --force-recreate openclaw-guard >/dev/null || true
@@ -362,8 +412,9 @@ set_guard_admin_mode(){
 
 step_guard_admin_mode(){
   say "Guard admin mode"
-  say "When enabled, the guard can access /var/lib/openclaw and /etc/openclaw for deep fixes and stack maintenance."
+  say "When enabled: guard can access /var/lib/openclaw and /etc/openclaw, and Op can SSH back to this host (e.g. ssh root@localhost) for shell access."
   if guard_admin_mode_enabled; then
+    warn "Admin mode is ON. Op has full access to this VPS (data, config, SSH). Enable only temporarily when absolutely necessary."
     ok "Current: ENABLED"
     read -r -p "$TIGER Disable admin mode now? [y/N]: " ans
     case "${ans:-n}" in
@@ -374,7 +425,10 @@ step_guard_admin_mode(){
     ok "Current: DISABLED"
     read -r -p "$TIGER Enable admin mode now? [y/N]: " ans
     case "${ans:-n}" in
-      y|Y) set_guard_admin_mode on ;;
+      y|Y)
+        warn "Admin mode gives Op full access to this VPS. Enable only temporarily when absolutely necessary."
+        set_guard_admin_mode on
+        ;;
       *) ok "No changes" ;;
     esac
   fi
@@ -494,10 +548,6 @@ check_done(){
       local bw_verified="/var/lib/openclaw/guard-state/secrets/.bw_verified"
       [ -f "$bw_env" ] || return 1
       grep -q '^BW_SERVER=' "$bw_env" || return 1
-      grep -q '^BW_CLIENTID=' "$bw_env" || return 1
-      grep -q '^BW_CLIENTSECRET=' "$bw_env" || return 1
-      grep -q '^BW_EMAIL=' "$bw_env" || return 1
-      grep -q '^BW_PASSWORD=' "$bw_env" || return 1
       if [ -f "$bw_verified" ]; then
         local want_h got_h
         want_h=$(bitwarden_env_hash "$bw_env")
@@ -509,9 +559,9 @@ check_done(){
         set -e
         command -v bw >/dev/null 2>&1
         . /home/node/.openclaw/secrets/bitwarden.env
-        [ -n "$BW_SERVER" ] && [ -n "$BW_CLIENTID" ] && [ -n "$BW_CLIENTSECRET" ] && [ -n "$BW_EMAIL" ] && [ -n "$BW_PASSWORD" ]
+        [ -n "$BW_SERVER" ]
+        export BITWARDENCLI_APPDATA_DIR="/home/node/.openclaw/bitwarden-cli"
         bw config server "$BW_SERVER" >/dev/null 2>&1
-        BW_CLIENTID="$BW_CLIENTID" BW_CLIENTSECRET="$BW_CLIENTSECRET" bw login --apikey --nointeraction >/dev/null 2>&1 || true
         bw status >/tmp/bw-status.json 2>/dev/null || exit 1
         grep -q '"status":"unauthenticated"' /tmp/bw-status.json && exit 1 || exit 0
       ' >/dev/null 2>&1

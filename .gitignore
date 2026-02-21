@@ -19,6 +19,7 @@ config/env
 !config/env.example
 .openclaw-volume-root
 **/bitwarden.env
+**/bw-master-password
 **/secrets/*.env
 **/secrets/*.txt
 

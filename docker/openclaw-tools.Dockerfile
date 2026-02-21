@@ -9,9 +9,9 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 ARG HIMALAYA_VERSION=v1.1.0
 
-# Core CLI dependencies
+# Core CLI dependencies (openssh-client for Admin Mode: SSH from Op to host)
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates curl jq git \
+ && apt-get install -y --no-install-recommends ca-certificates curl jq git openssh-client \
  && rm -rf /var/lib/apt/lists/*
 
 # Bitwarden CLI

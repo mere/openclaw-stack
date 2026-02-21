@@ -6,6 +6,8 @@ import subprocess
 import sys
 
 BW_ENV = pathlib.Path('/home/node/.openclaw/secrets/bitwarden.env')
+BW_CLI_DATA_DIR = pathlib.Path('/home/node/.openclaw/bitwarden-cli')
+BW_MASTER_PASSWORD_FILE = pathlib.Path('/home/node/.openclaw/secrets/bw-master-password')
 BW_ITEM_NAME = os.environ.get('BW_EMAIL_ITEM', 'icloud')
 CONF_DIR = pathlib.Path('/home/node/.config/himalaya')
 PASS_DIR = pathlib.Path('/home/node/.openclaw/secrets')
@@ -34,12 +36,21 @@ def load_bw_env(env):
 
 
 def ensure_bw_unlocked(env):
+    env['BITWARDENCLI_APPDATA_DIR'] = str(BW_CLI_DATA_DIR)
     st = run(['bw', 'status'], env)
     if '"status":"unauthenticated"' in st:
-        subprocess.check_call(['bw', 'login', '--apikey', '--nointeraction'], env=env, stdout=subprocess.DEVNULL)
-        st = run(['bw', 'status'], env)
+        fail('bitwarden_not_logged_in: Run the setup Bitwarden step and log in with `bw login`, or re-run setup.')
     if '"status":"unlocked"' not in st:
-        env['BW_SESSION'] = run(['bw', 'unlock', '--raw', '--passwordenv', 'BW_PASSWORD'], env).strip()
+        if BW_MASTER_PASSWORD_FILE.exists():
+            env['BW_SESSION'] = run(
+                ['bw', 'unlock', '--raw', '--passwordfile', str(BW_MASTER_PASSWORD_FILE)],
+                env,
+            ).strip()
+        else:
+            fail(
+                'bitwarden_locked: Run `bw unlock` in the guard container, or create '
+                f'{BW_MASTER_PASSWORD_FILE} (one line = master password, chmod 600) for unattended unlock.'
+            )
 
 
 def get_item(env, name):
