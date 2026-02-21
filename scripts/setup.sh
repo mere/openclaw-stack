@@ -250,7 +250,6 @@ verify_bitwarden_credentials(){
     -e BITWARDENCLI_APPDATA_DIR="$BW_CLI_DATA_DIR_GUARD" \
     node:20-alpine sh -c '
       npm install -g @bitwarden/cli >/dev/null 2>&1 &&
-      bw config server "$BW_SERVER" >/dev/null 2>&1 &&
       bw status 2>/dev/null | grep -qv "unauthenticated"
     ' >/dev/null 2>&1; then
     local h
@@ -321,6 +320,7 @@ EOF
       warn "Bitwarden login failed or was cancelled"
       return
     fi
+    chown -R 1000:1000 "$bw_data_dir" 2>/dev/null || true
   elif command -v docker >/dev/null 2>&1; then
     local state_dir
     state_dir="$(dirname "$secrets_dir")"
@@ -332,6 +332,7 @@ EOF
       warn "Bitwarden login failed or was cancelled"
       return
     fi
+    chown -R 1000:1000 "$bw_data_dir" 2>/dev/null || true
   else
     warn "Install Bitwarden CLI (npm install -g @bitwarden/cli) or Docker, then re-run this step"
     return

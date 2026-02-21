@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Common Changelog](https://common-changelog.org).
 
+## [0.2.11] - 2026-02-21
+
+### Fixed
+
+- **setup.sh (step 6 – Bitwarden verification)**: After successful login, run `chown -R 1000:1000` on the Bitwarden CLI data dir so the verification container and guard (running as node/uid 1000) can read the session when setup was run with sudo. Removed `bw config server` from the verification step so we only run `bw status`; avoids "logout required" in the verifier and matches the session created at login.
+
+[0.2.11]: https://github.com/mere/op-and-chloe/compare/v0.2.10...v0.2.11
+
 ## [0.2.10] - 2026-02-21
 
 ### Fixed
