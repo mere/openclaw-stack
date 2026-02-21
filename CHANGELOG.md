@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Common Changelog](https://common-changelog.org).
 
+## [0.2.6] - 2026-02-21
+
+### Added
+
+- **opch-webtop skill**: New worker skill (`core/worker/skills/opch-webtop/SKILL.md`) explaining the shared webtop browser: user and Chloe share one Chromium (webtop + CDP); user gets the webtop URL from Dashboard URLs in setup. Documents the login workflow: when the user asks to open a page (LinkedIn, BBC, social, etc.), Chloe opens it; if the site requires login, ask the user to open Webtop and log in there, then continue in the same session. Example workflow for "Check my messages on LinkedIn" and rules (no passwords in chat; point to Webtop for login).
+
+### Changed
+
+- **update-webtop-cdp-url.sh**: Reverted the "chrome" profile alias; only the vps-chromium profile is managed. Client/gateway should use the profile name the server provides (vps-chromium or default), not a server-side alias.
+
+[0.2.6]: https://github.com/mere/op-and-chloe/compare/v0.2.5...v0.2.6
+
 ## [0.2.5] - 2026-02-21
 
 ### Fixed
