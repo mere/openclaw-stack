@@ -27,7 +27,7 @@ Be respectful and constructive. This project aims to make OpenClaw setup easier 
 
 ## Before you submit
 
-- **No secrets.** Do not commit passwords, API keys, tokens, or `stack.env`. Use `config/env.example` as the template; real config stays in `/etc/openclaw/stack.env` or similar on the host.
+- **No secrets.** The stack is a passwordless setup: no secrets or passwords are stored in files on the host. Do not commit passwords, API keys, tokens, or `stack.env`. Use `config/env.example` as the template; real config stays in `/etc/openclaw/stack.env` or similar on the host.
 - **Shell scripts:** Prefer POSIX-style `sh` where possible; the project uses `#!/usr/bin/env bash` for scripts that need bash features.
 - **Docs:** Update README or other docs if you change behaviour or add options.
 

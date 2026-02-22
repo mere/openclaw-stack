@@ -39,7 +39,7 @@ welcome(){
   echo "┃   🐕 Op (guard) OpenClaw instance (privileged operations)  ┃"
   echo "┃   🐯 Chloe (worker) OpenClaw instance (daily tasks)        ┃"
   echo "┃   🔐 Tailscale for private network access                  ┃"
-  echo "┃   🔑 Bitwarden env scaffold for secret workflow            ┃"
+  echo "┃   🔑 Bitwarden (passwordless: no secrets in files)         ┃"
   echo "┃   ❤️ Healthcheck + watchdog validation                     ┃"
   echo "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"
 }
@@ -332,8 +332,8 @@ step_bitwarden_secrets(){
     echo
   fi
 
-  say "Configure Bitwarden for guard"
-  say "We use Bitwarden to share credentials safely with OpenClaw. You log in and unlock interactively in this step. No passwords are stored on the host; only BW_SERVER is saved in bitwarden.env."
+  say "Configure Bitwarden for guard (passwordless setup: no secrets or passwords stored in files)"
+  say "We use Bitwarden to share credentials safely with OpenClaw. You log in and unlock interactively in this step. No passwords or secrets are stored on the host; only BW_SERVER is saved in bitwarden.env."
   say "Create a free account on https://vault.bitwarden.com or https://vault.bitwarden.eu — whichever is closer to you."
 
   local cur_server=""

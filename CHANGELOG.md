@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Common Changelog](https://common-changelog.org).
 
+## [0.2.14] - 2026-02-22
+
+### Changed
+
+- **Docs and instructions – passwordless setup**: State clearly everywhere that this is a **passwordless setup** and that **no secrets or passwords are stored in files** on the host. README (bullets, security model, setup/Bitwarden), SECURITY.md (opening and security model), setup wizard menu and step 6 copy, core/guard/ROLE.md (Bitwarden section), ARCHITECTURE.md, and CONTRIBUTING.md updated accordingly.
+
+[0.2.14]: https://github.com/mere/op-and-chloe/compare/v0.2.13...v0.2.14
+
 ## [0.2.13] - 2026-02-22
 
 ### Changed

@@ -20,7 +20,7 @@ This stack runs a **two-instance OpenClaw architecture** on one VPS:
 
 Default `INSTANCE` is `op-and-chloe`.
 - `openclaw-cdp-watchdog.timer` (auto-recovery)
-- Bitwarden CLI in guard for secret retrieval
+- Bitwarden CLI in guard for secret retrieval (passwordless setup: no secrets or passwords stored in files; login/unlock are interactive only)
 
 ## Trust boundaries
 

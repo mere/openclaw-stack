@@ -9,7 +9,7 @@
 - **🐕 Op**: operator/guard instance (admin + security approvals)
 - **🐯 Chloe**: friendly day-to-day assistant (safe container)
 - 🖥️ Webtop Chromium + CDP proxy for browser automation
-- 🔐 Safe credential storage with BitWarden
+- 🔐 Passwordless setup: no secrets or passwords stored in files (Bitwarden login/unlock is interactive only)
 - ❤️ Healthcheck + watchdog
 
 ## But why?
@@ -41,7 +41,7 @@ It looks like this:
 
 - **❤️ Health Check.** Scripts to configure, verify and keep your stack healthy.
 
-- **🔑 Secure Credentials** pre-authenticated CLI bridge, so that Chloe, your worker openClaw instance has no access to any passwords!
+- **🔑 Secure, passwordless credentials** Pre-authenticated CLI bridge so Chloe has no access to any passwords. No secrets or passwords are stored in files on the server—Bitwarden login and unlock are interactive only.
 
 
 ---
@@ -137,7 +137,7 @@ op-and-chloe gives you that: a small Docker image with a browser that both you a
 
 ### Credentials
 
-The setup script can help you create a free Bitwarden account and share it with Op. Keep your secrets, tokens, and passwords there. When Chloe needs authenticated tools (mail, calendar, etc.), she requests them over an internal bridge where they're **pre-authenticated** - she never sees the secrets.
+The setup script can help you create a free Bitwarden account and connect it to Op. Keep your secrets, tokens, and passwords in Bitwarden (in the cloud); **none are stored in files on the server**. You log in and unlock Bitwarden interactively in step 6; only the server URL is saved. When Chloe needs authenticated tools (mail, calendar, etc.), she requests them over an internal bridge where they're **pre-authenticated**—she never sees the secrets.
 
 ---
 <p align="center">
@@ -242,9 +242,9 @@ call "cd /opt/op-and-chloe && git pull && ./start.sh" --reason "Update stack" --
 
 ## Security model
 
+- **Passwordless setup:** No secrets or passwords are stored in files on the host. Bitwarden login and unlock are done interactively in setup step 6; only the Bitwarden server URL (`BW_SERVER`) is saved in `bitwarden.env`. The guard uses Bitwarden to fetch secrets at runtime; nothing is written to disk.
 - Chloe has no direct password access.
 - Credentialed operations are proxied via Op-approved commands.
-- Bitwarden secrets are stored under `/var/lib/openclaw/guard-state/secrets/`.
 - Bridge mount separation:
   - Chloe gets `/var/lib/openclaw/bridge` as read-only.
   - Chloe gets `/var/lib/openclaw/bridge/inbox` as the only writable bridge path.
