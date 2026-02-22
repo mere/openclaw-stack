@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Common Changelog](https://common-changelog.org).
 
+## [0.3.3] - 2026-02-22
+
+### Fixed
+
+- **setup.sh:** Root `setup.sh` now runs `scripts/host/setup.sh` via `exec bash …` instead of `exec`-ing the script directly, so setup works when the host script has no execute bit (e.g. after `git clone` on systems that don’t preserve mode). Fixes "Permission denied" when running `sudo ./setup.sh`.
+
+[0.3.3]: https://github.com/mere/op-and-chloe/compare/v0.3.2...v0.3.3
+
 ## [0.3.2] - 2026-02-22
 
 ### Added
