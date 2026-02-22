@@ -908,6 +908,8 @@ step_start_guard(){
   say "The guard oversees privileged operations and approves Chloe's requests for credentials and tools."
   if container_running "$guard_name"; then ok "Guard already running"; return; fi
   cd "$STACK_DIR"
+  say "Building guard image (openclaw-guard-tools:local) if needed..."
+  docker compose --env-file "$ENV_FILE" -f compose.yml build openclaw-guard
   docker compose --env-file "$ENV_FILE" -f compose.yml up -d openclaw-guard
   ok "Guard started"
 }
@@ -922,6 +924,8 @@ step_start_worker(){
   say "The worker is your main assistant — you'll chat with it daily and run tasks through it."
   if container_running "$worker_name"; then ok "Worker already running"; return; fi
   cd "$STACK_DIR"
+  say "Building worker image (openclaw-worker-tools:local) if needed..."
+  docker compose --env-file "$ENV_FILE" -f compose.yml build openclaw-gateway
   docker compose --env-file "$ENV_FILE" -f compose.yml up -d openclaw-gateway
   ok "Worker started"
 }

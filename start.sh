@@ -13,11 +13,11 @@ cd "$STACK_DIR"
 echo "[start] syncing core instructions into workspaces"
 bash "$STACK_DIR/scripts/host/sync-workspaces.sh"
 
-echo "[start] building guard image (openclaw-guard-tools:local)"
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" build openclaw-guard
+echo "[start] building guard and worker images (openclaw-guard-tools:local, openclaw-worker-tools:local)"
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" build openclaw-guard openclaw-gateway
 
-echo "[start] pulling images"
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" pull browser openclaw-gateway
+echo "[start] pulling images (browser only; guard/worker are local builds)"
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" pull browser
 
 echo "[start] bringing stack up"
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d

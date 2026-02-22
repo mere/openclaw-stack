@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Common Changelog](https://common-changelog.org).
 
+## [0.3.5] - 2026-02-22
+
+### Fixed
+
+- **"pull access denied for openclaw-worker-tools" (and guard):** Guard and worker images are built locally from the repo, not pulled. **start.sh** now builds both `openclaw-guard` and `openclaw-gateway` before bringing the stack up and only pulls the `browser` image. **Setup wizard** steps 8 (Start guard) and 9 (Start worker) now run `docker compose build` for the corresponding service before `up -d`, so choosing "Start worker" (or guard) alone no longer fails with "repository does not exist".
+
+[0.3.5]: https://github.com/mere/op-and-chloe/compare/v0.3.4...v0.3.5
+
 ## [0.3.4] - 2026-02-22
 
 ### Added
