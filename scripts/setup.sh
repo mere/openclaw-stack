@@ -285,6 +285,12 @@ check_bitwarden_unlocked_in_guard(){
 # Unlock the vault and persist the session key so the guard can use bw in other processes.
 # Password is read once and passed via a temp file that is removed immediately; only the session key is written to guard-state.
 BW_SESSION_FILE_NAME="bw-session"
+BW_STEP6_MARKER="/var/lib/openclaw/guard-state/secrets/.bw_configured"
+
+write_bw_configured_marker(){
+  local secrets_dir="${1:-/var/lib/openclaw/guard-state/secrets}"
+  touch "$secrets_dir/.bw_configured" 2>/dev/null && chmod 600 "$secrets_dir/.bw_configured" && chown 1000:1000 "$secrets_dir/.bw_configured" 2>/dev/null
+}
 
 run_bitwarden_unlock_interactive(){
   local state_dir="$1"
@@ -365,12 +371,14 @@ step_bitwarden_secrets(){
       ok "Bitwarden logged in"
       if check_bitwarden_unlocked_in_guard; then
         ok "Bitwarden unlocked"
+        write_bw_configured_marker "$secrets_dir"
         return
       fi
       run_bitwarden_unlock_interactive "$(dirname "$secrets_dir")"
       if [ -f "$secrets_dir/$BW_SESSION_FILE_NAME" ]; then
         chown -R 1000:1000 "$bw_data_dir" 2>/dev/null || true
         ok "Bitwarden unlocked"
+        write_bw_configured_marker "$secrets_dir"
       fi
       return
     fi
@@ -400,7 +408,7 @@ step_bitwarden_secrets(){
     BW_SERVER="https://vault.bitwarden.eu"
   fi
 
-  rm -f "$secrets_dir/.bw_verified"
+  rm -f "$secrets_dir/.bw_verified" "$secrets_dir/.bw_configured"
   cat > "$secrets_file" <<EOF
 BW_SERVER=$BW_SERVER
 EOF
@@ -443,7 +451,10 @@ EOF
     say "Unlock the vault so the guard can read secrets."
     run_bitwarden_unlock_interactive "$(dirname "$secrets_dir")"
     chown -R 1000:1000 "$bw_data_dir" 2>/dev/null || true
-    ok "Bitwarden unlocked"
+    if [ -f "$secrets_dir/$BW_SESSION_FILE_NAME" ]; then
+      ok "Bitwarden unlocked"
+      write_bw_configured_marker "$secrets_dir"
+    fi
   else
     if command -v docker >/dev/null 2>&1; then
       warn "Verification failed — ensure guard-state is at the default path or run this step again"
@@ -723,8 +734,10 @@ check_done(){
     running) container_running "$worker_name" && container_running "$guard_name" ;;
     tailscale) tailscale status >/dev/null 2>&1 ;;
     bitwarden)
+      [ -f "$BW_STEP6_MARKER" ] && return 0
       local bw_env="/var/lib/openclaw/guard-state/secrets/bitwarden.env"
       local bw_verified="/var/lib/openclaw/guard-state/secrets/.bw_verified"
+      local bw_session_file="/var/lib/openclaw/guard-state/secrets/bw-session"
       [ -f "$bw_env" ] || return 1
       grep -q '^BW_SERVER=' "$bw_env" || return 1
       local want_h got_h
@@ -732,11 +745,12 @@ check_done(){
       got_h=$(cat "$bw_verified" 2>/dev/null)
       if ! container_running "$guard_name"; then
         [ -f "$bw_verified" ] && [ -n "$want_h" ] && [ "$want_h" = "$got_h" ] && return 0
+        [ -s "$bw_session_file" ] && return 0
         return 1
       fi
       guard_actual=$(resolve_container_name "$guard_name" 2>/dev/null)
       guard_actual=${guard_actual:-$guard_name}
-      docker exec "$guard_actual" sh -lc '
+      if docker exec "$guard_actual" sh -lc '
         set -e
         command -v bw >/dev/null 2>&1
         . /home/node/.openclaw/secrets/bitwarden.env
@@ -747,7 +761,11 @@ check_done(){
         bw status >/tmp/bw-status.json 2>/dev/null || exit 1
         grep -q '"status":"unauthenticated"' /tmp/bw-status.json && exit 1
         grep -q '"status":"unlocked"' /tmp/bw-status.json || exit 1
-      ' >/dev/null 2>&1
+      ' >/dev/null 2>&1; then
+        return 0
+      fi
+      [ -s "$bw_session_file" ] && return 0
+      return 1
       ;;
     *) return 1 ;;
   esac
