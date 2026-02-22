@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Common Changelog](https://common-changelog.org).
 
+## [0.3.8] - 2026-02-22
+
+### Fixed
+
+- **Guard entrypoint "Permission denied":** `entrypoint.sh` is tracked in git without execute bit (100644), so when the repo is mounted at `/opt/op-and-chloe` the script is not executable and `exec` fails. Compose entrypoint now invokes `/bin/bash` with the script path so the script is run by bash and does not require the execute bit.
+
+[0.3.8]: https://github.com/mere/op-and-chloe/compare/v0.3.7...v0.3.8
+
 ## [0.3.7] - 2026-02-22
 
 ### Fixed

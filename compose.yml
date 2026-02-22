@@ -51,7 +51,7 @@ services:
       args:
         OPENCLAW_BASE_IMAGE: ${OPENCLAW_IMAGE:-ghcr.io/openclaw/openclaw:main}
     container_name: ${INSTANCE:-op-and-chloe}-openclaw-guard
-    entrypoint: ["/opt/op-and-chloe/scripts/guard/entrypoint.sh"]
+    entrypoint: ["/bin/bash", "/opt/op-and-chloe/scripts/guard/entrypoint.sh"]
     network_mode: host
     environment:
       HOME: /home/node
