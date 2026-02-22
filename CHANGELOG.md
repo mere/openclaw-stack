@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Common Changelog](https://common-changelog.org).
 
+## [0.4.1] - 2026-02-22
+
+### Fixed
+
+- **setup.sh (step 6 – Bitwarden unlock):** After login, the unlock step ran in a Docker container that executed `bw config server` before `bw unlock`, which triggers "Logout required before server config update" when already logged in. Removed `bw config server` from the unlock container; server config is already set from the login step in the same state dir, so unlock now only runs `bw unlock --raw --passwordfile /tmp/bw-pw` and succeeds.
+
+[0.4.1]: https://github.com/mere/op-and-chloe/compare/v0.4.0...v0.4.1
+
 ## [0.4.0] - 2026-02-22
 
 ### Changed

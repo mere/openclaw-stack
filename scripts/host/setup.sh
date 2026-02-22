@@ -36,8 +36,8 @@ welcome(){
   echo "┃ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ┃"
   echo "┃ Setup includes:                                            ┃"
   echo "┃   🖥️ Webtop browser (Chromium) for persistent logins       ┃"
-  echo "┃   🐕 Op (guard) OpenClaw instance (privileged operations)  ┃"
-  echo "┃   🐯 Chloe (worker) OpenClaw instance (daily tasks)        ┃"
+  echo "┃   🐕 Op (guard) — admin with SSH access                   ┃"
+  echo "┃   🐯 Chloe (worker) — day-to-day, create all agents here   ┃"
   echo "┃   🔐 Tailscale for private network access                  ┃"
   echo "┃   🔑 Bitwarden (passwordless: no secrets in files)         ┃"
   echo "┃   ❤️ Healthcheck + watchdog validation                     ┃"
@@ -311,11 +311,12 @@ run_bitwarden_unlock_interactive(){
   fi
 
   local session_key unlock_stderr
+  # Do not run bw config server here: login already set it in the same state_dir; running it again causes "Logout required before server config update".
   unlock_stderr=$(docker run -i --rm \
     -v "$state_dir:/home/node/.openclaw:rw" \
     -v "$_bw_tmp_pw:/tmp/bw-pw:ro" \
     -e BITWARDENCLI_APPDATA_DIR="$BW_CLI_DATA_DIR_WORKER" \
-    node:20-alpine sh -c 'npm install -g @bitwarden/cli >/dev/null 2>&1 && . /home/node/.openclaw/secrets/bitwarden.env && bw config server "$BW_SERVER" && bw unlock --raw --passwordfile /tmp/bw-pw' 2>&1) || true
+    node:20-alpine sh -c 'npm install -g @bitwarden/cli >/dev/null 2>&1 && bw unlock --raw --passwordfile /tmp/bw-pw' 2>&1) || true
   session_key=$(printf '%s' "$unlock_stderr" | head -1)
   if ! printf '%s' "$session_key" | grep -qE '^[A-Za-z0-9+/]+=*$'; then
     session_key=""
@@ -521,7 +522,7 @@ ensure_guard_approval_instructions(){
   cat > "$gws/APPROVALS.md" <<'EOF'
 # Exec Approvals (OpenClaw)
 
-Op is a lightweight admin. When Op runs a host command that isn’t on the allowlist, OpenClaw may prompt for approval.
+Op is the admin instance. When Op runs a host command that isn’t on the allowlist, OpenClaw may prompt for approval.
 
 - Pending / allowlist: ./openclaw-guard approvals get --json
 - Add allowlist: ./openclaw-guard approvals allowlist add "<path or glob>"
@@ -816,7 +817,7 @@ step_start_guard(){
   sync_core_workspaces
   ensure_stack_repo_alias
   say "Start guard service"
-  say "The guard is a lightweight admin with full VPS access — for restarts, fixes, and server-level changes. Chloe never contacts the guard."
+  say "Op is the admin instance with SSH access — for fixing Chloe, restarts, and large architectural changes."
   if container_running "$guard_name"; then ok "Guard already running"; return; fi
   cd "$STACK_DIR"
   say "Building guard image (openclaw-guard-tools:local) if needed..."
@@ -829,7 +830,7 @@ step_start_worker(){
   sync_core_workspaces
   ensure_worker_scripts
   say "Start worker service"
-  say "The worker is your main assistant — you'll chat with it daily and run tasks through it."
+  say "Chloe is the day-to-day instance — create all agents here; you'll chat with her daily."
   if container_running "$worker_name"; then ok "Worker already running"; return; fi
   cd "$STACK_DIR"
   say "Building worker image (openclaw-worker-tools:local) if needed..."
@@ -889,7 +890,7 @@ step_configure_guard(){
   "$STACK_DIR/openclaw-guard" config set gateway.port 18790 >/dev/null 2>&1 || true
   "$STACK_DIR/openclaw-guard" config set gateway.bind loopback >/dev/null 2>&1 || true
   say "Run configure guard"
-  say "The guard is your admin instance — connect a model and Telegram bot so you can talk to Op for restarts and server changes."
+  say "Op is your admin instance — connect a model and Telegram bot so you can talk to Op for fixing Chloe, restarts, and admin."
   echo
   sep
   echo "Tips for guard onboarding:"
@@ -928,11 +929,11 @@ step_configure_worker(){
   local pretty
   pretty=$(title_case_name "$INSTANCE")
   say "Run configure worker"
-  say "This is your main assistant — connect your models and Telegram bot here for daily chat."
+  say "Chloe is your day-to-day instance — connect models and Telegram bot here; create all agents here."
   echo
   sep
   echo "Recommended worker setup:"
-  echo "  • This is your main day-to-day assistant"
+  echo "  • Day-to-day instance — create all agents here"
   echo "  • Connect your primary model(s) and tools here"
   echo "  • Set up a dedicated Telegram bot for daily chat"
   echo "  • Suggested bot name: ${pretty}-bot"
