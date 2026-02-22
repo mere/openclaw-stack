@@ -82,18 +82,50 @@ The stack consists of:
   - **🖥️ Webtop browser**: provides a shared browser for both you and Chloe, enabling secure co-working even on a headless server.
 - **🔗 Bridge scripts:** Lightweight scripts connect Chloe and Op, letting Op securely handle secrets and privileged commands for Chloe—without exposing credentials.
 
-**Technical overview.** Two-instance OpenClaw on one VPS: **Chloe (worker)** for day-to-day tasks (chat, browser, drafting); **Op (guard)** as privileged control-plane (host control, secret broker). Design: user-facing automation in the worker; privileged access isolated and policy-gated in the guard; Tailscale/SSH-first; state via git + compose. Containers: `${INSTANCE}-openclaw-gateway` (worker, :18789), `${INSTANCE}-openclaw-guard` (guard, :18790 loopback), `${INSTANCE}-browser` (webtop + Chromium CDP). Bitwarden CLI lives in the guard; Himalaya and M365 run in the worker and get secrets via a socket-based bridge (`scripts/worker/bridge.sh` → `scripts/guard/`). Scripts: `scripts/guard/` (entrypoint, bridge server, policy, `bw-with-session`), `scripts/worker/` (bridge client, `bw`, `m365`, email/O365 setup), `scripts/host/` (setup, sync, CDP watchdog)—see `scripts/README.md`. Worker has no break-glass path; guard has Docker socket and repo access; bridge is policy-allowlisted only (e.g. `bw-with-session`), no interactive approval flow.
+**Technical overview**
+
+- **Two-instance OpenClaw on one VPS:**
+  - **Chloe (worker):** Handles day-to-day tasks — chat, browser, drafting, etc.
+  - **Op (guard):** Privileged control-plane — host control and secret broker.
+
+- **Design principles:**
+  - User-facing automation runs in the worker.
+  - Privileged access is isolated and policy-gated in the guard.
+  - Tailscale/SSH-first architecture for secure remote usage.
+  - State is managed via Git and Docker Compose.
+
+- **Containers:**
+  - `${INSTANCE}-openclaw-gateway` — worker, exposes port `:18789`
+  - `${INSTANCE}-openclaw-guard` — guard, exposes port `:18790` on loopback
+  - `${INSTANCE}-browser` — webtop with Chromium CDP
+
+- **Secrets flow:**  
+  Bitwarden CLI resides in the guard. Himalaya and M365 run in the worker and fetch secrets securely via a socket-based bridge:
+  ```
+  scripts/worker/bridge.sh  →  scripts/guard/
+  ```
+
+- **Scripts layout:**
+  - `scripts/guard/` — entrypoint, bridge server, policy logic, `bw-with-session`
+  - `scripts/worker/` — bridge client, `bw`, `m365`, email/O365 setup
+  - `scripts/host/` — setup, sync, CDP watchdog  
+    (See `scripts/README.md` for details.)
+
+- **Security:**  
+  - Worker has **no break-glass path** for privileged access.
+  - Guard has Docker socket and repo access.
+  - Bridge only allows policy-allowlisted commands (e.g. `bw-with-session`), with **no interactive approval flow**.
 
 ```mermaid
 flowchart LR
-  U[User Telegram] --> W[🐯 Chloe / Worker\n:18789]
-  U --> G[🐕 Op / Guard\n:18790 loopback]
+  U[User Telegram] --> W["Chloe / Worker :18789"]
+  U --> G["Op / Guard :18790 loopback"]
 
   W --> B[Webtop Chromium CDP]
   W --> G
   G --> D[docker.sock]
-  G --> R[/opt/op-and-chloe]
-  G --> S[(Bitwarden)]
+  G --> R[repo]
+  G --> S[Bitwarden]
   subgraph VPS
     W
     G

@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Common Changelog](https://common-changelog.org).
 
+## [0.3.6] - 2026-02-22
+
+### Fixed
+
+- **README Mermaid diagram (GitHub render):** Components flowchart no longer triggers "Lexical error / Unrecognized text" on GitHub. Replaced stadium shape `[(Bitwarden)]` with a rectangle node, simplified repo node (path with slashes caused parse issues), and quoted labels containing slashes so the diagram renders correctly.
+
+[0.3.6]: https://github.com/mere/op-and-chloe/compare/v0.3.5...v0.3.6
+
 ## [0.3.5] - 2026-02-22
 
 ### Fixed
