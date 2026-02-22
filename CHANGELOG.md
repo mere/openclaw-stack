@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Common Changelog](https://common-changelog.org).
 
+## [0.3.2] - 2026-02-22
+
+### Added
+
+- **opch-email skill** (`core/worker/skills/opch-email/SKILL.md`): Explains how to set up email in the worker. Microsoft → dedicated Python scripts + OAuth (`fetch-o365-config.py`, `m365 auth login`). Gmail, iCloud, and other → Himalaya (`email-setup.py`, `get-email-password.py` as auth.cmd). Documents calling `bw` over the bridge and using it for Himalaya auth or M365 config; architecture (worker, bridge, Bitwarden on Op) and step-by-step instructions included.
+
+[0.3.2]: https://github.com/mere/op-and-chloe/compare/v0.3.1...v0.3.2
+
 ## [0.3.1] - 2026-02-22
 
 ### Changed
