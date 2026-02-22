@@ -234,11 +234,12 @@ def execute(command: str) -> dict[str, Any]:
     analysis = analyze(command)
     if not analysis.get('ok'):
         return analysis
-    if analysis.get('decision') != 'approved':
+    decision = analysis.get('decision')
+    if decision not in ('approved', 'ask'):
         return {
             'ok': False,
             'error': 'command_not_fully_approved',
-            'decision': analysis.get('decision'),
+            'decision': decision,
             'analysis': analysis,
             'ts': now_iso(),
         }

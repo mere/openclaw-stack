@@ -566,23 +566,14 @@ ensure_guard_approval_instructions(){
   local gws="/var/lib/openclaw/guard-workspace"
   mkdir -p "$gws"
   cat > "$gws/APPROVALS.md" <<'EOF'
-# Guard Approval Flow (Telegram)
+# Exec Approvals (OpenClaw)
 
-Use inline buttons first:
-- 🚀 Approve -> guard approve <id>
-- ❌ Deny -> guard deny <id>
-- 🚀 Always approve -> guard approve always <id>
-- 🛑 Always deny -> guard deny always <id>
+Bridge has no separate approval layer. OpenClaw enforces exec approvals on the host.
 
-Typed text fallback uses same strings.
-Regex:
-- ^guard approve ([a-f0-9]{8})$
-- ^guard approve always ([a-f0-9]{8})$
-- ^guard deny ([a-f0-9]{8})$
-- ^guard deny always ([a-f0-9]{8})$
-
-Execution:
-- /opt/op-and-chloe/scripts/guard-bridge.sh decision "<incoming text>"
+- Pending / allowlist: ./openclaw-guard approvals get --json
+- Add allowlist: ./openclaw-guard approvals allowlist add "<path or glob>"
+- Approve in Control UI: Nodes → Exec approvals
+- In chat: /approve <id> allow-once | allow-always | deny
 EOF
   chown 1000:1000 "$gws/APPROVALS.md" 2>/dev/null || true
 }
@@ -1338,6 +1329,11 @@ step_help_useful_commands(){
   echo "  ./openclaw-guard devices approve <requestId>"
   echo "  ./openclaw-worker devices list"
   echo "  ./openclaw-worker devices approve <requestId>"
+  echo
+  echo "Exec approvals (when Op says 'exec approval id: ...'):"
+  echo "  ./openclaw-guard approvals get --json"
+  echo "  ./openclaw-guard approvals allowlist add \"<path or glob>\""
+  echo "  Approve pending: Control UI (Nodes → Exec approvals) or in chat: /approve <id> allow-once"
   echo
   echo "Pairing:"
   echo "  ./openclaw-guard pairing approve telegram <CODE>"

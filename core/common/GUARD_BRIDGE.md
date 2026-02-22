@@ -32,8 +32,7 @@ No action wrappers. Use direct commands through `command.run` policy map.
 
 ## Policy decisions
 
-- `approved` => immediate execution
-- `ask` => pending approval, then execute/reject
+- `approved` / `ask` => immediate execution (OpenClaw exec approvals gate on the host when needed)
 - `rejected` => immediate deny
 
 ## Runtime files
@@ -46,28 +45,3 @@ Host shared bridge:
 Guard state:
 - Policy: `/home/node/.openclaw/bridge/policy.json` (inside guard container)
 - Command policy: `/home/node/.openclaw/bridge/command-policy.json` (inside guard container)
-- Pending: `/home/node/.openclaw/bridge/pending.json` (inside guard container)
-
-
-## Approval parsing + identity matching
-
-Use strict decision text parsing:
-- `^guard approve ([a-f0-9-]{8,36})$`
-- `^guard approve always ([a-f0-9-]{8,36})$`
-- `^guard deny ([a-f0-9-]{8,36})$`
-- `^guard deny always ([a-f0-9-]{8,36})$`
-
-Match approvals using stable identity (`provider + chatId`), not display/conversation labels.
-
-Fallback (trusted DM only): allow requestId-only routing if identity normalization fails, and log this downgrade.
-
-
-## Inline 4-button approval UX
-
-- 🚀 Approve → `guard approve <requestId-or-id8>`
-- ❌ Deny → `guard deny <requestId-or-id8>`
-- 🚀 Always approve → `guard approve always <requestId>`
-- 🛑 Always deny → `guard deny always <requestId>`
-
-Decision parser command:
-- `/opt/op-and-chloe/scripts/guard-bridge.sh decision "<incoming text>"`

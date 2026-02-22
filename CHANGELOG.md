@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Common Changelog](https://common-changelog.org).
 
+## [0.3.0] - 2026-02-22
+
+### Removed
+
+- **Bridge approval layer:** No separate approval step on the bridge. OpenClaw’s fine-grained exec approvals now gate execution on the host, so the bridge no longer implements pending approval, Telegram buttons, or decision/approve/reject flows.
+- **guard-bridge.sh:** Subcommands `decision`, `clear-pending`, `approve`, `reject`, and `pending` removed. Only `run-once`, `policy`, and `command-policy` remain.
+- **guard-bridge-runner.py:** `PENDING_PATH`, `wake_guard_for_ask()`, and the `ask` → pending_approval path removed. Policy outcomes `approved` and `ask` both run the command immediately (exec approvals gate on the host). Fixed dead code in `execute_action()`.
+
+### Changed
+
+- **guard-command-engine.py:** `execute()` now allows running when decision is `ask` as well as `approved`, so policy can still use `ask` but the command runs (OpenClaw prompts when needed).
+- **Docs and skills:** GUARD_BRIDGE.md, GUARD_POLICY_PROFILE.md, core/guard/ROLE.md, core/worker/ROLE.md, opch-approvals and opch-bridge SKILLs, and setup.sh `ensure_guard_approval_instructions` updated for exec-only approvals (Control UI, chat `/approve <id>`, allowlist). core/common/README.md no longer mentions approval parsing.
+
+[0.3.0]: https://github.com/mere/op-and-chloe/compare/v0.2.22...v0.3.0
+
 ## [0.2.22] - 2026-02-22
 
 ### Added

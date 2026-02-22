@@ -15,8 +15,7 @@ You run in the **worker** container and have **no** credentials. Any command tha
 
 ## Policy (Op’s side)
 
-- **approved** — Run immediately; you get the result.
-- **ask** — User gets Telegram approval buttons; you keep waiting until they approve or deny.
+- **approved** / **ask** — Run immediately; you get the result. (Any exec approval is handled by OpenClaw on Op’s host.)
 - **rejected** — Denied immediately.
 
 ## Examples
@@ -24,8 +23,6 @@ You run in the **worker** container and have **no** credentials. Any command tha
 - `call "git status --short" --reason "User asked for repo status" --timeout 30`
 - `call "himalaya envelope list -a icloud -s 20 -o json" --reason "Check inbox" --timeout 120`
 - `call "himalaya message read -a icloud 38400" --reason "Read one email" --timeout 120`
-
-Use longer timeouts (e.g. 120–300 s) when the action may need user approval.
 
 ## Rules
 
