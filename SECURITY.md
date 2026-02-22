@@ -11,4 +11,4 @@ If you believe you have found a security issue, please report it responsibly:
 
 ## Security model
 
-This project helps you run a two-instance OpenClaw stack. Security-sensitive behaviour is documented in the main [README](README.md#security-model): credentials live in Bitwarden and guard-state; the worker has no direct access to secrets. Bitwarden login is interactive (`bw login`); only `BW_SERVER` is stored in `bitwarden.env`. For unattended unlock an optional `bw-master-password` file (chmod 600) may be used. Keep your `stack.env`, `bitwarden.env`, and any `bw-master-password` off the repo and restrict access on the host.
+This project helps you run a two-instance OpenClaw stack. Security-sensitive behaviour is documented in the main [README](README.md#security-model): credentials live in Bitwarden and guard-state; the worker has no direct access to secrets. Bitwarden login and unlock are done interactively in setup step 6. No passwords are stored on the host; only `BW_SERVER` is stored in `bitwarden.env`. Keep your `stack.env` and `bitwarden.env` off the repo and restrict access on the host.

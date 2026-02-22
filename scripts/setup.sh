@@ -260,6 +260,52 @@ verify_bitwarden_credentials(){
   return 1
 }
 
+# Check if Bitwarden is unlocked in the guard container. Returns 0 if unlocked, 1 if guard not running, 2 if locked.
+check_bitwarden_unlocked_in_guard(){
+  local guard_actual
+  guard_actual=$(resolve_container_name "$guard_name" 2>/dev/null)
+  guard_actual=${guard_actual:-$guard_name}
+  if ! container_running "$guard_name"; then
+    return 1
+  fi
+  ensure_guard_bitwarden >/dev/null 2>&1 || true
+  if docker exec "$guard_actual" sh -lc '
+    export BITWARDENCLI_APPDATA_DIR=/home/node/.openclaw/bitwarden-cli
+    . /home/node/.openclaw/secrets/bitwarden.env
+    bw config server "$BW_SERVER" >/dev/null 2>&1 || true
+    s=$(bw status 2>/dev/null || true)
+    echo "$s" | grep -q "\"status\":\"unlocked\""
+  ' 2>/dev/null; then
+    return 0
+  fi
+  return 2
+}
+
+# Run interactive bw unlock (no password stored; Bitwarden CLI keeps a session in its data dir). Use after login.
+run_bitwarden_unlock_interactive(){
+  local state_dir="$1"
+  local secrets_dir="$state_dir/secrets"
+  if container_running "$guard_name"; then
+    local guard_actual
+    guard_actual=$(resolve_container_name "$guard_name" 2>/dev/null)
+    guard_actual=${guard_actual:-$guard_name}
+    ensure_guard_bitwarden >/dev/null 2>&1 || true
+    say "Unlock the vault (enter your master password; it is not stored)."
+    docker exec -it "$guard_actual" sh -lc '
+      export BITWARDENCLI_APPDATA_DIR=/home/node/.openclaw/bitwarden-cli
+      . /home/node/.openclaw/secrets/bitwarden.env
+      bw config server "$BW_SERVER" >/dev/null 2>&1 || true
+      bw unlock
+    '
+  else
+    say "Unlock the vault (enter your master password; it is not stored)."
+    docker run -it --rm \
+      -v "$state_dir:/home/node/.openclaw:rw" \
+      -e BITWARDENCLI_APPDATA_DIR="$BW_CLI_DATA_DIR_GUARD" \
+      node:20-alpine sh -c 'npm install -g @bitwarden/cli >/dev/null 2>&1 && . /home/node/.openclaw/secrets/bitwarden.env && bw config server "$BW_SERVER" && bw unlock'
+  fi
+}
+
 step_bitwarden_secrets(){
   local secrets_dir="/var/lib/openclaw/guard-state/secrets"
   local secrets_file="$secrets_dir/bitwarden.env"
@@ -272,7 +318,14 @@ step_bitwarden_secrets(){
     say "Configure Bitwarden for guard"
     say "Verifying existing login state..."
     if verify_bitwarden_credentials "$secrets_file" "$secrets_dir"; then
-      ok "Bitwarden already logged in (credentials verified)"
+      ok "Bitwarden logged in"
+      if check_bitwarden_unlocked_in_guard; then
+        ok "Bitwarden unlocked"
+        return
+      fi
+      run_bitwarden_unlock_interactive "$(dirname "$secrets_dir")"
+      chown -R 1000:1000 "$bw_data_dir" 2>/dev/null || true
+      ok "Bitwarden unlocked"
       return
     fi
     warn "Existing login missing or expired — you will log in again below"
@@ -280,7 +333,7 @@ step_bitwarden_secrets(){
   fi
 
   say "Configure Bitwarden for guard"
-  say "We use Bitwarden to share credentials safely with OpenClaw. You will log in interactively; we do not store your master password or API key."
+  say "We use Bitwarden to share credentials safely with OpenClaw. You log in and unlock interactively in this step. No passwords are stored on the host; only BW_SERVER is saved in bitwarden.env."
   say "Create a free account on https://vault.bitwarden.com or https://vault.bitwarden.eu — whichever is closer to you."
 
   local cur_server=""
@@ -307,9 +360,9 @@ BW_SERVER=$BW_SERVER
 EOF
   chmod 600 "$secrets_file"
   chown 1000:1000 "$secrets_file" 2>/dev/null || true
-  ok "Saved $secrets_file (server only; no credentials stored)"
+  ok "Saved $secrets_file (server URL only; no passwords or credentials stored)"
 
-  say "Log in to Bitwarden now (email, master password, and 2FA if enabled). Your credentials are not saved."
+  say "Log in and unlock here (email, master password, 2FA if enabled). No passwords are written to disk."
   do_bw_login(){
     export BITWARDENCLI_APPDATA_DIR="$bw_data_dir"
     bw logout 2>/dev/null || true
@@ -338,10 +391,13 @@ EOF
     return
   fi
 
-  say "Verifying Bitwarden login state..."
+  say "Verifying login..."
   if verify_bitwarden_credentials "$secrets_file" "$secrets_dir"; then
-    ok "Bitwarden credentials verified"
-    say "For unattended guard access (e.g. email setup), you can optionally create a password file: $secrets_dir/bw-master-password (one line = master password, chmod 600). Otherwise run 'bw unlock' in the guard container when needed."
+    ok "Bitwarden logged in"
+    say "Unlock the vault so the guard can read secrets."
+    run_bitwarden_unlock_interactive "$(dirname "$secrets_dir")"
+    chown -R 1000:1000 "$bw_data_dir" 2>/dev/null || true
+    ok "Bitwarden unlocked"
   else
     if command -v docker >/dev/null 2>&1; then
       warn "Verification failed — ensure guard-state is at the default path or run this step again"
@@ -625,14 +681,15 @@ check_done(){
       local bw_verified="/var/lib/openclaw/guard-state/secrets/.bw_verified"
       [ -f "$bw_env" ] || return 1
       grep -q '^BW_SERVER=' "$bw_env" || return 1
-      if [ -f "$bw_verified" ]; then
-        local want_h got_h
-        want_h=$(bitwarden_env_hash "$bw_env")
-        got_h=$(cat "$bw_verified" 2>/dev/null)
-        [ -n "$want_h" ] && [ "$want_h" = "$got_h" ] && return 0
+      local want_h got_h
+      want_h=$(bitwarden_env_hash "$bw_env" 2>/dev/null)
+      got_h=$(cat "$bw_verified" 2>/dev/null)
+      if ! container_running "$guard_name"; then
+        [ -f "$bw_verified" ] && [ -n "$want_h" ] && [ "$want_h" = "$got_h" ] && return 0
+        return 1
       fi
-      container_running "$guard_name" || return 1
-      guard_actual=$(resolve_container_name "$guard_name" 2>/dev/null); guard_actual=${guard_actual:-$guard_name}
+      guard_actual=$(resolve_container_name "$guard_name" 2>/dev/null)
+      guard_actual=${guard_actual:-$guard_name}
       docker exec "$guard_actual" sh -lc '
         set -e
         command -v bw >/dev/null 2>&1
@@ -641,7 +698,8 @@ check_done(){
         export BITWARDENCLI_APPDATA_DIR="/home/node/.openclaw/bitwarden-cli"
         bw config server "$BW_SERVER" >/dev/null 2>&1
         bw status >/tmp/bw-status.json 2>/dev/null || exit 1
-        grep -q '"status":"unauthenticated"' /tmp/bw-status.json && exit 1 || exit 0
+        grep -q '"status":"unauthenticated"' /tmp/bw-status.json && exit 1
+        grep -q '"status":"unlocked"' /tmp/bw-status.json || exit 1
       ' >/dev/null 2>&1
       ;;
     *) return 1 ;;

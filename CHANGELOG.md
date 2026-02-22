@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Common Changelog](https://common-changelog.org).
 
+## [0.2.13] - 2026-02-22
+
+### Changed
+
+- **setup.sh (step 6 – Bitwarden)**: Simplified to a single flow: log in and unlock in the same step. Removed unattended unlock and any use of a password file; unlock is always interactive. Added `check_bitwarden_unlocked_in_guard` (status only) and `run_bitwarden_unlock_interactive` (runs `bw unlock` in guard or a temp container with guard-state mount). Step 6 now verifies login then runs interactive unlock when needed; no passwords are written to disk.
+- **No passwords on host**: Setup and docs now state explicitly that no passwords are stored on the box. Only `BW_SERVER` is saved in `bitwarden.env`; login and unlock prompts clarify that the master password is not stored. Updated SECURITY.md and core/guard/ROLE.md (Bitwarden section) to match.
+
+[0.2.13]: https://github.com/mere/op-and-chloe/compare/v0.2.12...v0.2.13
+
 ## [0.2.12] - 2026-02-21
 
 ### Fixed
