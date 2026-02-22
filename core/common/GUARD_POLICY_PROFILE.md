@@ -14,7 +14,7 @@ This profile keeps Worker non-privileged and makes Guard the only privileged exe
 - `approved` / `ask` → run (OpenClaw exec approvals may prompt on the host)
 - `rejected` → always deny
 
-Bitwarden runs in the worker; there is no bridge. Guard policy is limited to exec approvals (see below).
+Chloe has Bitwarden; Op is admin only. Op’s policy is exec approvals (see below).
 
 ## OpenClaw native exec approvals
 

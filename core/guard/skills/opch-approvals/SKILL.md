@@ -1,12 +1,12 @@
 ---
 name: opch-approvals
-description: Exec approvals — OpenClaw gates host execution; use Control UI or chat to allow/deny.
+description: Exec approvals — when Op runs a host command not on the allowlist, OpenClaw may prompt; use Control UI or chat to allow/deny.
 metadata: { "openclaw": { "emoji": "✅" } }
 ---
 
-# Exec approvals (Guard)
+# Exec approvals (Op)
 
-You are the guard — a lightweight admin with full VPS access. The worker never contacts you. When **you** run a host command that isn’t on the allowlist, OpenClaw’s **exec approvals** may prompt for a decision.
+You are **Op**, the admin instance with SSH access. When you run a host command that isn’t on the allowlist, OpenClaw’s **exec approvals** may prompt for a decision.
 
 ## Policy
 

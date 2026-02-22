@@ -6,11 +6,13 @@
 
 `op-and-chloe` ("openclaw-ey") is a two-instance OpenClaw stack for any VPS.
 
-- **🐕 Op**: lightweight admin instance with full VPS access (no tools, no day-to-day)
-- **🐯 Chloe**: friendly day-to-day assistant; fully self-contained (Bitwarden, email, M365 in her container); never contacts the guard
-- 🖥️ Webtop Chromium + CDP proxy for browser automation
-- 🔐 Passwordless setup: no secrets or passwords stored in files (Bitwarden login/unlock is interactive only)
+- **🐕 Op**: admin instance with SSH access — fix Chloe, restarts, large architectural changes
+- **🐯 Chloe**: day-to-day instance — create all agents here; has Bitwarden, email, M365, webtop
+- 🖥️ Webtop Chromium + CDP for shared browser (you + Chloe)
+- 🔐 Passwordless: Bitwarden in Chloe; login/unlock interactive only, no secrets in files
 - ❤️ Healthcheck + watchdog
+
+> 🚀 Easiest setup ever: just run `sudo ./setup.sh` and you’re on your way! 🎉
 
 ## But why?
 
@@ -35,13 +37,13 @@ It looks like this:
 
 - **☁️ A working stack on any VPS.** I use [Hetzner](https://www.hetzner.com), it's **~$4.70/month** and runs the full stack really well - but you can use any VPS provider. See [HETZNER.md](./HETZNER.md).
 
-- **📱 Two Telegram chats.** One for Op (admin, restarts, server changes); one for Chloe (where most of your conversations happen).
+- **📱 Two Telegram chats.** One for Op (admin, fixing Chloe, restarts); one for Chloe (day-to-day — create all agents here).
 
 - **🔒 Private access via Tailscale.** Guard, worker, and Webtop are on your Tailscale network with optional HTTPS - no public ports. Use them from your phone or laptop.
 
 - **❤️ Health Check.** Scripts to configure, verify and keep your stack healthy.
 
-- **🔑 Secure, passwordless credentials** Bitwarden runs in Chloe’s container; no bridge. No secrets or passwords are stored in files on the server—Bitwarden login and unlock are interactive only.
+- **🔑 Passwordless credentials** Bitwarden runs in Chloe’s container. Login and unlock are interactive only; no secrets stored in files.
 
 
 ---
@@ -77,9 +79,9 @@ sudo ./setup.sh
 
 The stack consists of:
 - **Three Docker containers:**
-  - **🐕 Op**: a simple, lightweight admin instance with full VPS access; no tools installed, no day-to-day responsibilities. For when you need restarts, fixes, or server-level changes.
-  - **🐯 Chloe**: your daily OpenClaw assistant; fully self-contained (Bitwarden, email, M365 in her container). She never contacts the guard—not even for credentials.
-  - **🖥️ Webtop browser**: provides a shared browser for both you and Chloe, enabling secure co-working even on a headless server.
+  - **🐕 Op**: admin instance with SSH access. For fixing Chloe, restarts, and large architectural changes.
+  - **🐯 Chloe**: day-to-day instance. Create all agents here. Has Bitwarden, email (Himalaya, M365), and webtop.
+  - **🖥️ Webtop**: shared browser for you and Chloe (co-working, automation).
 
 ---
 
@@ -92,10 +94,9 @@ The stack consists of:
 **Chloe** *(claw-y)* is your first OpenClaw instance.  
 (You can name her/him/they/it anything; it will ask for a name once it's up and running. 😊)
 
-This is your main AI you'll be chatting with every day. Your personal assistant, trainer, coach, friend, AI employee - configure it in any way you like, even set up multiple agents.  
-On the tech side, it's a standard OpenClaw installation: you can add/install/tweak/configure anything you like. Install all those funky skills, get messy! It's the OpenClaw you know and love.
+This is your day-to-day instance. Create all agents here. You get Bitwarden, email (Himalaya, M365), and webtop — standard OpenClaw; add skills and agents as you like.
 
-But things can - and will break. Configs drift, cryptic errors appear, and some fixes can't be done in a Telegram chat. When that happens, you talk to Op instead—Op has full VPS access and can fix or restart things. Chloe never contacts Op; she's fully self-contained with her own Bitwarden and tools.
+When things break or you need restarts or big changes, talk to Op (admin with SSH access). Talk to Chloe for daily work.
 
 ---
 <p align="center">
@@ -104,11 +105,12 @@ But things can - and will break. Configs drift, cryptic errors appear, and some 
 
 ### 2. Op
 
-**Op** is a simple, lightweight admin instance with **full VPS access**. No tools installed (no Bitwarden, no bridge), no day-to-day responsibilities. Op's job is to:
-- fix things when they go wrong (restarts, Docker, repo, host),
-- do whatever you'd otherwise SSH in to do.
+**Op** is the admin instance with **SSH access**. Op’s job is to:
+- fix Chloe when she breaks,
+- do restarts, Docker, repo, and host changes,
+- handle large architectural changes (whatever you’d otherwise SSH in to do).
 
-Chloe never goes to Op—not even for credentials. You talk to Chloe for daily tasks; you talk to Op when you need admin. Think of Op as your DevOps backup: minimal, always available for restarts and server-level changes. 
+You talk to Chloe for day-to-day work (create all agents there). You talk to Op when you need admin. 
 
 ---
 
@@ -172,37 +174,37 @@ To run any `openclaw` command, use:
 ## System diagram
 
 ```mermaid
-flowchart TD
-    CH("<b>🐯 Chloe Bot.</b><br/><br/>Responsible for<br/>day-to-day tasks<br/>Uses Bitwarden in-container.")
-    OP("🐕 Operator Bot<br/>Lightweight admin, full VPS access<br/>No tools, no day-to-day")
-    U[🥰 User]
-    E[💌 Email]
-    BW[🔐 Bitwarden]
-    BR[🖥️ Webtop Browser]
-
-    U -->|Admin commands| OP
-    U <-->|Chats via Telegram with| CH
-
-    CH -->|Reads from vault via bw| BW
-    U -->|Logs in to web pages like Social Media sites| BR
-    CH -->|Accesses| BR
-    U -->|Sets secrets in| BW
-    CH -->|Reads/Writes emails| E
-
-    subgraph VPS
-        CH
-        BR
-        OP
+flowchart LR
+  U[User]
+  BW[(Bitwarden)]
+  subgraph VPS["VPS"]
+  subgraph Docker[Webtop Docker]
+    B["🖥️  Webtop"]
+  end
+    subgraph Chloe["🐯 Chloe Docker"]
+      A[Agents 🤖 🤖 🤖]
     end
+    Op["🐕 Op (Admin)"]
+    D[Docker / Host / Repo]
+  end
+  
+
+  U --> Chloe
+  U --> Op
+  A --> B
+  A --> E[💌 Email<br />📆 Calendar]
+  A --> BW
+  Op --> D
+  B --> S[🔷 Linkedin<br /> 💎 Social Media]
 ```
 
 ## Architecture
 See **Technical overview** in the Components section above.
 
 
-## Bitwarden in the worker
+## Bitwarden in Chloe
 
-Chloe (worker) runs **Bitwarden**, **Himalaya**, and **M365** in her container. There is **no bridge**. She uses **`bw`** (e.g. `bw list items`, `bw get item <id>`) to read from the vault; credentials and session live in worker state. One-time setup scripts (scripts/worker/email-setup.py, scripts/worker/fetch-o365-config.py) use `bw` to fetch secrets.
+Chloe has **Bitwarden** in her container. She uses **`bw`** (e.g. `bw list items`, `bw get item <id>`) to read from the vault; session lives in worker state. One-time setup: scripts/worker/email-setup.py, scripts/worker/fetch-o365-config.py.
 
 ```bash
 # In Chloe: Bitwarden runs locally
@@ -237,8 +239,8 @@ m365 mail list --top 20
 
 ## Security model
 
-- **No master password on disk:** Your Bitwarden master password is never written to the host. In setup step 6 you log in and unlock once; only the Bitwarden server URL (`BW_SERVER`) and the session key from unlock are saved (in worker state: `state/secrets/bitwarden.env` and `state/secrets/bw-session`). Chloe uses that session via the **`bw`** script; re-run step 6 if the vault is locked later.
-- There is no bridge; Bitwarden runs in the worker container. The worker mounts the stack repo read-only and has `bw` in PATH.
+- **No master password on disk:** In setup step 6 you log in and unlock once; only `BW_SERVER` and the session key are saved (worker state: `state/secrets/bitwarden.env`, `state/secrets/bw-session`). Chloe uses that session via **`bw`**; re-run step 6 if the vault is locked.
+- Bitwarden runs in Chloe’s container; she has `bw` in PATH.
 
 ## License
 

@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Common Changelog](https://common-changelog.org).
 
+## [0.4.2] - 2026-02-22
+
+### Changed
+
+- **README system diagram:** Improved Mermaid flowchart: top-down layout, Chloe shown as subgraph with **Agents** inside, explicit edges (User→Chloe/Op, Agents→Webtop/Bitwarden, Op→Docker/Host/Repo). Clarifies that agents live in Chloe.
+
+[0.4.2]: https://github.com/mere/op-and-chloe/compare/v0.4.1...v0.4.2
+
 ## [0.4.1] - 2026-02-22
 
 ### Fixed

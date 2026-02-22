@@ -6,7 +6,7 @@ metadata: { "openclaw": { "emoji": "📧" } }
 
 # Email setup (worker)
 
-You run in the **worker** container. **Bitwarden** runs in this container; you use the **`bw`** script to read from the vault. You never go to the guard. Email clients (Himalaya and M365) run **locally**; one-time setup uses `bw` to fetch secrets from your vault.
+You run in **Chloe** (day-to-day instance). Create all agents here. **Bitwarden** runs in this container; use **`bw`** to read from the vault. Email clients (Himalaya and M365) run locally; one-time setup uses `bw` to fetch secrets.
 
 ## Which client for which provider
 

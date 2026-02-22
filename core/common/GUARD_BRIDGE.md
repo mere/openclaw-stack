@@ -1,5 +1,6 @@
-# No bridge
+# Op and Chloe
 
-There is **no bridge** between guard and worker. The **worker never goes to the guard**—not even for credentials. Bitwarden runs **in the worker** (Chloe); she uses the **`bw`** script (in PATH) to read from the vault. Credentials and session live in worker state (`/home/node/.openclaw/secrets/`, `bitwarden-cli`). Setup step 6 configures Bitwarden for the worker. The guard is a lightweight admin with full VPS access and no tools; no day-to-day responsibilities.
+- **Op (guard):** Admin instance with SSH access. Fix Chloe, restarts, large architectural changes. No day-to-day; no credentials.
+- **Chloe (worker):** Day-to-day instance. Create all agents here. Has Bitwarden, email, webtop. User talks to Chloe for daily work; user talks to Op for admin.
 
-For guard (Op) capabilities and exec approvals, see **core/guard/ROLE.md**.
+Bitwarden runs in Chloe’s container; she uses **`bw`** (in PATH). Setup step 6 configures and unlocks the vault in worker state. For guard capabilities and exec approvals, see **core/guard/ROLE.md**.
