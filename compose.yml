@@ -20,7 +20,12 @@ services:
         ipv4_address: ${BROWSER_IPV4:-172.31.0.10}
 
   openclaw-gateway:
-    image: ${OPENCLAW_IMAGE:-ghcr.io/openclaw/openclaw:main}
+    image: ${OPENCLAW_WORKER_IMAGE:-openclaw-worker-tools:local}
+    build:
+      context: .
+      dockerfile: docker/openclaw-worker-tools.Dockerfile
+      args:
+        OPENCLAW_BASE_IMAGE: ${OPENCLAW_IMAGE:-ghcr.io/openclaw/openclaw:main}
     container_name: ${INSTANCE:-op-and-chloe}-openclaw-gateway
     network_mode: host
     environment:
@@ -28,13 +33,11 @@ services:
       TERM: xterm-256color
       OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
       NPM_CONFIG_PREFIX: /home/node/.openclaw/npm-global
-      PATH: /opt/op-and-chloe/scripts:/home/node/.openclaw/npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      PATH: /opt/op-and-chloe/scripts/worker:/opt/op-and-chloe/scripts:/home/node/.openclaw/npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     volumes:
       - ${OPENCLAW_STATE_DIR:-/var/lib/openclaw/state}:/home/node/.openclaw
       - ${OPENCLAW_WORKSPACE_DIR:-/var/lib/openclaw/workspace}:/home/node/.openclaw/workspace
       - /var/lib/openclaw/bridge:/var/lib/openclaw/bridge:ro
-      - /var/lib/openclaw/bridge/inbox:/var/lib/openclaw/bridge/inbox:rw
-      - /var/lib/openclaw/bridge/outbox:/var/lib/openclaw/bridge/outbox:rw
       - ${OPENCLAW_STACK_DIR:-/opt/op-and-chloe}:/opt/op-and-chloe:ro
     init: true
     restart: unless-stopped
@@ -44,7 +47,7 @@ services:
     image: ${OPENCLAW_GUARD_IMAGE:-openclaw-guard-tools:local}
     build:
       context: .
-      dockerfile: docker/openclaw-tools.Dockerfile
+      dockerfile: docker/openclaw-guard-tools.Dockerfile
       args:
         OPENCLAW_BASE_IMAGE: ${OPENCLAW_IMAGE:-ghcr.io/openclaw/openclaw:main}
     container_name: ${INSTANCE:-op-and-chloe}-openclaw-guard
@@ -54,7 +57,7 @@ services:
       TERM: xterm-256color
       OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GUARD_GATEWAY_TOKEN}
       NPM_CONFIG_PREFIX: /home/node/.openclaw/npm-global
-      PATH: /opt/op-and-chloe/scripts:/home/node/.openclaw/npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      PATH: /opt/op-and-chloe/scripts/guard:/opt/op-and-chloe/scripts:/home/node/.openclaw/npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     volumes:
       - ${OPENCLAW_GUARD_STATE_DIR:-/var/lib/openclaw/guard-state}:/home/node/.openclaw
       - ${OPENCLAW_GUARD_WORKSPACE_DIR:-/var/lib/openclaw/guard-workspace}:/home/node/.openclaw/workspace
@@ -66,7 +69,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     init: true
     restart: unless-stopped
-    command: ["/opt/op-and-chloe/scripts/guard-entrypoint.sh", "node", "dist/index.js", "gateway", "--bind", "loopback", "--port", "18790", "--allow-unconfigured"]
+    command: ["/opt/op-and-chloe/scripts/guard/entrypoint.sh", "node", "dist/index.js", "gateway", "--bind", "loopback", "--port", "18790", "--allow-unconfigured"]
 
 networks:
   openclaw_net:

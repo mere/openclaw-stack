@@ -39,4 +39,4 @@ env/
 .cache/
 
 # debug logs from setup (pairing detection)
-scripts/.debug-*.txt
+scripts/host/.debug-*.txt

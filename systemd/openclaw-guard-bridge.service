@@ -1,8 +1,0 @@
-[Unit]
-Description=OpenClaw Guard Bridge Tick
-After=docker.service
-Wants=docker.service
-
-[Service]
-Type=oneshot
-ExecStart=/opt/op-and-chloe/scripts/guard-bridge-tick.sh

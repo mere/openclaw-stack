@@ -4,7 +4,7 @@ set -euo pipefail
 INSTANCE=${INSTANCE:-op-and-chloe}
 GW_CONTAINER=${GW_CONTAINER:-${INSTANCE}-openclaw-gateway}
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-STACK_DIR=${STACK_DIR:-$(cd "$SCRIPT_DIR/.." && pwd)}
+STACK_DIR=${STACK_DIR:-$(cd "$SCRIPT_DIR/../.." && pwd)}
 
 printf "== containers ==\n"
 docker ps --format "{{.Names}}\t{{.Status}}\t{{.Image}}" \
@@ -16,7 +16,7 @@ docker port "$GW_CONTAINER" 18789/tcp 2>/dev/null || echo "(no port mapping foun
 
 echo
 printf "== CDP smoke test ==\n"
-"$STACK_DIR"/scripts/cdp-smoke-test.sh
+"$STACK_DIR/scripts/host/cdp-smoke-test.sh"
 
 echo
 printf "== network/security checks ==\n"

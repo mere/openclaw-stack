@@ -9,7 +9,7 @@ Be respectful and constructive. This project aims to make OpenClaw setup easier 
 ## How to contribute
 
 - **Bug reports and feature ideas:** Open a GitHub Issue in this repository (or the issue tracker for the fork you use).
-- **Documentation:** Fixes and improvements to README, ARCHITECTURE.md, `core/common/` docs (e.g. GUARD_BRIDGE.md, GUARD_POLICY_PROFILE.md), and other docs are always welcome.
+- **Documentation:** Fixes and improvements to README, `core/common/` docs (e.g. GUARD_BRIDGE.md, GUARD_POLICY_PROFILE.md), and other docs are always welcome.
 - **Code and scripts:** Pull requests are welcome. Please keep changes focused and describe what problem they solve.
 
 ## Development setup

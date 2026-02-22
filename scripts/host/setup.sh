@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-STACK_DIR=$(cd "$SCRIPT_DIR/.." && pwd)
+STACK_DIR=$(cd "$SCRIPT_DIR/../.." && pwd)
 # Persistent volume root (e.g. /mnt/volume-hel1-2); set by setup step 1 or .openclaw-volume-root
 VOLUME_ROOT_FILE="$STACK_DIR/.openclaw-volume-root"
 if [ -f "$VOLUME_ROOT_FILE" ] && [ -s "$VOLUME_ROOT_FILE" ]; then
@@ -95,8 +95,8 @@ check_seed_done(){
   local gws="${OPENCLAW_GUARD_WORKSPACE_DIR:-/var/lib/openclaw/guard-workspace}"
   local wws="${OPENCLAW_WORKSPACE_DIR:-/var/lib/openclaw/workspace}"
   local want want_g want_w have_g have_w
-  want_g=$(python3 "$STACK_DIR/scripts/seed-hash.py" get "$STACK_DIR" guard 2>/dev/null)
-  want_w=$(python3 "$STACK_DIR/scripts/seed-hash.py" get "$STACK_DIR" worker 2>/dev/null)
+  want_g=$(python3 "$STACK_DIR/scripts/host/seed-hash.py" get "$STACK_DIR" guard 2>/dev/null)
+  want_w=$(python3 "$STACK_DIR/scripts/host/seed-hash.py" get "$STACK_DIR" worker 2>/dev/null)
   have_g=$(cat "$gws/.seed_hash" 2>/dev/null | tr -d '\n')
   have_w=$(cat "$wws/.seed_hash" 2>/dev/null | tr -d '\n')
   [ -n "$want_g" ] && [ "$want_g" = "$have_g" ] || return 1
@@ -127,7 +127,7 @@ tailscale_dns(){
 }
 
 apply_tailscale_serve(){
-  "$STACK_DIR/scripts/apply-tailscale-serve.sh" && ok "Tailscale serve: 444→guard, 443→worker, 445→webtop" || warn "Tailscale serve failed (is tailscale running?)"
+  "$STACK_DIR/scripts/host/apply-tailscale-serve.sh" && ok "Tailscale serve: 444→guard, 443→worker, 445→webtop" || warn "Tailscale serve failed (is tailscale running?)"
 }
 
 # Sync gateway auth token into openclaw.json so gateway validates the same token we show.
@@ -191,7 +191,7 @@ PY2
 ensure_browser_profile(){
   # Prefer dynamic CDP URL from running browser container so Chloe's browser tool stays correct
   if container_running "$browser_name"; then
-    if STACK_DIR="$STACK_DIR" ENV_FILE="$ENV_FILE" "$STACK_DIR/scripts/update-webtop-cdp-url.sh" 2>/dev/null; then
+    if STACK_DIR="$STACK_DIR" ENV_FILE="$ENV_FILE" "$STACK_DIR/scripts/host/update-webtop-cdp-url.sh" 2>/dev/null; then
       return 0
     fi
   fi
@@ -584,7 +584,7 @@ EOF
 # Run before starting guard/worker (steps 7–8) so containers see ROLE.md on first start,
 # and before configuring them (steps 10–11) so onboarding uses the latest core.
 sync_core_workspaces(){
-  "$STACK_DIR/scripts/sync-workspaces.sh" >/dev/null 2>&1 || true
+  "$STACK_DIR/scripts/host/sync-workspaces.sh" >/dev/null 2>&1 || true
 }
 
 # Ensure repo files are writable by the runtime user (avoid root-owned drift)
@@ -613,49 +613,27 @@ ensure_repo_writable_for_guard(){
 }
 
 ensure_bridge_dirs(){
-  mkdir -p /var/lib/openclaw/bridge/inbox /var/lib/openclaw/bridge/outbox /var/lib/openclaw/bridge/audit
-  mkdir -p /var/lib/openclaw/guard-state/bridge
+  # Bridge uses a Unix socket only (no inbox/outbox files).
+  mkdir -p /var/lib/openclaw/bridge /var/lib/openclaw/guard-state/bridge
   chown -R 1000:1000 /var/lib/openclaw/bridge /var/lib/openclaw/guard-state/bridge 2>/dev/null || true
 }
 
 ensure_worker_bridge_client(){
-  local scripts_dir="$STACK_DIR/scripts"
+  local scripts_dir="$STACK_DIR/scripts/worker"
   mkdir -p "$scripts_dir"
-
-  # Keep worker bridge entrypoints deterministic and executable.
-  cat > "$scripts_dir/call" <<'EOF'
-#!/usr/bin/env bash
-SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-exec "$SCRIPT_DIR/worker-bridge.sh" call "$@"
-EOF
-
-  cat > "$scripts_dir/catalog" <<'EOF'
-#!/usr/bin/env bash
-SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-exec "$SCRIPT_DIR/worker-bridge.sh" catalog
-EOF
-
-  chmod 0755 "$scripts_dir/call" "$scripts_dir/catalog" "$scripts_dir/worker-bridge.sh" 2>/dev/null || true
-  chown 1000:1000 "$scripts_dir/call" "$scripts_dir/catalog" "$scripts_dir/worker-bridge.sh" 2>/dev/null || true
+  chmod 0755 "$scripts_dir/call" "$scripts_dir/catalog" "$scripts_dir/bridge.sh" \
+    "$scripts_dir/bw" "$scripts_dir/m365" "$scripts_dir/bridge" \
+    "$scripts_dir/email-setup.py" "$scripts_dir/get-email-password.py" \
+    "$scripts_dir/fetch-o365-config.py" "$scripts_dir/m365.py" 2>/dev/null || true
+  chown 1000:1000 "$scripts_dir/call" "$scripts_dir/catalog" "$scripts_dir/bridge.sh" \
+    "$scripts_dir/bw" "$scripts_dir/m365" "$scripts_dir/bridge" \
+    "$scripts_dir/email-setup.py" "$scripts_dir/get-email-password.py" \
+    "$scripts_dir/fetch-o365-config.py" "$scripts_dir/m365.py" 2>/dev/null || true
 }
 
 ensure_worker_bridge_mounts(){
-  local c="$STACK_DIR/compose.yml"
-  local needle='/var/lib/openclaw/bridge/outbox:/var/lib/openclaw/bridge/outbox:rw'
-  if grep -q "$needle" "$c"; then
-    return
-  fi
-
-  python3 - "$c" <<'PY2'
-import pathlib, sys
-p = pathlib.Path(sys.argv[1])
-s = p.read_text()
-old = "      - /var/lib/openclaw/bridge/inbox:/var/lib/openclaw/bridge/inbox:rw\n"
-new = old + "      - /var/lib/openclaw/bridge/outbox:/var/lib/openclaw/bridge/outbox:rw\n"
-if old not in s:
-    raise SystemExit("compose patch failed: inbox mount anchor not found")
-p.write_text(s.replace(old, new, 1))
-PY2
+  # Bridge is socket-based; worker only needs the bridge dir mount (see compose.yml).
+  :
 }
 
 
@@ -677,41 +655,27 @@ ensure_stack_repo_alias(){
 }
 
 ensure_guard_bridge_service(){
-  # Install and enable the guard bridge timer/service with current STACK_DIR path.
-  install -m 0644 "$STACK_DIR/systemd/openclaw-guard-bridge.timer" /etc/systemd/system/openclaw-guard-bridge.timer
-  sed "s#/opt/op-and-chloe#$STACK_DIR#g" "$STACK_DIR/systemd/openclaw-guard-bridge.service" > /etc/systemd/system/openclaw-guard-bridge.service
-  systemctl daemon-reload
-  systemctl enable --now openclaw-guard-bridge.timer >/dev/null 2>&1 || true
+  # Bridge is socket-based and runs inside the guard container (no host timer).
+  mkdir -p /var/lib/openclaw/bridge
+  chown 1000:1000 /var/lib/openclaw/bridge 2>/dev/null || true
 }
 
 
-ensure_m365_bridge_policy(){
+# Bridge is BW-only: Chloe calls guard to run bw-with-session
+ensure_bw_bridge_policy(){
   local cp="/var/lib/openclaw/guard-state/bridge/command-policy.json"
   mkdir -p /var/lib/openclaw/guard-state/bridge
-  [ -f "$cp" ] || echo '{"rules":[]}' > "$cp"
   python3 - "$cp" <<'PY2'
 import json, pathlib, sys
-p=pathlib.Path(sys.argv[1])
-try:
-    d=json.loads(p.read_text())
-except Exception:
-    d={"rules":[]}
-rules=d.setdefault("rules",[])
-
-def upsert(rule_id, pattern, decision):
-    for r in rules:
-        if r.get("id")==rule_id:
-            r["pattern"]=pattern; r["decision"]=decision; return
-    rules.append({"id":rule_id,"pattern":pattern,"decision":decision})
-
-upsert("m365-auth-login", r"^python3\s+/opt/op-and-chloe/scripts/guard-m365\.py\s+auth\s+login\b", "ask")
-upsert("m365-auth-status", r"^python3\s+/opt/op-and-chloe/scripts/guard-m365\.py\s+auth\s+status\b", "approved")
-upsert("m365-mail-list", r"^python3\s+/opt/op-and-chloe/scripts/guard-m365\.py\s+mail\s+list\b", "approved")
-upsert("m365-mail-read", r"^python3\s+/opt/op-and-chloe/scripts/guard-m365\.py\s+mail\s+read\b", "approved")
-upsert("m365-calendar-events", r"^python3\s+/opt/op-and-chloe/scripts/guard-m365\.py\s+calendar\s+events\b", "approved")
-upsert("m365-calendar-list", r"^python3\s+/opt/op-and-chloe/scripts/guard-m365\.py\s+calendar\s+list\b", "approved")
-
-p.write_text(json.dumps(d, indent=2)+"\n")
+p = pathlib.Path(sys.argv[1])
+rules = [
+    {"id": "bw-status", "pattern": r"^bw-with-session\s+status\b", "decision": "approved"},
+    {"id": "bw-list-items", "pattern": r"^bw-with-session\s+list\s+items\b", "decision": "approved"},
+    {"id": "bw-get-item", "pattern": r"^bw-with-session\s+get\s+item\b", "decision": "approved"},
+    {"id": "bw-get-password", "pattern": r"^bw-with-session\s+get\s+password\b", "decision": "approved"},
+    {"id": "dangerous", "pattern": r"(rm\s+-rf|mkfs|docker\s+system\s+prune)", "decision": "rejected"},
+]
+p.write_text(json.dumps({"rules": rules}, indent=2) + "\n")
 PY2
   chown 1000:1000 "$cp" 2>/dev/null || true
 }
@@ -888,8 +852,8 @@ step_browser_init(){
   say "We install scripts so Chromium starts with remote-debugging on port 9222, proxied to 9223 for automation."
   local browser_dir="/var/lib/openclaw/browser"
   mkdir -p "$browser_dir/custom-cont-init.d"
-  install -m 0755 "$STACK_DIR/scripts/webtop-init/20-start-chromium-cdp" "$browser_dir/custom-cont-init.d/20-start-chromium-cdp"
-  install -m 0755 "$STACK_DIR/scripts/webtop-init/30-start-socat-cdp-proxy" "$browser_dir/custom-cont-init.d/30-start-socat-cdp-proxy"
+  install -m 0755 "$STACK_DIR/scripts/host/webtop-init/20-start-chromium-cdp" "$browser_dir/custom-cont-init.d/20-start-chromium-cdp"
+  install -m 0755 "$STACK_DIR/scripts/host/webtop-init/30-start-socat-cdp-proxy" "$browser_dir/custom-cont-init.d/30-start-socat-cdp-proxy"
   chown -R 1000:1000 "$browser_dir/custom-cont-init.d"
   ok "CDP init scripts installed"
 
@@ -952,7 +916,7 @@ step_start_worker(){
   ensure_bridge_dirs
   ensure_worker_bridge_client
   ensure_worker_bridge_mounts
-  ensure_m365_bridge_policy
+  ensure_bw_bridge_policy
   say "Start worker service"
   say "The worker is your main assistant — you'll chat with it daily and run tasks through it."
   if container_running "$worker_name"; then ok "Worker already running"; return; fi
@@ -978,7 +942,7 @@ step_start_all(){
   ensure_bridge_dirs
   ensure_worker_bridge_client
   ensure_worker_bridge_mounts
-  ensure_m365_bridge_policy
+  ensure_bw_bridge_policy
   ensure_browser_profile
   ensure_inline_buttons
   say "Start full stack"
@@ -997,7 +961,7 @@ step_verify(){
 step_seed_instructions(){
   say "Seed guard / worker instructions"
   say "Copies the latest role text from core/guard and core/worker into the guard and worker workspaces. Run this after a git pull or when you edit core/ to refresh Op and Chloe instructions."
-  "$STACK_DIR/scripts/sync-workspaces.sh"
+  "$STACK_DIR/scripts/host/sync-workspaces.sh"
   ok "Guard and worker workspaces updated from core/"
 }
 
@@ -1036,7 +1000,7 @@ step_configure_guard(){
     fi
     guard_actual=$(resolve_container_name "$guard_name" 2>/dev/null); guard_actual=${guard_actual:-$guard_name}
     echo
-    say "Launching guard onboarding in this terminal (not a subprocess). When you're done, run: sudo ./scripts/setup.sh"
+    say "Launching guard onboarding in this terminal (not a subprocess). When you're done, run: sudo ./setup.sh"
     echo
     exec docker exec -it "$guard_actual" ./openclaw.mjs onboard
   else
@@ -1071,7 +1035,7 @@ step_configure_worker(){
     fi
     worker_actual=$(resolve_container_name "$worker_name" 2>/dev/null); worker_actual=${worker_actual:-$worker_name}
     echo
-    say "Launching worker onboarding in this terminal (not a subprocess). When you're done, run: sudo ./scripts/setup.sh"
+    say "Launching worker onboarding in this terminal (not a subprocess). When you're done, run: sudo ./setup.sh"
     echo
     exec docker exec -it "$worker_actual" ./openclaw.mjs onboard
   else
@@ -1197,8 +1161,8 @@ step_auth_tokens(){
     fi
     # DEBUG: set DEBUG_PAIRING=1 when running setup to capture raw devices list output for parsing inspection
     if [ -n "${DEBUG_PAIRING-}" ]; then
-      printf '%s' "$guard_devices" > "$STACK_DIR/scripts/.debug-guard-devices.txt" 2>/dev/null || true
-      printf '%s' "$worker_devices" > "$STACK_DIR/scripts/.debug-worker-devices.txt" 2>/dev/null || true
+      printf '%s' "$guard_devices" > "$STACK_DIR/scripts/host/.debug-guard-devices.txt" 2>/dev/null || true
+      printf '%s' "$worker_devices" > "$STACK_DIR/scripts/host/.debug-worker-devices.txt" 2>/dev/null || true
     fi
     # Pairing status (paired count per instance). If CLI returns token mismatch, we can't read the list.
     guard_paired=$(paired_count "$guard_devices")
@@ -1322,7 +1286,7 @@ step_help_useful_commands(){
   echo "Roles:"
   echo "  cat /var/lib/openclaw/guard-workspace/ROLE.md"
   echo "  cat /var/lib/openclaw/workspace/ROLE.md"
-  echo "  Refresh after git pull or editing core/: sudo ./scripts/sync-workspaces.sh"
+  echo "  Refresh after git pull or editing core/: sudo ./scripts/host/sync-workspaces.sh"
   echo
   echo "Devices:"
   echo "  ./openclaw-guard devices list"

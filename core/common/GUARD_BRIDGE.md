@@ -1,47 +1,29 @@
-# Guard Bridge (simple, script-first)
+# Guard Bridge (BW-only)
 
 ## Model
 
-- Guard owns tool scripts and policies.
-- Worker can only submit calls and read results/catalog.
-- No extra management API layer.
+- **Bridge is BW-only.** Guard holds Bitwarden; Worker (Chloe) has no vault. She runs `bw` (a wrapper) which submits `call "bw-with-session <args>"`; Guard runs it and returns the result.
+- Worker can only submit calls and read results/catalog. No extra management API layer.
 
 ## Source of truth (Guard)
 
-- Tool scripts: `scripts/guard-*.sh`, `scripts/guard-*.py`
-- Action policy: guard state policy json
-- Command policy: guard state command-policy json
+- Command policy: `/home/node/.openclaw/bridge/command-policy.json` — allows only `bw-with-session` (status, list items, get item, get password). Dangerous patterns rejected.
+- Policy is applied by setup (`ensure_bw_bridge_policy`) and by guard-bridge-runner defaults.
 
-When you add or edit a tool script on Guard:
-1) edit script
-2) update policy if needed
-3) run `./scripts/guard-tool-sync.sh`
+## Worker usage
 
-## Worker usage (blocking call)
+- **`bw`** (in PATH): runs `bw-with-session` via bridge. Example: `bw list items`, `bw get item <id>`.
+- **`call "bw-with-session <args>" --reason "Bitwarden access" [--timeout N]`** — raw bridge call.
+- **`catalog`** — list allowed command patterns.
 
-Only one mode exists: blocking `call`.
-
-- `call "git status --short" --reason "..." --timeout 30`
-- `call "himalaya envelope list -a icloud -s 20 -o json" --reason "check inbox" --timeout 120`
-- `call "himalaya message read -a icloud 38400" --reason "read one email" --timeout 120`
-- `call "cd /opt/op-and-chloe && git pull && ./start.sh" --reason "update stack" --timeout 600`
-
-No action wrappers. Use direct commands through `command.run` policy map.
-
-(Worker wrappers map to `tools/bridge` under the hood.)
+Himalaya and M365 run in the worker container; their one-time setup scripts use `bw` to fetch secrets from Guard’s Bitwarden.
 
 ## Policy decisions
 
-- `approved` / `ask` => immediate execution (OpenClaw exec approvals gate on the host when needed)
-- `rejected` => immediate deny
+- `approved` => run immediately (OpenClaw exec approvals may gate on the host).
+- `rejected` => deny immediately.
 
-## Runtime files
+## Transport (no file I/O)
 
-Host shared bridge:
-- Inbox: `/var/lib/openclaw/bridge/inbox/*.json`
-- Outbox: `/var/lib/openclaw/bridge/outbox/*.json`
-- Audit: `/var/lib/openclaw/bridge/audit/bridge-audit.jsonl`
-
-Guard state:
-- Policy: `/home/node/.openclaw/bridge/policy.json` (inside guard container)
-- Command policy: `/home/node/.openclaw/bridge/command-policy.json` (inside guard container)
+- **Unix socket:** `/var/lib/openclaw/bridge/bridge.sock`. The guard runs a small server (started from the guard entrypoint); the worker connects, sends one JSON request line, receives one JSON response line. No inbox, outbox, or audit files for bridge traffic.
+- **Guard state:** Command policy `/home/node/.openclaw/bridge/command-policy.json` (inside guard container).

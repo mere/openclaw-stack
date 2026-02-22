@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.6
-
+# Chloe (worker) tools: Himalaya + Python for m365. No Bitwarden — use bridge to guard for BW.
 ARG OPENCLAW_BASE_IMAGE=ghcr.io/openclaw/openclaw:main
 FROM ${OPENCLAW_BASE_IMAGE}
 
@@ -9,13 +9,9 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 ARG HIMALAYA_VERSION=v1.1.0
 
-# Core CLI dependencies (openssh-client for Admin Mode: SSH from Op to host)
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates curl jq git openssh-client \
+ && apt-get install -y --no-install-recommends ca-certificates curl python3 python3-venv \
  && rm -rf /var/lib/apt/lists/*
-
-# Bitwarden CLI
-RUN npm i -g @bitwarden/cli
 
 # Himalaya mail CLI (official release artifact)
 RUN case "${TARGETARCH}" in \

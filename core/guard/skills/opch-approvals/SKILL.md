@@ -15,8 +15,7 @@ You own the bridge. When Chloe (worker) submits a **call**, you apply policy and
 
 ## Useful commands (from `/opt/op-and-chloe` in guard)
 
-- **Policy:** `./scripts/guard-bridge.sh policy` and `./scripts/guard-bridge.sh command-policy`
-- **Process inbox:** `./scripts/guard-bridge.sh run-once`
+- **Policy:** `./scripts/guard/bridge-policy.sh policy` and `./scripts/guard/bridge-policy.sh command-policy` (view only). Bridge server runs in guard entrypoint; catalog is built from policy on each request.
 
 ## Runtime paths
 

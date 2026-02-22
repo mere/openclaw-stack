@@ -15,7 +15,7 @@ set -euo pipefail
 SYNC_PROFILE="${SYNC_PROFILE:-}"
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-STACK_DIR=$(cd "$SCRIPT_DIR/.." && pwd)
+STACK_DIR=$(cd "$SCRIPT_DIR/../.." && pwd)
 
 WORKER_WS=${WORKER_WORKSPACE_DIR:-/var/lib/openclaw/workspace}
 GUARD_WS=${GUARD_WORKSPACE_DIR:-/var/lib/openclaw/guard-workspace}
@@ -99,7 +99,7 @@ PY
   fi
 
   # Store hash of core/<profile> so setup can show ✅ Seeded only when workspace matches repo
-  python3 "$STACK_DIR/scripts/seed-hash.py" set "$STACK_DIR" "$profile" "$ws"
+  python3 "$STACK_DIR/scripts/host/seed-hash.py" set "$STACK_DIR" "$profile" "$ws"
 }
 
 if [ -z "$SYNC_PROFILE" ]; then

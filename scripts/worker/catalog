@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 # List allowed bridge commands (for Chloe). Requires PATH to include this script's directory.
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-exec "$SCRIPT_DIR/worker-bridge.sh" catalog
+exec "$SCRIPT_DIR/bridge.sh" catalog

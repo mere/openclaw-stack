@@ -5,4 +5,4 @@ After=network-online.target docker.service
 
 [Service]
 Type=oneshot
-ExecStart=/opt/op-and-chloe/scripts/cdp-watchdog.sh
+ExecStart=/opt/op-and-chloe/scripts/host/cdp-watchdog.sh

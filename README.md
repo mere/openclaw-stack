@@ -82,7 +82,28 @@ The stack consists of:
   - **🖥️ Webtop browser**: provides a shared browser for both you and Chloe, enabling secure co-working even on a headless server.
 - **🔗 Bridge scripts:** Lightweight scripts connect Chloe and Op, letting Op securely handle secrets and privileged commands for Chloe—without exposing credentials.
 
-**Technical overview:** For diagrams and deeper details, see [ARCHITECTURE.md](./ARCHITECTURE.md).
+**Technical overview.** Two-instance OpenClaw on one VPS: **Chloe (worker)** for day-to-day tasks (chat, browser, drafting); **Op (guard)** as privileged control-plane (host control, secret broker). Design: user-facing automation in the worker; privileged access isolated and policy-gated in the guard; Tailscale/SSH-first; state via git + compose. Containers: `${INSTANCE}-openclaw-gateway` (worker, :18789), `${INSTANCE}-openclaw-guard` (guard, :18790 loopback), `${INSTANCE}-browser` (webtop + Chromium CDP). Bitwarden CLI lives in the guard; Himalaya and M365 run in the worker and get secrets via a socket-based bridge (`scripts/worker/bridge.sh` → `scripts/guard/`). Scripts: `scripts/guard/` (entrypoint, bridge server, policy, `bw-with-session`), `scripts/worker/` (bridge client, `bw`, `m365`, email/O365 setup), `scripts/host/` (setup, sync, CDP watchdog)—see `scripts/README.md`. Worker has no break-glass path; guard has Docker socket and repo access; bridge is policy-allowlisted only (e.g. `bw-with-session`), no interactive approval flow.
+
+```mermaid
+flowchart LR
+  U[User Telegram] --> W[🐯 Chloe / Worker\n:18789]
+  U --> G[🐕 Op / Guard\n:18790 loopback]
+
+  W --> B[Webtop Chromium CDP]
+  W --> G
+  G --> D[docker.sock]
+  G --> R[/opt/op-and-chloe]
+  G --> S[(Bitwarden)]
+  subgraph VPS
+    W
+    G
+    B
+    D
+    R
+  end
+```
+
+Secret flow: Worker → Guard (bridge) → Bitwarden; guard fetches secrets JIT and returns sanitized results. Host commands: `sudo /opt/op-and-chloe/start.sh`, `healthcheck.sh`, `stop.sh`.
 
 
 ---
@@ -203,20 +224,21 @@ flowchart TD
 ```
 
 ## Architecture
-See architecture details in [ARCHITECTURE.md](./ARCHITECTURE.md).
+See **Technical overview** in the Components section above.
 
 
-## Bridge model
+## Bridge model (BW-only)
 
-Worker uses a bridge to get pre-authenticated commands, eg.:
-
-Examples:
+Chloe (worker) runs **Himalaya** and **M365** locally. The bridge is used **only for Bitwarden**: she runs **`bw`** (e.g. `bw list items`, `bw get item <id>`) which executes on Op via the bridge. One-time setup scripts (scripts/worker/email-setup.py, scripts/worker/fetch-o365-config.py) use `bw` to fetch secrets from Op’s vault.
 
 ```bash
-call "git status --short" --reason "User asked for repo status" --timeout 30
-call "himalaya envelope list -a icloud -s 20 -o json" --reason "User asked for inbox" --timeout 120
-call "himalaya message read -a icloud 38400" --reason "User asked to read message" --timeout 120
-call "cd /opt/op-and-chloe && git pull && ./start.sh" --reason "Update stack" --timeout 600
+# In Chloe: Bitwarden via bridge
+bw list items
+bw get item <id>
+
+# Email and M365 run locally (after one-time setup)
+himalaya envelope list -a icloud -s 20 -o json
+m365 mail list --top 20
 ```
 
 ## Docs
@@ -229,15 +251,15 @@ call "cd /opt/op-and-chloe && git pull && ./start.sh" --reason "Update stack" --
 - The container was started with an old gateway token. Recreate so they pick up the current env file: `sudo ./stop.sh && sudo ./start.sh` (wait ~90s for gateways to be ready, then try again).
 
 **Dashboard URLs (Guard/Worker) return HTTP 502 after `stop.sh` / `start.sh`:**
-- The gateways can take 60–90 seconds to start listening. `start.sh` now waits for them before applying Tailscale serve. If you still see 502, wait a minute and refresh, or re-run: `sudo ./scripts/apply-tailscale-serve.sh`
+- The gateways can take 60–90 seconds to start listening. `start.sh` now waits for them before applying Tailscale serve. If you still see 502, wait a minute and refresh, or re-run: `sudo ./scripts/host/apply-tailscale-serve.sh`
 
 **Chloe's browser tool shows wrong URL or cdpReady: false:**
-- The worker state must point at the browser container's CDP endpoint. On every `start.sh` we refresh it automatically. To fix immediately: `sudo ./scripts/update-webtop-cdp-url.sh` (then use the worker dashboard or reconnect so Chloe picks up the new config).
+- The worker state must point at the browser container's CDP endpoint. On every `start.sh` we refresh it automatically. To fix immediately: `sudo ./scripts/host/update-webtop-cdp-url.sh` (then use the worker dashboard or reconnect so Chloe picks up the new config).
 
 **Webtop URL (https://hostname:445/) not working:**
 1. Ensure the browser container is running: `docker ps | grep browser`
 2. Ensure Tailscale serve is configured: `tailscale serve status`  -  you should see port 445 → 127.0.0.1:6080
-3. Re-apply serve config: `sudo ./scripts/apply-tailscale-serve.sh`
+3. Re-apply serve config: `sudo ./scripts/host/apply-tailscale-serve.sh`
 4. For HTTPS to work, enable [HTTPS certificates](https://tailscale.com/kb/1153/enabling-https) in the admin console and run `sudo tailscale cert` on the VPS
 
 ## Security model

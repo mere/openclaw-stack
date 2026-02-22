@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# View bridge policy (bridge server runs in guard entrypoint; no file-based processing).
 ACTION=${1:-help}
+# View bridge policy (run from guard container; PATH includes scripts/guard).
 POLICY=/home/node/.openclaw/bridge/policy.json
 CMD_POLICY=/home/node/.openclaw/bridge/command-policy.json
 
 case "$ACTION" in
-  run-once)
-    exec /opt/op-and-chloe/scripts/guard-bridge-runner.py
-    ;;
   policy)
     cat "$POLICY" 2>/dev/null || echo '{}'
     ;;
@@ -17,7 +16,6 @@ case "$ACTION" in
   *)
     cat <<EOF
 Usage:
-  $0 run-once
   $0 policy
   $0 command-policy
 EOF

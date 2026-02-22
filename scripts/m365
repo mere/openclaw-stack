@@ -1,3 +1,0 @@
-#!/usr/bin/env bash
-set -euo pipefail
-exec python3 /opt/op-and-chloe/scripts/guard-m365.py "$@"

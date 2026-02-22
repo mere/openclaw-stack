@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# In Chloe (worker): run Bitwarden via bridge to guard. Usage: bw <bw-args>
+# Example: bw list items  ->  guard runs bw-with-session list items
+set -euo pipefail
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+exec "$SCRIPT_DIR/bridge.sh" call "bw-with-session $*" --reason "Bitwarden access" --timeout 60

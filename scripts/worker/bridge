@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# Short wrapper for worker bridge operations
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-exec "$SCRIPT_DIR/scripts/host/setup.sh" "$@"
+exec "$SCRIPT_DIR/bridge.sh" "$@"

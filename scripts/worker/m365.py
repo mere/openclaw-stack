@@ -9,6 +9,7 @@ import sys
 import time
 import urllib.parse
 import urllib.request
+import urllib.error
 
 BW_ENV = pathlib.Path('/home/node/.openclaw/secrets/bitwarden.env')
 BW_APPDATA = '/home/node/.openclaw/bitwarden-cli'
@@ -88,6 +89,24 @@ def ensure_bw_session(env):
 
 
 def get_o365_config():
+    # Worker (Chloe): read from config file populated by setup (via bridge from guard's BW)
+    config_path = os.environ.get('M365_CONFIG_PATH') or '/home/node/.openclaw/secrets/o365-config.json'
+    cfg_file = pathlib.Path(config_path)
+    if cfg_file.exists():
+        try:
+            data = json.loads(cfg_file.read_text())
+            out = {
+                'tenant_id': (data.get('tenant_id') or data.get('tenant') or '').strip(),
+                'client_id': (data.get('client_id') or data.get('application_client_id') or '').strip(),
+                'user_email': (data.get('user_email') or data.get('email') or '').strip(),
+            }
+            if out['tenant_id'] and out['client_id']:
+                return out
+        except Exception:
+            pass
+        fail(2, 'o365_config_invalid', path=str(cfg_file))
+
+    # Guard (Op): read from Bitwarden
     env = ensure_bw_session(load_bw_env())
     items = json.loads(bw(env, 'list', 'items', '--search', ITEM_NAME))
     exact = None
@@ -163,7 +182,7 @@ def ensure_access_token(cfg):
     new = refresh_token(cfg, tok)
     if new and token_valid(new):
         return new['access_token']
-    fail(3, 'm365_not_authenticated', hint='run: python3 /opt/op-and-chloe/scripts/guard-m365.py auth login')
+    fail(3, 'm365_not_authenticated', hint='run: m365 auth login')
 
 
 def graph_get(path, token, query=None):

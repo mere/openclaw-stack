@@ -11,7 +11,7 @@ if [ -f "$ENV_FILE" ]; then
 fi
 export INSTANCE=${INSTANCE:-op-and-chloe}
 
-"$STACK_DIR/scripts/stack-health.sh"
+"$STACK_DIR/scripts/host/stack-health.sh"
 
 echo
 

@@ -14,23 +14,12 @@ This profile keeps Worker non-privileged and makes Guard the only privileged exe
 - `approved` / `ask` → run (OpenClaw exec approvals may prompt on the host)
 - `rejected` → always deny
 
-## Recommended action policy
+## Bridge command policy (BW-only)
 
-### Email (Guard + Himalaya)
-- `email.list` → `approved`
-- `email.read` → `approved`
-- `email.draft` → `ask`
-- `email.send` → `ask`
+- **Allowed:** `bw-with-session status`, `bw-with-session list items`, `bw-with-session get item`, `bw-with-session get password`
+- **Rejected:** Dangerous patterns (`rm -rf`, `mkfs`, etc.)
 
-### Git / release actions
-- `git status`, `git log`, `git diff` → `approved`
-- `git commit` → `ask`
-- `git push` → `ask`
-
-### Host / system commands
-- Read-only host info (`uptime`, `df`, `ss`, `docker ps`) → `approved`
-- Service restarts / config writes / package installs → `ask`
-- Dangerous patterns (`rm -rf`, `mkfs`, destructive docker prune) → `rejected`
+Himalaya and M365 run in the Worker container; the bridge is used only so Chloe can read from Op’s Bitwarden (e.g. for email-setup and O365 config).
 
 ## OpenClaw native exec approvals
 
@@ -53,14 +42,10 @@ There is no CLI to approve by id; use the UI or chat.
 
 ### Auto-enable (so a command doesn’t ask again)
 
-- **Recommended:** Add that command (or a glob) to the allowlist. Then with `ask: on-miss` it won’t prompt for that command again:
+- **Recommended:** Add that command (or a glob) to the allowlist. Then with `ask: on-miss` it won’t prompt for that command again. For the bridge, Guard runs `bw-with-session` (a script); add it if exec approval prompts for it:
   ```bash
   ./openclaw-guard approvals allowlist add "/usr/bin/uptime"
-  ./openclaw-guard approvals allowlist add "/usr/bin/df"
-  ./openclaw-guard approvals allowlist add "/usr/bin/ss"
-  ./openclaw-guard approvals allowlist add "/usr/bin/docker ps"
-  ./openclaw-guard approvals allowlist add "/usr/bin/himalaya envelope list*"
-  ./openclaw-guard approvals allowlist add "/usr/bin/himalaya message read*"
+  ./openclaw-guard approvals allowlist add "/opt/op-and-chloe/scripts/guard/bw-with-session"
   ```
 - **Allow everything (use with care):** Set exec security to `full` so all host execs are allowed without prompts. This is equivalent to “no exec approval.” Only do this in a trusted environment (e.g. dev). To change it you’d set the config that writes `~/.openclaw/exec-approvals.json` (e.g. via Control UI or by mounting/editing that file in the guard container).
 

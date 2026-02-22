@@ -4,7 +4,38 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Common Changelog](https://common-changelog.org).
 
+## [0.3.1] - 2026-02-22
+
+### Changed
+
+- **Scripts reorganized** into `scripts/guard/`, `scripts/worker/`, `scripts/host/`. Guard: entrypoint, bridge-server, bridge-runner, command-engine, bridge-policy, bw-with-session. Worker: bridge.sh, bw, m365, call, catalog, email-setup, get-email-password, fetch-o365-config, m365.py. Host: setup, sync-workspaces, CDP/webtop, stack-health, watchdog, webtop-init. Compose and all references updated; see `scripts/README.md`.
+- **guard-m365.py** renamed to **scripts/worker/m365.py** (M365 runs in worker only; guard no longer has M365).
+- **README:** Technical overview inlined in Components section (topology diagram, secret flow, host commands). Architecture section now points to that overview.
+
+### Removed
+
+- **ARCHITECTURE.md** — content inlined into README Technical overview. Obsolete approval-flow diagram and "must request through guard policies" wording already removed; doc referenced outdated behaviour.
+- **CONTRIBUTING.md:** Dropped ARCHITECTURE.md from documentation list.
+
+### Fixed
+
+- **.gitignore:** `scripts/.debug-*.txt` → `scripts/host/.debug-*.txt` for new layout.
+
+[0.3.1]: https://github.com/mere/op-and-chloe/compare/v0.3.0...v0.3.1
+
 ## [0.3.0] - 2026-02-22
+
+### Added
+
+- **Chloe (worker) runs Himalaya and M365:** Worker image `openclaw-worker-tools.Dockerfile` adds Himalaya and Python. One-time setup: `worker-email-setup.py` (Himalaya, uses bridge for BW password), `worker-fetch-o365-config.py` (O365 config from BW via bridge), then `m365 auth login` in worker.
+- **Simple BW from Chloe:** Script **`bw`** in PATH runs Bitwarden on Op via the bridge (e.g. `bw list items`, `bw get item <id>`). Bridge is now **BW-only**; no himalaya/git over the bridge.
+
+### Changed
+
+- **Guard image:** Only Bitwarden CLI (Himalaya removed). M365 and Himalaya run in the worker container.
+- **Bridge policy:** Only `bw-with-session` (status, list items, get item, get password) allowed. `ensure_m365_bridge_policy` replaced by `ensure_bw_bridge_policy`.
+- **guard-m365.py:** Supports `M365_CONFIG_PATH` / `o365-config.json` in worker state so M365 can run in Chloe without BW; guard still uses Bitwarden for O365 config when file is absent.
+- **Docs and ROLEs:** core/guard/ROLE.md, core/worker/ROLE.md, GUARD_BRIDGE.md, opch-bridge SKILL, README bridge section updated for BW-only bridge and local Himalaya/M365.
 
 ### Removed
 
