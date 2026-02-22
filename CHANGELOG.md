@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Common Changelog](https://common-changelog.org).
 
+## [0.3.4] - 2026-02-22
+
+### Added
+
+- **Setup wizard:** "Restart all services" menu option (step 18). Runs `restart.sh` to stop and start the full stack (guard, worker, browser).
+
+### Fixed
+
+- **Permission denied for scripts/host/*.sh:** start.sh, healthcheck.sh, and scripts/host/setup.sh, stack-health.sh, cdp-watchdog.sh now invoke host scripts via `bash …` instead of executing them directly, so setup/start/healthcheck work when those scripts have no execute bit (e.g. after `git clone`). Fixes errors like `sync-workspaces.sh: Permission denied` when running `sudo ./start.sh`.
+
+[0.3.4]: https://github.com/mere/op-and-chloe/compare/v0.3.3...v0.3.4
+
 ## [0.3.3] - 2026-02-22
 
 ### Fixed

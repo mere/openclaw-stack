@@ -11,7 +11,7 @@ INSTANCE=${INSTANCE:-op-and-chloe}
 cd "$STACK_DIR"
 
 echo "[start] syncing core instructions into workspaces"
-"$STACK_DIR/scripts/host/sync-workspaces.sh"
+bash "$STACK_DIR/scripts/host/sync-workspaces.sh"
 
 echo "[start] building guard image (openclaw-guard-tools:local)"
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" build openclaw-guard
@@ -31,7 +31,7 @@ sleep 10
 # Refresh worker state with current browser container CDP URL so Chloe's browser tool works
 if docker ps -q -f "name=${INSTANCE:-op-and-chloe}-browser" | grep -q . 2>/dev/null; then
   echo "[start] updating webtop CDP URL in worker state"
-  STACK_DIR="$STACK_DIR" ENV_FILE="$ENV_FILE" "$STACK_DIR/scripts/host/update-webtop-cdp-url.sh" 2>/dev/null || true
+  STACK_DIR="$STACK_DIR" ENV_FILE="$ENV_FILE" bash "$STACK_DIR/scripts/host/update-webtop-cdp-url.sh" 2>/dev/null || true
 fi
 
 echo "[start] waiting for gateways to listen (guard 18790, worker 18789)..."
@@ -49,7 +49,7 @@ done
 
 if tailscale status >/dev/null 2>&1; then
   echo "[start] applying Tailscale serve (Guard, Worker, Webtop)"
-  "$STACK_DIR/scripts/host/apply-tailscale-serve.sh" 2>/dev/null || true
+  bash "$STACK_DIR/scripts/host/apply-tailscale-serve.sh" 2>/dev/null || true
 fi
 echo "[start] healthcheck"
 STACK_DIR="$STACK_DIR" ENV_FILE="$ENV_FILE" "$STACK_DIR/healthcheck.sh"

@@ -16,7 +16,7 @@ docker port "$GW_CONTAINER" 18789/tcp 2>/dev/null || echo "(no port mapping foun
 
 echo
 printf "== CDP smoke test ==\n"
-"$STACK_DIR/scripts/host/cdp-smoke-test.sh"
+bash "$STACK_DIR/scripts/host/cdp-smoke-test.sh"
 
 echo
 printf "== network/security checks ==\n"

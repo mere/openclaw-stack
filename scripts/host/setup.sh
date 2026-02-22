@@ -85,6 +85,7 @@ step_status(){
     15) guard_admin_mode_enabled && echo "⚠️ Enabled (full VPS access—disable when not needed)" || echo "⚪ Disabled" ;;
     16) echo "" ;;
     17) echo "" ;;
+    18) echo "" ;;
     *) echo "—" ;;
   esac
 }
@@ -127,7 +128,7 @@ tailscale_dns(){
 }
 
 apply_tailscale_serve(){
-  "$STACK_DIR/scripts/host/apply-tailscale-serve.sh" && ok "Tailscale serve: 444→guard, 443→worker, 445→webtop" || warn "Tailscale serve failed (is tailscale running?)"
+  bash "$STACK_DIR/scripts/host/apply-tailscale-serve.sh" && ok "Tailscale serve: 444→guard, 443→worker, 445→webtop" || warn "Tailscale serve failed (is tailscale running?)"
 }
 
 # Sync gateway auth token into openclaw.json so gateway validates the same token we show.
@@ -191,7 +192,7 @@ PY2
 ensure_browser_profile(){
   # Prefer dynamic CDP URL from running browser container so Chloe's browser tool stays correct
   if container_running "$browser_name"; then
-    if STACK_DIR="$STACK_DIR" ENV_FILE="$ENV_FILE" "$STACK_DIR/scripts/host/update-webtop-cdp-url.sh" 2>/dev/null; then
+    if STACK_DIR="$STACK_DIR" ENV_FILE="$ENV_FILE" bash "$STACK_DIR/scripts/host/update-webtop-cdp-url.sh" 2>/dev/null; then
       return 0
     fi
   fi
@@ -584,7 +585,7 @@ EOF
 # Run before starting guard/worker (steps 7–8) so containers see ROLE.md on first start,
 # and before configuring them (steps 10–11) so onboarding uses the latest core.
 sync_core_workspaces(){
-  "$STACK_DIR/scripts/host/sync-workspaces.sh" >/dev/null 2>&1 || true
+  bash "$STACK_DIR/scripts/host/sync-workspaces.sh" >/dev/null 2>&1 || true
 }
 
 # Ensure repo files are writable by the runtime user (avoid root-owned drift)
@@ -958,10 +959,17 @@ step_verify(){
   ok "Healthcheck executed"
 }
 
+step_restart_all(){
+  say "Restart all services"
+  say "Stops the stack and starts it again (guard, worker, browser)."
+  STACK_DIR="$STACK_DIR" ENV_FILE="$ENV_FILE" "$STACK_DIR/restart.sh"
+  ok "Restart finished"
+}
+
 step_seed_instructions(){
   say "Seed guard / worker instructions"
   say "Copies the latest role text from core/guard and core/worker into the guard and worker workspaces. Run this after a git pull or when you edit core/ to refresh Op and Chloe instructions."
-  "$STACK_DIR/scripts/host/sync-workspaces.sh"
+  bash "$STACK_DIR/scripts/host/sync-workspaces.sh"
   ok "Guard and worker workspaces updated from core/"
 }
 
@@ -1336,6 +1344,7 @@ run_step(){
     15) step_guard_admin_mode ;;
     16) step_verify ;;
     17) step_help_useful_commands ;;
+    18) step_restart_all ;;
     *) warn "Unknown step" ;;
   esac
   fix_repo_ownership
@@ -1367,11 +1376,12 @@ menu_once(){
   printf "  %2d. %-24s | %s\n" 15 "guard admin mode"   "$(step_status 15)"
   printf "  %2d. %-24s | %s\n" 16 "healthcheck"        "$(step_status 16)"
   printf "  %2d. %-24s | %s\n" 17 "help / useful cmds" "$(step_status 17)"
+  printf "  %2d. %-24s | %s\n" 18 "restart all services" "$(step_status 18)"
   echo
-  read -r -p "$TIGER Select step [1-17] or 0 to exit: " pick
+  read -r -p "$TIGER Select step [1-18] or 0 to exit: " pick
   case "$pick" in
     0) say "Exiting setup wizard. See you soon."; return 1 ;;
-    1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17) run_step "$pick" ;;
+    1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18) run_step "$pick" ;;
     *) warn "Invalid choice" ;;
   esac
   return 0
