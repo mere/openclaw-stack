@@ -226,9 +226,10 @@ PY2
 }
 
 
-# Bitwarden CLI data dir: shared between host (setup) and guard container (same path under mount).
-BW_CLI_DATA_DIR_HOST="/var/lib/openclaw/guard-state/bitwarden-cli"
-BW_CLI_DATA_DIR_GUARD="/home/node/.openclaw/bitwarden-cli"
+# Bitwarden lives in worker state (Chloe); no bridge.
+STATE_DIR="${OPENCLAW_STATE_DIR:-/var/lib/openclaw/state}"
+BW_CLI_DATA_DIR_HOST="$STATE_DIR/bitwarden-cli"
+BW_CLI_DATA_DIR_WORKER="/home/node/.openclaw/bitwarden-cli"
 
 bitwarden_env_hash(){
   local f="$1"
@@ -244,11 +245,10 @@ verify_bitwarden_credentials(){
   fi
   local state_dir
   state_dir="$(dirname "$secrets_dir")"
-  # Use same guard-state mount as guard so CLI data dir is visible; only BW_SERVER is in env.
   if docker run --rm \
     -v "$state_dir:/home/node/.openclaw:rw" \
     --env-file "$secrets_file" \
-    -e BITWARDENCLI_APPDATA_DIR="$BW_CLI_DATA_DIR_GUARD" \
+    -e BITWARDENCLI_APPDATA_DIR="$BW_CLI_DATA_DIR_WORKER" \
     node:20-alpine sh -c '
       npm install -g @bitwarden/cli >/dev/null 2>&1 &&
       bw status 2>/dev/null | grep -qv "unauthenticated"
@@ -261,18 +261,17 @@ verify_bitwarden_credentials(){
   return 1
 }
 
-# Check if Bitwarden is unlocked in the guard container. Returns 0 if unlocked, 1 if guard not running, 2 if locked.
-check_bitwarden_unlocked_in_guard(){
-  local guard_actual
-  guard_actual=$(resolve_container_name "$guard_name" 2>/dev/null)
-  guard_actual=${guard_actual:-$guard_name}
-  if ! container_running "$guard_name"; then
+# Check if Bitwarden is unlocked in the worker container. Returns 0 if unlocked, 1 if worker not running, 2 if locked.
+check_bitwarden_unlocked_in_worker(){
+  local worker_actual
+  worker_actual=$(resolve_container_name "$worker_name" 2>/dev/null)
+  worker_actual=${worker_actual:-$worker_name}
+  if ! container_running "$worker_name"; then
     return 1
   fi
-  ensure_guard_bitwarden >/dev/null 2>&1 || true
-  if docker exec "$guard_actual" sh -lc '
+  if docker exec "$worker_actual" sh -lc '
     export BITWARDENCLI_APPDATA_DIR=/home/node/.openclaw/bitwarden-cli
-    . /home/node/.openclaw/secrets/bitwarden.env
+    . /home/node/.openclaw/secrets/bitwarden.env 2>/dev/null || true
     [ -f /home/node/.openclaw/secrets/bw-session ] && export BW_SESSION=$(cat /home/node/.openclaw/secrets/bw-session)
     bw config server "$BW_SERVER" >/dev/null 2>&1 || true
     s=$(bw status 2>/dev/null || true)
@@ -283,13 +282,13 @@ check_bitwarden_unlocked_in_guard(){
   return 2
 }
 
-# Unlock the vault and persist the session key so the guard can use bw in other processes.
-# Password is read once and passed via a temp file that is removed immediately; only the session key is written to guard-state.
+# Unlock the vault and persist the session key so the worker can use bw.
+# Password is read once and passed via a temp file that is removed immediately; only the session key is written to worker state.
 BW_SESSION_FILE_NAME="bw-session"
-BW_STEP6_MARKER="/var/lib/openclaw/guard-state/secrets/.bw_configured"
+BW_STEP6_MARKER="$STATE_DIR/secrets/.bw_configured"
 
 write_bw_configured_marker(){
-  local secrets_dir="${1:-/var/lib/openclaw/guard-state/secrets}"
+  local secrets_dir="${1:-$STATE_DIR/secrets}"
   touch "$secrets_dir/.bw_configured" 2>/dev/null && chmod 600 "$secrets_dir/.bw_configured" && chown 1000:1000 "$secrets_dir/.bw_configured" 2>/dev/null
 }
 
@@ -312,45 +311,21 @@ run_bitwarden_unlock_interactive(){
   fi
 
   local session_key unlock_stderr
-  if container_running "$guard_name"; then
-    local guard_actual
-    guard_actual=$(resolve_container_name "$guard_name" 2>/dev/null)
-    guard_actual=${guard_actual:-$guard_name}
-    ensure_guard_bitwarden >/dev/null 2>&1 || true
-    if ! docker cp "$_bw_tmp_pw" "$guard_actual:/tmp/bw-pw" 2>/dev/null; then
-      unlock_stderr="Failed to copy password file into guard container."
-    else
-      docker exec -u 0 "$guard_actual" chown 1000:1000 /tmp/bw-pw 2>/dev/null || true
-      unlock_stderr=$(docker exec "$guard_actual" sh -lc '
-        export BITWARDENCLI_APPDATA_DIR=/home/node/.openclaw/bitwarden-cli
-        . /home/node/.openclaw/secrets/bitwarden.env
-        bw config server "$BW_SERVER" >/dev/null 2>&1 || true
-        bw unlock --raw --passwordfile /tmp/bw-pw
-      ' 2>&1) || true
-      session_key=$(printf '%s' "$unlock_stderr" | head -1)
-      # If first line looks like a session key (base64), rest was stderr; else whole thing is stderr
-      if ! printf '%s' "$session_key" | grep -qE '^[A-Za-z0-9+/]+=*$'; then
-        session_key=""
-      fi
-      docker exec "$guard_actual" rm -f /tmp/bw-pw 2>/dev/null || true
-    fi
-  else
-    unlock_stderr=$(docker run -i --rm \
-      -v "$state_dir:/home/node/.openclaw:rw" \
-      -v "$_bw_tmp_pw:/tmp/bw-pw:ro" \
-      -e BITWARDENCLI_APPDATA_DIR="$BW_CLI_DATA_DIR_GUARD" \
-      node:20-alpine sh -c 'npm install -g @bitwarden/cli >/dev/null 2>&1 && . /home/node/.openclaw/secrets/bitwarden.env && bw config server "$BW_SERVER" && bw unlock --raw --passwordfile /tmp/bw-pw' 2>&1) || true
-    session_key=$(printf '%s' "$unlock_stderr" | head -1)
-    if ! printf '%s' "$session_key" | grep -qE '^[A-Za-z0-9+/]+=*$'; then
-      session_key=""
-    fi
+  unlock_stderr=$(docker run -i --rm \
+    -v "$state_dir:/home/node/.openclaw:rw" \
+    -v "$_bw_tmp_pw:/tmp/bw-pw:ro" \
+    -e BITWARDENCLI_APPDATA_DIR="$BW_CLI_DATA_DIR_WORKER" \
+    node:20-alpine sh -c 'npm install -g @bitwarden/cli >/dev/null 2>&1 && . /home/node/.openclaw/secrets/bitwarden.env && bw config server "$BW_SERVER" && bw unlock --raw --passwordfile /tmp/bw-pw' 2>&1) || true
+  session_key=$(printf '%s' "$unlock_stderr" | head -1)
+  if ! printf '%s' "$session_key" | grep -qE '^[A-Za-z0-9+/]+=*$'; then
+    session_key=""
   fi
 
   if [ -n "$session_key" ]; then
     echo -n "$session_key" > "$session_file"
     chmod 600 "$session_file"
     chown 1000:1000 "$session_file" 2>/dev/null || true
-    ok "Session key saved so the guard can use Bitwarden (re-run this step if the vault is locked later)."
+    ok "Session key saved so Chloe (worker) can use Bitwarden (re-run this step if the vault is locked later)."
   else
     warn "Unlock failed or session could not be captured; try again or run step 6 again."
     [ -n "$unlock_stderr" ] && echo "$unlock_stderr" | sed 's/^/  /'
@@ -358,7 +333,7 @@ run_bitwarden_unlock_interactive(){
 }
 
 step_bitwarden_secrets(){
-  local secrets_dir="/var/lib/openclaw/guard-state/secrets"
+  local secrets_dir="$STATE_DIR/secrets"
   local secrets_file="$secrets_dir/bitwarden.env"
   local bw_data_dir="$BW_CLI_DATA_DIR_HOST"
   mkdir -p "$secrets_dir" "$bw_data_dir"
@@ -366,16 +341,16 @@ step_bitwarden_secrets(){
   chown 1000:1000 "$secrets_dir" "$bw_data_dir" 2>/dev/null || true
 
   if [ -f "$secrets_file" ]; then
-    say "Configure Bitwarden for guard"
+    say "Configure Bitwarden for Chloe (worker)"
     say "Verifying existing login state..."
     if verify_bitwarden_credentials "$secrets_file" "$secrets_dir"; then
       ok "Bitwarden logged in"
-      if check_bitwarden_unlocked_in_guard; then
+      if check_bitwarden_unlocked_in_worker; then
         ok "Bitwarden unlocked"
         write_bw_configured_marker "$secrets_dir"
         return
       fi
-      run_bitwarden_unlock_interactive "$(dirname "$secrets_dir")"
+      run_bitwarden_unlock_interactive "$STATE_DIR"
       if [ -f "$secrets_dir/$BW_SESSION_FILE_NAME" ]; then
         chown -R 1000:1000 "$bw_data_dir" 2>/dev/null || true
         ok "Bitwarden unlocked"
@@ -387,8 +362,8 @@ step_bitwarden_secrets(){
     echo
   fi
 
-  say "Configure Bitwarden for guard (no master password stored)"
-  say "We use Bitwarden to share credentials safely with OpenClaw. You log in and unlock in this step. Only BW_SERVER and the session key from unlock are saved on the host; your master password is never written to disk."
+  say "Configure Bitwarden for Chloe (worker) — no master password stored"
+  say "We use Bitwarden so Chloe can access credentials (email, O365, etc.). You log in and unlock in this step. Only BW_SERVER and the session key from unlock are saved; your master password is never written to disk."
   say "Create a free account on https://vault.bitwarden.com or https://vault.bitwarden.eu — whichever is closer to you."
 
   local cur_server=""
@@ -417,7 +392,7 @@ EOF
   chown 1000:1000 "$secrets_file" 2>/dev/null || true
   ok "Saved $secrets_file (server URL only; no passwords or credentials stored)"
 
-  say "Log in and unlock here (email, master password, 2FA if enabled). Your password is not stored; only the session key is saved so the guard can use Bitwarden."
+  say "Log in and unlock here (email, master password, 2FA if enabled). Your password is not stored; only the session key is saved so Chloe can use Bitwarden."
   do_bw_login(){
     export BITWARDENCLI_APPDATA_DIR="$bw_data_dir"
     bw logout 2>/dev/null || true
@@ -430,11 +405,9 @@ EOF
     fi
     chown -R 1000:1000 "$bw_data_dir" 2>/dev/null || true
   elif command -v docker >/dev/null 2>&1; then
-    local state_dir
-    state_dir="$(dirname "$secrets_dir")"
     if ! docker run -it --rm \
-      -v "$state_dir:/home/node/.openclaw:rw" \
-      -e BITWARDENCLI_APPDATA_DIR="$BW_CLI_DATA_DIR_GUARD" \
+      -v "$STATE_DIR:/home/node/.openclaw:rw" \
+      -e BITWARDENCLI_APPDATA_DIR="$BW_CLI_DATA_DIR_WORKER" \
       -e BW_SERVER="$BW_SERVER" \
       node:20-alpine sh -c 'npm install -g @bitwarden/cli >/dev/null 2>&1 && bw logout 2>/dev/null || true && bw config server "$BW_SERVER" && bw login'; then
       warn "Bitwarden login failed or was cancelled"
@@ -449,8 +422,8 @@ EOF
   say "Verifying login..."
   if verify_bitwarden_credentials "$secrets_file" "$secrets_dir"; then
     ok "Bitwarden logged in"
-    say "Unlock the vault so the guard can read secrets."
-    run_bitwarden_unlock_interactive "$(dirname "$secrets_dir")"
+    say "Unlock the vault so Chloe can read secrets."
+    run_bitwarden_unlock_interactive "$STATE_DIR"
     chown -R 1000:1000 "$bw_data_dir" 2>/dev/null || true
     if [ -f "$secrets_dir/$BW_SESSION_FILE_NAME" ]; then
       ok "Bitwarden unlocked"
@@ -464,27 +437,6 @@ EOF
     fi
   fi
 }
-
-ensure_guard_bitwarden(){
-  if [ ! -f /var/lib/openclaw/guard-state/secrets/bitwarden.env ]; then
-    warn "Guard Bitwarden env not found at /var/lib/openclaw/guard-state/secrets/bitwarden.env"
-    return
-  fi
-  local guard_actual; guard_actual=$(resolve_container_name "$guard_name" 2>/dev/null); guard_actual=${guard_actual:-$guard_name}
-  if docker exec "$guard_actual" sh -lc 'command -v bw >/dev/null 2>&1'; then
-    ok "Guard Bitwarden CLI available"
-    return
-  fi
-  say "Installing Bitwarden CLI in guard..."
-  docker exec "$guard_actual" sh -lc 'npm i -g @bitwarden/cli --prefix /home/node/.openclaw/npm-global >/dev/null 2>&1 || true'
-  if docker exec "$guard_actual" sh -lc 'command -v bw >/dev/null 2>&1'; then
-    ok "Guard Bitwarden CLI installed"
-  else
-    warn "Guard Bitwarden CLI install failed (can retry manually)."
-  fi
-}
-
-
 
 guard_admin_mode_enabled(){
   grep -q '/var/lib/openclaw:/mnt/openclaw-data' "$STACK_DIR/compose.yml"
@@ -569,7 +521,7 @@ ensure_guard_approval_instructions(){
   cat > "$gws/APPROVALS.md" <<'EOF'
 # Exec Approvals (OpenClaw)
 
-Bridge has no separate approval layer. OpenClaw enforces exec approvals on the host.
+Op is a lightweight admin. When Op runs a host command that isn’t on the allowlist, OpenClaw may prompt for approval.
 
 - Pending / allowlist: ./openclaw-guard approvals get --json
 - Add allowlist: ./openclaw-guard approvals allowlist add "<path or glob>"
@@ -613,30 +565,16 @@ ensure_repo_writable_for_guard(){
   ok "Repo permissions/safe.directory configured"
 }
 
-ensure_bridge_dirs(){
-  # Bridge uses a Unix socket only (no inbox/outbox files).
-  mkdir -p /var/lib/openclaw/bridge /var/lib/openclaw/guard-state/bridge
-  chown -R 1000:1000 /var/lib/openclaw/bridge /var/lib/openclaw/guard-state/bridge 2>/dev/null || true
-}
-
-ensure_worker_bridge_client(){
+ensure_worker_scripts(){
   local scripts_dir="$STACK_DIR/scripts/worker"
   mkdir -p "$scripts_dir"
-  chmod 0755 "$scripts_dir/call" "$scripts_dir/catalog" "$scripts_dir/bridge.sh" \
-    "$scripts_dir/bw" "$scripts_dir/m365" "$scripts_dir/bridge" \
+  chmod 0755 "$scripts_dir/bw" "$scripts_dir/m365" \
     "$scripts_dir/email-setup.py" "$scripts_dir/get-email-password.py" \
     "$scripts_dir/fetch-o365-config.py" "$scripts_dir/m365.py" 2>/dev/null || true
-  chown 1000:1000 "$scripts_dir/call" "$scripts_dir/catalog" "$scripts_dir/bridge.sh" \
-    "$scripts_dir/bw" "$scripts_dir/m365" "$scripts_dir/bridge" \
+  chown 1000:1000 "$scripts_dir/bw" "$scripts_dir/m365" \
     "$scripts_dir/email-setup.py" "$scripts_dir/get-email-password.py" \
     "$scripts_dir/fetch-o365-config.py" "$scripts_dir/m365.py" 2>/dev/null || true
 }
-
-ensure_worker_bridge_mounts(){
-  # Bridge is socket-based; worker only needs the bridge dir mount (see compose.yml).
-  :
-}
-
 
 ensure_stack_repo_alias(){
   # Keep /opt/op-and-chloe available for scripts that rely on canonical path.
@@ -655,32 +593,6 @@ ensure_stack_repo_alias(){
   fi
 }
 
-ensure_guard_bridge_service(){
-  # Bridge is socket-based and runs inside the guard container (no host timer).
-  mkdir -p /var/lib/openclaw/bridge
-  chown 1000:1000 /var/lib/openclaw/bridge 2>/dev/null || true
-}
-
-
-# Bridge is BW-only: Chloe calls guard to run bw-with-session
-ensure_bw_bridge_policy(){
-  local cp="/var/lib/openclaw/guard-state/bridge/command-policy.json"
-  mkdir -p /var/lib/openclaw/guard-state/bridge
-  python3 - "$cp" <<'PY2'
-import json, pathlib, sys
-p = pathlib.Path(sys.argv[1])
-rules = [
-    {"id": "bw-status", "pattern": r"^bw-with-session\s+status\b", "decision": "approved"},
-    {"id": "bw-list-items", "pattern": r"^bw-with-session\s+list\s+items\b", "decision": "approved"},
-    {"id": "bw-get-item", "pattern": r"^bw-with-session\s+get\s+item\b", "decision": "approved"},
-    {"id": "bw-get-password", "pattern": r"^bw-with-session\s+get\s+password\b", "decision": "approved"},
-    {"id": "dangerous", "pattern": r"(rm\s+-rf|mkfs|docker\s+system\s+prune)", "decision": "rejected"},
-]
-p.write_text(json.dumps({"rules": rules}, indent=2) + "\n")
-PY2
-  chown 1000:1000 "$cp" 2>/dev/null || true
-}
-
 check_done(){
   local id="$1"
   case "$id" in
@@ -691,22 +603,22 @@ check_done(){
     tailscale) tailscale status >/dev/null 2>&1 ;;
     bitwarden)
       [ -f "$BW_STEP6_MARKER" ] && return 0
-      local bw_env="/var/lib/openclaw/guard-state/secrets/bitwarden.env"
-      local bw_verified="/var/lib/openclaw/guard-state/secrets/.bw_verified"
-      local bw_session_file="/var/lib/openclaw/guard-state/secrets/bw-session"
+      local bw_env="$STATE_DIR/secrets/bitwarden.env"
+      local bw_verified="$STATE_DIR/secrets/.bw_verified"
+      local bw_session_file="$STATE_DIR/secrets/bw-session"
       [ -f "$bw_env" ] || return 1
       grep -q '^BW_SERVER=' "$bw_env" || return 1
       local want_h got_h
       want_h=$(bitwarden_env_hash "$bw_env" 2>/dev/null)
       got_h=$(cat "$bw_verified" 2>/dev/null)
-      if ! container_running "$guard_name"; then
+      if ! container_running "$worker_name"; then
         [ -f "$bw_verified" ] && [ -n "$want_h" ] && [ "$want_h" = "$got_h" ] && return 0
         [ -s "$bw_session_file" ] && return 0
         return 1
       fi
-      guard_actual=$(resolve_container_name "$guard_name" 2>/dev/null)
-      guard_actual=${guard_actual:-$guard_name}
-      if docker exec "$guard_actual" sh -lc '
+      worker_actual=$(resolve_container_name "$worker_name" 2>/dev/null)
+      worker_actual=${worker_actual:-$worker_name}
+      if docker exec "$worker_actual" sh -lc '
         set -e
         command -v bw >/dev/null 2>&1
         . /home/node/.openclaw/secrets/bitwarden.env
@@ -903,9 +815,8 @@ step_tailscale(){
 step_start_guard(){
   sync_core_workspaces
   ensure_stack_repo_alias
-  ensure_guard_bridge_service
   say "Start guard service"
-  say "The guard oversees privileged operations and approves Chloe's requests for credentials and tools."
+  say "The guard is a lightweight admin with full VPS access — for restarts, fixes, and server-level changes. Chloe never contacts the guard."
   if container_running "$guard_name"; then ok "Guard already running"; return; fi
   cd "$STACK_DIR"
   say "Building guard image (openclaw-guard-tools:local) if needed..."
@@ -916,10 +827,7 @@ step_start_guard(){
 
 step_start_worker(){
   sync_core_workspaces
-  ensure_bridge_dirs
-  ensure_worker_bridge_client
-  ensure_worker_bridge_mounts
-  ensure_bw_bridge_policy
+  ensure_worker_scripts
   say "Start worker service"
   say "The worker is your main assistant — you'll chat with it daily and run tasks through it."
   if container_running "$worker_name"; then ok "Worker already running"; return; fi
@@ -942,12 +850,8 @@ step_start_browser(){
 step_start_all(){
   sync_core_workspaces
   ensure_stack_repo_alias
-  ensure_guard_bridge_service
   ensure_repo_writable_for_guard
-  ensure_bridge_dirs
-  ensure_worker_bridge_client
-  ensure_worker_bridge_mounts
-  ensure_bw_bridge_policy
+  ensure_worker_scripts
   ensure_browser_profile
   ensure_inline_buttons
   say "Start full stack"
@@ -985,7 +889,7 @@ step_configure_guard(){
   "$STACK_DIR/openclaw-guard" config set gateway.port 18790 >/dev/null 2>&1 || true
   "$STACK_DIR/openclaw-guard" config set gateway.bind loopback >/dev/null 2>&1 || true
   say "Run configure guard"
-  say "The guard oversees privileged operations — connect a model and Telegram bot for approvals."
+  say "The guard is your admin instance — connect a model and Telegram bot so you can talk to Op for restarts and server changes."
   echo
   sep
   echo "Tips for guard onboarding:"
@@ -1342,7 +1246,7 @@ run_step(){
     9) sync_core_workspaces; step_start_worker ;;
     10) step_start_browser; ensure_browser_profile; ensure_inline_buttons ;;
     11) step_auth_tokens ;;
-    12) ensure_guard_bitwarden; sync_core_workspaces; step_configure_guard ;;
+    12) sync_core_workspaces; step_configure_guard ;;
     13) sync_core_workspaces; step_configure_worker ;;
     14) step_seed_instructions ;;
     15) step_guard_admin_mode ;;

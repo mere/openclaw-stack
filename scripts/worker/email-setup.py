@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
-"""Configure Himalaya in worker using guard's Bitwarden via bridge. Run once in Chloe."""
+"""One-time Himalaya setup for iCloud. Fetches email from Bitwarden, writes only config.
+Password is never stored: config uses auth.cmd so Himalaya gets the password on demand via get-email-password.py."""
 import json
 import os
 import pathlib
 import subprocess
 import sys
 
-BRIDGE_SCRIPT = pathlib.Path('/opt/op-and-chloe/scripts/worker/bridge.sh')
 CONF_DIR = pathlib.Path('/home/node/.config/himalaya')
 CONF_FILE = CONF_DIR / 'config.toml'
-SECRETS_DIR = pathlib.Path('/home/node/.openclaw/secrets')
-ITEM_ID_FILE = SECRETS_DIR / 'icloud-bw-item-id'
 BW_ITEM_NAME = 'icloud'
 AUTH_CMD_SCRIPT = pathlib.Path('/opt/op-and-chloe/scripts/worker/get-email-password.py')
 
@@ -20,25 +18,14 @@ def fail(msg, code=1):
     raise SystemExit(code)
 
 
-def bridge_call(command: str, reason: str, timeout: int = 60) -> dict:
+def bw_run(*args: str, timeout: int = 60) -> str:
     proc = subprocess.run(
-        [str(BRIDGE_SCRIPT), 'call', command, '--reason', reason, '--timeout', str(timeout)],
-        capture_output=True, text=True,
+        ['bw'] + list(args),
+        capture_output=True, text=True, timeout=timeout,
     )
     if proc.returncode != 0:
-        fail('bridge_failed: ' + (proc.stderr or proc.stdout or 'unknown'))
-    data = json.loads(proc.stdout)
-    if data.get('status') not in ('ok', 'error'):
-        fail('bridge_rejected')
-    return data
-
-
-def get_stdout(data: dict) -> str:
-    result = data.get('result') or {}
-    results = result.get('results') or []
-    if not results:
-        return ''
-    return (results[-1].get('stdout') or '').strip()
+        fail('bw_failed: ' + (proc.stderr or proc.stdout or 'unknown'))
+    return (proc.stdout or '').strip()
 
 
 def pick_email(item: dict) -> str:
@@ -55,12 +42,7 @@ def pick_email(item: dict) -> str:
 
 
 def main():
-    if not BRIDGE_SCRIPT.exists():
-        fail('bridge.sh not found')
-
-    # List items
-    data = bridge_call(f'bw-with-session list items --search {BW_ITEM_NAME}', 'Email setup (list items)')
-    raw = get_stdout(data)
+    raw = bw_run('list', 'items', '--search', BW_ITEM_NAME)
     if not raw:
         fail('no_stdout_from_list')
     items = json.loads(raw)
@@ -68,19 +50,12 @@ def main():
     item_ref = exact or (items[0] if items else None)
     if not item_ref:
         fail('bitwarden_item_not_found')
-    item_id = item_ref['id']
 
-    # Get full item
-    data = bridge_call(f'bw-with-session get item {item_id}', 'Email setup (get item)')
-    raw = get_stdout(data)
+    raw = bw_run('get', 'item', item_ref['id'])
     if not raw:
         fail('no_stdout_from_get_item')
     full = json.loads(raw)
     email = pick_email(full)
-
-    SECRETS_DIR.mkdir(parents=True, exist_ok=True)
-    ITEM_ID_FILE.write_text(item_id)
-    ITEM_ID_FILE.chmod(0o600)
 
     CONF_DIR.mkdir(parents=True, exist_ok=True)
     auth_cmd = f'python3 {AUTH_CMD_SCRIPT}'

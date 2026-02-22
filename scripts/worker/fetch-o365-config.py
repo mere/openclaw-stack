@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Fetch O365 config from guard's Bitwarden via bridge and write to worker state.
-Run once in Chloe (worker) after bridge is set up. Creates secrets/o365-config.json
+"""Fetch O365 config from Bitwarden (BW runs in worker) and write to worker state.
+Run once in Chloe (worker) after BW is set up. Creates secrets/o365-config.json
 so m365.py can run without BW (auth login still uses device code in worker).
 """
 import json
@@ -8,49 +8,23 @@ import pathlib
 import subprocess
 import sys
 
-BRIDGE_SCRIPT = pathlib.Path('/opt/op-and-chloe/scripts/worker/bridge.sh')
 SECRETS_DIR = pathlib.Path('/home/node/.openclaw/secrets')
 CONFIG_FILE = SECRETS_DIR / 'o365-config.json'
 ITEM_NAME = 'o365'
 
 
-def bridge_call(command: str, reason: str, timeout: int = 60) -> dict:
+def main():
+    # 1) List items to get O365 item id
     proc = subprocess.run(
-        [str(BRIDGE_SCRIPT), 'call', command, '--reason', reason, '--timeout', str(timeout)],
-        capture_output=True,
-        text=True,
+        ['bw', 'list', 'items', '--search', ITEM_NAME],
+        capture_output=True, text=True, timeout=60,
     )
     if proc.returncode != 0:
-        print(proc.stderr or proc.stdout or 'Bridge call failed', file=sys.stderr)
+        print(proc.stderr or proc.stdout or 'bw list items failed', file=sys.stderr)
         raise SystemExit(2)
-    data = json.loads(proc.stdout)
-    if data.get('status') not in ('ok', 'error'):
-        print(json.dumps(data, indent=2), file=sys.stderr)
-        raise SystemExit(3)
-    return data
-
-
-def get_stdout_from_bridge_response(data: dict) -> str:
-    result = data.get('result') or {}
-    results = result.get('results') or []
-    if not results:
-        return ''
-    return (results[-1].get('stdout') or '').strip()
-
-
-def main():
-    if not BRIDGE_SCRIPT.exists():
-        print('bridge.sh not found', file=sys.stderr)
-        raise SystemExit(1)
-
-    # 1) List items to get O365 item id
-    data = bridge_call(
-        f"bw-with-session list items --search {ITEM_NAME}",
-        'Fetch O365 config (list items)',
-    )
-    raw = get_stdout_from_bridge_response(data)
+    raw = (proc.stdout or '').strip()
     if not raw:
-        print('No stdout from bridge (list items)', file=sys.stderr)
+        print('No stdout from bw list items', file=sys.stderr)
         raise SystemExit(4)
     items = json.loads(raw)
     exact = None
@@ -65,14 +39,17 @@ def main():
     item_id = item['id']
 
     # 2) Get full item
-    data = bridge_call(
-        f'bw-with-session get item {item_id}',
-        'Fetch O365 config (get item)',
+    proc = subprocess.run(
+        ['bw', 'get', 'item', item_id],
+        capture_output=True, text=True, timeout=60,
     )
-    raw = get_stdout_from_bridge_response(data)
-    if not raw:
-        print('No stdout from bridge (get item)', file=sys.stderr)
+    if proc.returncode != 0:
+        print(proc.stderr or proc.stdout or 'bw get item failed', file=sys.stderr)
         raise SystemExit(6)
+    raw = (proc.stdout or '').strip()
+    if not raw:
+        print('No stdout from bw get item', file=sys.stderr)
+        raise SystemExit(8)
     full = json.loads(raw)
     fields = {
         (f.get('name') or '').strip().lower(): (f.get('value') or '').strip()

@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
-# In Chloe (worker): run Bitwarden via bridge to guard. Usage: bw <bw-args>
-# Example: bw list items  ->  guard runs bw-with-session list items
+# In Chloe (worker): run Bitwarden with session from worker state. No bridge.
 set -euo pipefail
-SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-exec "$SCRIPT_DIR/bridge.sh" call "bw-with-session $*" --reason "Bitwarden access" --timeout 60
+BW_ENV="/home/node/.openclaw/secrets/bitwarden.env"
+BW_SESSION_FILE="/home/node/.openclaw/secrets/bw-session"
+export BITWARDENCLI_APPDATA_DIR="/home/node/.openclaw/bitwarden-cli"
+[ -f "$BW_ENV" ] && . "$BW_ENV"
+[ -f "$BW_SESSION_FILE" ] && export BW_SESSION=$(cat "$BW_SESSION_FILE")
+[ -n "${BW_SERVER:-}" ] && bw config server "$BW_SERVER" >/dev/null 2>&1 || true
+exec bw "$@"

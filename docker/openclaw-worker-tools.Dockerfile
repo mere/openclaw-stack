@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.6
-# Chloe (worker) tools: Himalaya + Python for m365. No Bitwarden — use bridge to guard for BW.
+# Chloe (worker) tools: Himalaya + Python for m365 + Bitwarden CLI (BW runs in worker).
 ARG OPENCLAW_BASE_IMAGE=ghcr.io/openclaw/openclaw:main
 FROM ${OPENCLAW_BASE_IMAGE}
 
@@ -23,5 +23,8 @@ RUN case "${TARGETARCH}" in \
  && tar -xzf /tmp/himalaya.tgz -C /usr/local/bin himalaya \
  && chmod +x /usr/local/bin/himalaya \
  && rm -f /tmp/himalaya.tgz
+
+# Bitwarden CLI (worker holds vault access; no bridge)
+RUN npm i -g @bitwarden/cli
 
 USER node

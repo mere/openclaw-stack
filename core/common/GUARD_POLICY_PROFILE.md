@@ -14,12 +14,7 @@ This profile keeps Worker non-privileged and makes Guard the only privileged exe
 - `approved` / `ask` → run (OpenClaw exec approvals may prompt on the host)
 - `rejected` → always deny
 
-## Bridge command policy (BW-only)
-
-- **Allowed:** `bw-with-session status`, `bw-with-session list items`, `bw-with-session get item`, `bw-with-session get password`
-- **Rejected:** Dangerous patterns (`rm -rf`, `mkfs`, etc.)
-
-Himalaya and M365 run in the Worker container; the bridge is used only so Chloe can read from Op’s Bitwarden (e.g. for email-setup and O365 config).
+Bitwarden runs in the worker; there is no bridge. Guard policy is limited to exec approvals (see below).
 
 ## OpenClaw native exec approvals
 
@@ -42,10 +37,9 @@ There is no CLI to approve by id; use the UI or chat.
 
 ### Auto-enable (so a command doesn’t ask again)
 
-- **Recommended:** Add that command (or a glob) to the allowlist. Then with `ask: on-miss` it won’t prompt for that command again. For the bridge, Guard runs `bw-with-session` (a script); add it if exec approval prompts for it:
+- **Recommended:** Add that command (or a glob) to the allowlist. Then with `ask: on-miss` it won’t prompt for that command again. Example:
   ```bash
   ./openclaw-guard approvals allowlist add "/usr/bin/uptime"
-  ./openclaw-guard approvals allowlist add "/opt/op-and-chloe/scripts/guard/bw-with-session"
   ```
 - **Allow everything (use with care):** Set exec security to `full` so all host execs are allowed without prompts. This is equivalent to “no exec approval.” Only do this in a trusted environment (e.g. dev). To change it you’d set the config that writes `~/.openclaw/exec-approvals.json` (e.g. via Control UI or by mounting/editing that file in the guard container).
 
@@ -57,7 +51,7 @@ Check current snapshot:
 ./openclaw-guard approvals get --json
 ```
 
-Add strict allowlist entries (examples above). Use bridge policy only for allow/deny; exec approvals handle prompts.
+Add strict allowlist entries (examples above). Exec approvals handle prompts.
 
 ## Verification checklist
 

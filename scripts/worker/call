@@ -1,5 +1,0 @@
-#!/usr/bin/env bash
-# Wrapper so Chloe can run: call "<command>" --reason "<reason>" [--timeout N]
-# Requires PATH to include the directory containing worker-bridge.sh (e.g. /opt/op-and-chloe/scripts).
-SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-exec "$SCRIPT_DIR/bridge.sh" call "$@"

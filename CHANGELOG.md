@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Common Changelog](https://common-changelog.org).
 
+## [0.4.0] - 2026-02-22
+
+### Changed
+
+- **Bitwarden in worker; bridge removed.** Bitwarden now runs in the worker (Chloe). Setup step 6 configures and unlocks the vault in **worker state** (`/var/lib/openclaw/state/secrets/`, `state/bitwarden-cli`). The **`bw`** script in the worker loads the session and runs the Bitwarden CLI locally. There is **no bridge**: removed guard bridge server, bridge-runner, bridge-policy, bw-with-session, and worker bridge client (bridge.sh, call, catalog). Guard no longer runs Bitwarden or a bridge; guard entrypoint only execs OpenClaw.
+- **Guard = lightweight admin; worker never contacts guard.** Guard is a simple admin instance with full VPS access, no tools, no day-to-day duties. Worker is fully self-contained and never goes to the guard (not even for credentials). All docs, ROLEs, IDENTITYs, skills, README, SECURITY.md, and setup copy updated.
+- **Passwordless worker scripts.** email-setup.py only writes Himalaya config (auth.cmd for on-demand password); no SECRETS_DIR or item-id file. get-email-password.py calls `bw` and prints password; no files or folders created. Scripts use `bw` from PATH (no hardcoded BW_SCRIPT).
+
+### Fixed
+
+- **fetch-o365-config.py:** Exit code 6 for `bw get item` command failure, exit code 8 for empty stdout, so failure modes are distinguishable.
+- **setup.sh:** `write_bw_configured_marker` default parameter now uses worker state (`$STATE_DIR/secrets`) instead of stale guard-state path.
+
+[0.4.0]: https://github.com/mere/op-and-chloe/compare/v0.3.8...v0.4.0
+
 ## [0.3.8] - 2026-02-22
 
 ### Fixed
