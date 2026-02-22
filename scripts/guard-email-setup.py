@@ -2,6 +2,7 @@
 import json
 import os
 import pathlib
+import shlex
 import subprocess
 import sys
 
@@ -10,9 +11,11 @@ BW_CLI_DATA_DIR = pathlib.Path('/home/node/.openclaw/bitwarden-cli')
 BW_SESSION_FILE = pathlib.Path('/home/node/.openclaw/secrets/bw-session')
 BW_ITEM_NAME = os.environ.get('BW_EMAIL_ITEM', 'icloud')
 CONF_DIR = pathlib.Path('/home/node/.config/himalaya')
-PASS_DIR = pathlib.Path('/home/node/.openclaw/secrets')
-PASS_FILE = PASS_DIR / 'icloud-app-password.txt'
 CONF_FILE = CONF_DIR / 'config.toml'
+
+# Script path for auth.cmd (Himalaya runs this to get the password from Bitwarden; no password file on disk).
+THIS_SCRIPT = pathlib.Path(__file__).resolve()
+GET_PASSWORD_CMD = ['python3', str(THIS_SCRIPT), 'get-password']
 
 
 def fail(msg, code=1):
@@ -97,15 +100,21 @@ def main():
 
     load_bw_env(env)
     ensure_bw_unlocked(env)
+
+    # Mode: get-password <item_name> — print app password from Bitwarden (used by Himalaya auth.cmd; no file on disk).
+    if len(sys.argv) >= 2 and sys.argv[1] == 'get-password':
+        item_name = sys.argv[2] if len(sys.argv) > 2 else BW_ITEM_NAME
+        item = get_item(env, item_name)
+        print(pick_password(item), end='')
+        return
+
     item = get_item(env, BW_ITEM_NAME)
     email = pick_email(item)
-    app_password = pick_password(item)
 
-    PASS_DIR.mkdir(parents=True, exist_ok=True)
     CONF_DIR.mkdir(parents=True, exist_ok=True)
 
-    PASS_FILE.write_text(app_password + '\n')
-    os.chmod(PASS_FILE, 0o600)
+    # Himalaya auth.cmd runs this script with get-password to fetch the password from Bitwarden; no password file stored.
+    auth_cmd = ' '.join(shlex.quote(p) for p in GET_PASSWORD_CMD + [BW_ITEM_NAME])
 
     conf = f'''downloads-dir = "/tmp"
 
@@ -124,14 +133,14 @@ backend.host = "imap.mail.me.com"
 backend.port = 993
 backend.login = "{email}"
 backend.auth.type = "password"
-backend.auth.cmd = "cat {PASS_FILE}"
+backend.auth.cmd = "{auth_cmd}"
 
 message.send.backend.type = "smtp"
 message.send.backend.host = "smtp.mail.me.com"
 message.send.backend.port = 587
 message.send.backend.login = "{email}"
 message.send.backend.auth.type = "password"
-message.send.backend.auth.cmd = "cat {PASS_FILE}"
+message.send.backend.auth.cmd = "{auth_cmd}"
 '''
     CONF_FILE.write_text(conf)
     os.chmod(CONF_FILE, 0o600)

@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Common Changelog](https://common-changelog.org).
 
+## [0.2.16] - 2026-02-22
+
+### Changed
+
+- **guard-email-setup.py: no app password file on disk.** Removed storage of the iCloud app password in `icloud-app-password.txt`. Himalaya `auth.cmd` now runs the same script in `get-password` mode so the password is fetched from Bitwarden and printed to stdout when needed; no app password is ever written to a file.
+
+[0.2.16]: https://github.com/mere/op-and-chloe/compare/v0.2.15...v0.2.16
+
 ## [0.2.15] - 2026-02-22
 
 ### Changed
