@@ -105,7 +105,7 @@ This is where Op comes in:
   <img src="assets/op.png" alt="OpenClaw Setup Wizard" height="200">
 </p>
 
-## Op
+### 2. Op
 
 **Op** is a "small" OpenClaw instance designed to stay clean and minimal. No skills, no cron jobs, no day"-to-day tasks, no custom installs. Its job is to:
 - fix things when they go wrong,
@@ -121,7 +121,7 @@ Think of Op as your DevOps friend who can fix everything for you - including ful
   <img src="assets/browser.png" alt="OpenClaw Setup Wizard" height="200">
 </p>
 
-### Browser access
+### 3. Browser access
 
 On a Mac mini, you can easily give OpenClaw access to a browser. On a headless VPS that's harder: headless browsers or services like Browserless can be detected by some sites, and you can't easily *see* what the agent is doing. Ideally you want to **co-work**: you log in to LinkedIn, ask the agent to check messages and draft replies; the agent fills a form, you review and submit.
 
@@ -132,9 +132,10 @@ op-and-chloe gives you that: a small Docker image with a browser that both you a
   <img src="assets/bitwarden.png" alt="OpenClaw Setup Wizard" height="200">
 </p>
 
-### Credentials
+### 4. Credentials
 
-The setup script can help you create a free Bitwarden account and connect it to Op. Keep your secrets, tokens, and passwords in Bitwarden (in the cloud); **none are stored in files on the server**. You log in and unlock Bitwarden interactively in step 6; only the server URL is saved. When Chloe needs authenticated tools (mail, calendar, etc.), she requests them over an internal bridge where they're **pre-authenticated**—she never sees the secrets.
+All secrets, tokens, and passwords are stored securely in Bitwarden — never on the server itself. During setup, you'll connect your Bitwarden vault to Op (Operator) and unlock it interactively when needed; only the vault URL is stored on the server. When Chloe (the worker assistant) needs access to authenticated tools like mail or calendar, she sends a request over the bridge to Op, which retrieves and applies the secret for the operation. 
+
 
 ---
 <p align="center">
@@ -180,17 +181,19 @@ flowchart TD
     CH("<b>🐯 Chloe Bot.</b><br/><br/>Responsible for<br/>day-to-day tasks<br/>No access to credentials.")
     OP("🐕 Operator Bot<br/>Responsible for security and authentication")
     U[🥰 User]
+    E[💌 Email]
     BW[🔐 Bitwarden]
     BR[🖥️ Webtop Browser]
 
-    U <-->|Approves tool use| OP
+    U -->|Admin commands| OP
     U <-->|Chats via Telegram with| CH
 
     OP -->|Requests credentials from| BW
-    OP -->|Oversees Chloe and provides authenticated tools| CH
+    OP -->|Oversees Chloe and proxies secrets from BitWarden| CH
     U -->|Logs in to web pages like Social Media sites| BR
     CH -->|Accesses| BR
     U -->|Sets secrets in| BW
+    CH -->|Reads/Writes emails| E
 
     subgraph VPS
         CH
