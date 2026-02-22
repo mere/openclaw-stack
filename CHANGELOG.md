@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Common Changelog](https://common-changelog.org).
 
+## [0.2.19] - 2026-02-22
+
+### Fixed
+
+- **setup.sh (step 6 – Bitwarden unlock in guard):** The password file copied into the guard container with `docker cp` was root-owned, so `bw` (running as node) could not read it and failed with EACCES. After copying, run `chown 1000:1000 /tmp/bw-pw` inside the container (as root) so the node user can read the file.
+
+[0.2.19]: https://github.com/mere/op-and-chloe/compare/v0.2.18...v0.2.19
+
 ## [0.2.18] - 2026-02-22
 
 ### Fixed

@@ -313,6 +313,7 @@ run_bitwarden_unlock_interactive(){
     if ! docker cp "$_bw_tmp_pw" "$guard_actual:/tmp/bw-pw" 2>/dev/null; then
       unlock_stderr="Failed to copy password file into guard container."
     else
+      docker exec -u 0 "$guard_actual" chown 1000:1000 /tmp/bw-pw 2>/dev/null || true
       unlock_stderr=$(docker exec "$guard_actual" sh -lc '
         export BITWARDENCLI_APPDATA_DIR=/home/node/.openclaw/bitwarden-cli
         . /home/node/.openclaw/secrets/bitwarden.env
