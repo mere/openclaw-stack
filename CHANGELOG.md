@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Common Changelog](https://common-changelog.org).
 
+## [0.2.18] - 2026-02-22
+
+### Fixed
+
+- **setup.sh (step 6 – Bitwarden unlock):** When unlock failed, the real error was hidden. Now capture combined stdout/stderr, treat a base64-looking first line as the session key, and on failure show the Bitwarden CLI output so the user sees the actual reason (e.g. invalid password). If no password was entered (e.g. not run from a TTY), warn and tell the user to run from a terminal.
+
+[0.2.18]: https://github.com/mere/op-and-chloe/compare/v0.2.17...v0.2.18
+
 ## [0.2.17] - 2026-02-22
 
 ### Fixed

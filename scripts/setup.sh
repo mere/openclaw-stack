@@ -299,27 +299,43 @@ run_bitwarden_unlock_interactive(){
   echo
   printf '%s' "$pw" > "$_bw_tmp_pw"
   unset pw
+  if [ ! -s "$_bw_tmp_pw" ]; then
+    warn "No password entered. Run this step from a terminal (TTY) so the password prompt works."
+    return
+  fi
 
-  local session_key
+  local session_key unlock_stderr
   if container_running "$guard_name"; then
     local guard_actual
     guard_actual=$(resolve_container_name "$guard_name" 2>/dev/null)
     guard_actual=${guard_actual:-$guard_name}
     ensure_guard_bitwarden >/dev/null 2>&1 || true
-    docker cp "$_bw_tmp_pw" "$guard_actual:/tmp/bw-pw" 2>/dev/null || true
-    session_key=$(docker exec "$guard_actual" sh -lc '
-      export BITWARDENCLI_APPDATA_DIR=/home/node/.openclaw/bitwarden-cli
-      . /home/node/.openclaw/secrets/bitwarden.env
-      bw config server "$BW_SERVER" >/dev/null 2>&1 || true
-      bw unlock --raw --passwordfile /tmp/bw-pw
-    ' 2>/dev/null) || true
-    docker exec "$guard_actual" rm -f /tmp/bw-pw 2>/dev/null || true
+    if ! docker cp "$_bw_tmp_pw" "$guard_actual:/tmp/bw-pw" 2>/dev/null; then
+      unlock_stderr="Failed to copy password file into guard container."
+    else
+      unlock_stderr=$(docker exec "$guard_actual" sh -lc '
+        export BITWARDENCLI_APPDATA_DIR=/home/node/.openclaw/bitwarden-cli
+        . /home/node/.openclaw/secrets/bitwarden.env
+        bw config server "$BW_SERVER" >/dev/null 2>&1 || true
+        bw unlock --raw --passwordfile /tmp/bw-pw
+      ' 2>&1) || true
+      session_key=$(printf '%s' "$unlock_stderr" | head -1)
+      # If first line looks like a session key (base64), rest was stderr; else whole thing is stderr
+      if ! printf '%s' "$session_key" | grep -qE '^[A-Za-z0-9+/]+=*$'; then
+        session_key=""
+      fi
+      docker exec "$guard_actual" rm -f /tmp/bw-pw 2>/dev/null || true
+    fi
   else
-    session_key=$(docker run -i --rm \
+    unlock_stderr=$(docker run -i --rm \
       -v "$state_dir:/home/node/.openclaw:rw" \
       -v "$_bw_tmp_pw:/tmp/bw-pw:ro" \
       -e BITWARDENCLI_APPDATA_DIR="$BW_CLI_DATA_DIR_GUARD" \
-      node:20-alpine sh -c 'npm install -g @bitwarden/cli >/dev/null 2>&1 && . /home/node/.openclaw/secrets/bitwarden.env && bw config server "$BW_SERVER" && bw unlock --raw --passwordfile /tmp/bw-pw' 2>/dev/null) || true
+      node:20-alpine sh -c 'npm install -g @bitwarden/cli >/dev/null 2>&1 && . /home/node/.openclaw/secrets/bitwarden.env && bw config server "$BW_SERVER" && bw unlock --raw --passwordfile /tmp/bw-pw' 2>&1) || true
+    session_key=$(printf '%s' "$unlock_stderr" | head -1)
+    if ! printf '%s' "$session_key" | grep -qE '^[A-Za-z0-9+/]+=*$'; then
+      session_key=""
+    fi
   fi
 
   if [ -n "$session_key" ]; then
@@ -329,6 +345,7 @@ run_bitwarden_unlock_interactive(){
     ok "Session key saved so the guard can use Bitwarden (re-run this step if the vault is locked later)."
   else
     warn "Unlock failed or session could not be captured; try again or run step 6 again."
+    [ -n "$unlock_stderr" ] && echo "$unlock_stderr" | sed 's/^/  /'
   fi
 }
 
