@@ -152,8 +152,8 @@ sudo ./stop.sh
 ```
 
 False alarm, it was just ordering cat food? Start it with:  
-> Note: This also rebuilds the container, so it's a good way to reset if things go wrong!
-```
+> Note: This also rebuilds the containers, so it's a good way to reset if things go wrong!
+```bash
 sudo ./start.sh
 ```
 
@@ -178,28 +178,33 @@ flowchart LR
   U[User]
   BW[(Bitwarden)]
   subgraph VPS["VPS"]
-  subgraph Docker[Webtop Docker]
-    B["🖥️  Webtop"]
-  end
-    subgraph Chloe["🐯 Chloe Docker"]
+ 
+    subgraph Chloe["OpenClaw Docker"]
       A[Agents 🤖 🤖 🤖]
     end
-    Op["🐕 Op (Admin)"]
-    D[Docker / Host / Repo]
+    subgraph OPD["OpenClaw Docker"]
+      Op["🐕 Op (Admin)"]
+    end
+    
+    subgraph Docker[Webtop Docker]
+      B["🖥️  Webtop"]
+    end
+    D[Docker / Host / Repo access]
   end
-  
 
   U --> Chloe
-  U --> Op
-  A --> B
-  A --> E[💌 Email<br />📆 Calendar]
-  A --> BW
   Op --> D
+  A --> B
+  A --> BW
+  A --> E[💌 Email<br />📆 Calendar]
+  U --> Op
   B --> S[🔷 Linkedin<br /> 💎 Social Media]
+  
 ```
 
 ## Architecture
-See **Technical overview** in the Components section above.
+
+See the **System diagram** and **Components** section above for topology and roles.
 
 
 ## Bitwarden in Chloe

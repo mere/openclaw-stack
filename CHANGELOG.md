@@ -6,6 +6,10 @@ The format is based on [Common Changelog](https://common-changelog.org).
 
 ## [0.4.2] - 2026-02-22
 
+### Fixed
+
+- **Worker (Chloe) Bitwarden session:** Setup reported Bitwarden logged in and unlocked (verified via `docker exec` with explicit env), but when Chloe (agents) ran `bw status` they saw `unauthenticated`. The worker process did not load the BW session at startup, so agent-invoked shells had no `BITWARDENCLI_APPDATA_DIR` or `BW_SESSION`. Added **scripts/worker/entrypoint.sh** that sources `bitwarden.env` and `bw-session` and exports them, then execs the gateway; the worker service in compose now uses this entrypoint so all child processes (including agent shells) inherit the session and `bw` works in the same runtime.
+
 ### Changed
 
 - **README system diagram:** Improved Mermaid flowchart: top-down layout, Chloe shown as subgraph with **Agents** inside, explicit edges (User→Chloe/Op, Agents→Webtop/Bitwarden, Op→Docker/Host/Repo). Clarifies that agents live in Chloe.
@@ -47,7 +51,7 @@ The format is based on [Common Changelog](https://common-changelog.org).
 
 ### Fixed
 
-- **Guard container not starting (SyntaxError):** OpenClaw base image sets ENTRYPOINT to `node`, so Docker was running `node entrypoint.sh node dist/index.js ...` and Node tried to execute the shell script as JavaScript. Compose now overrides **entrypoint** to the guard script and **command** to only the node args; the script runs first (Bitwarden env, bridge server), then `exec`s Node so the guard starts correctly.
+- **Guard container not starting (SyntaxError):** OpenClaw base image sets ENTRYPOINT to `node`, so Docker was running `node entrypoint.sh node dist/index.js ...` and Node tried to execute the shell script as JavaScript. Compose now overrides **entrypoint** to the guard script and **command** to only the node args; the entrypoint runs first, then `exec`s Node so the guard starts correctly.
 
 [0.3.7]: https://github.com/mere/op-and-chloe/compare/v0.3.6...v0.3.7
 

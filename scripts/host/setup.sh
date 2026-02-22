@@ -36,7 +36,7 @@ welcome(){
   echo "┃ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ┃"
   echo "┃ Setup includes:                                            ┃"
   echo "┃   🖥️ Webtop browser (Chromium) for persistent logins       ┃"
-  echo "┃   🐕 Op (guard) — admin with SSH access                   ┃"
+  echo "┃   🐕 Op (guard) — admin with SSH access                    ┃"
   echo "┃   🐯 Chloe (worker) — day-to-day, create all agents here   ┃"
   echo "┃   🔐 Tailscale for private network access                  ┃"
   echo "┃   🔑 Bitwarden (passwordless: no secrets in files)         ┃"
@@ -432,7 +432,7 @@ EOF
     fi
   else
     if command -v docker >/dev/null 2>&1; then
-      warn "Verification failed — ensure guard-state is at the default path or run this step again"
+      warn "Verification failed — ensure worker state is at the default path or run this step again"
     else
       warn "Docker not installed — skipping verification (run step 2 first)"
     fi
