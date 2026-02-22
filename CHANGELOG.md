@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Common Changelog](https://common-changelog.org).
 
+## [0.3.7] - 2026-02-22
+
+### Fixed
+
+- **Guard container not starting (SyntaxError):** OpenClaw base image sets ENTRYPOINT to `node`, so Docker was running `node entrypoint.sh node dist/index.js ...` and Node tried to execute the shell script as JavaScript. Compose now overrides **entrypoint** to the guard script and **command** to only the node args; the script runs first (Bitwarden env, bridge server), then `exec`s Node so the guard starts correctly.
+
+[0.3.7]: https://github.com/mere/op-and-chloe/compare/v0.3.6...v0.3.7
+
 ## [0.3.6] - 2026-02-22
 
 ### Fixed

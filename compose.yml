@@ -51,6 +51,7 @@ services:
       args:
         OPENCLAW_BASE_IMAGE: ${OPENCLAW_IMAGE:-ghcr.io/openclaw/openclaw:main}
     container_name: ${INSTANCE:-op-and-chloe}-openclaw-guard
+    entrypoint: ["/opt/op-and-chloe/scripts/guard/entrypoint.sh"]
     network_mode: host
     environment:
       HOME: /home/node
@@ -69,7 +70,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     init: true
     restart: unless-stopped
-    command: ["/opt/op-and-chloe/scripts/guard/entrypoint.sh", "node", "dist/index.js", "gateway", "--bind", "loopback", "--port", "18790", "--allow-unconfigured"]
+    command: ["node", "dist/index.js", "gateway", "--bind", "loopback", "--port", "18790", "--allow-unconfigured"]
 
 networks:
   openclaw_net:
