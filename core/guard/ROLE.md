@@ -75,8 +75,8 @@ sequenceDiagram
 
 **Bitwarden (no master password stored):**
 
-- The Bitwarden env file at **`/home/node/.openclaw/secrets/bitwarden.env`** holds only **`BW_SERVER`**. Your **master password is never written to disk**. Setup step 6 unlocks the vault using your password once and saves only the **session key** to **`/home/node/.openclaw/secrets/bw-session`** so the guard can run `bw` in any process (e.g. email setup). Scripts that need Bitwarden use `BW_SESSION` from that file when the vault is locked.
-- Source `bitwarden.env` and set **`BITWARDENCLI_APPDATA_DIR=/home/node/.openclaw/bitwarden-cli`** before running `bw`. Re-run setup step 6 to unlock again if the vault is locked or the session has expired.
+- The Bitwarden env file at **`/home/node/.openclaw/secrets/bitwarden.env`** holds only **`BW_SERVER`**. Your **master password is never written to disk**. Setup step 6 unlocks the vault and saves the **session key** to **`/home/node/.openclaw/secrets/bw-session`**.
+- **To run `bw` in the guard** with the session loaded, use **`bw-with-session`** (in PATH): e.g. `bw-with-session status`, `bw-with-session list items`. It loads the session from the file so the vault appears unlocked. Scripts (e.g. guard-email-setup.py) do this automatically. Re-run setup step 6 if the vault is locked or the session has expired.
 
 ---
 

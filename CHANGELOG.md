@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Common Changelog](https://common-changelog.org).
 
+## [0.2.20] - 2026-02-22
+
+### Added
+
+- **scripts/bw-with-session.sh:** Wrapper that loads the Bitwarden session from `bw-session` and runs `bw`. In the guard, use **`bw-with-session status`**, **`bw-with-session list items`**, etc., so the vault is unlocked without a password file. Guard PATH in compose now includes `/opt/op-and-chloe/scripts`; restart the guard container once to pick up the new PATH. Documented in core/guard/ROLE.md.
+
+[0.2.20]: https://github.com/mere/op-and-chloe/compare/v0.2.19...v0.2.20
+
 ## [0.2.19] - 2026-02-22
 
 ### Fixed
