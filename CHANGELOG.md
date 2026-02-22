@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Common Changelog](https://common-changelog.org).
 
+## [0.2.17] - 2026-02-22
+
+### Fixed
+
+- **setup.sh (step 6 – Bitwarden unlock):** Under `set -u`, the RETURN trap ran in the caller scope after the function returned, so the function’s local `tmp_pw` was unbound when the trap ran. Use a global `_bw_tmp_pw` for the temp file so the trap can safely remove it. Only show “Bitwarden unlocked” and run chown when the session file was actually created (i.e. when unlock succeeded).
+
+[0.2.17]: https://github.com/mere/op-and-chloe/compare/v0.2.16...v0.2.17
+
 ## [0.2.16] - 2026-02-22
 
 ### Changed

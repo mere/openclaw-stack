@@ -291,13 +291,13 @@ run_bitwarden_unlock_interactive(){
   local secrets_dir="$state_dir/secrets"
   local session_file="$secrets_dir/$BW_SESSION_FILE_NAME"
   say "Unlock the vault. Enter your master password (used only for this unlock; it is not stored)."
-  local tmp_pw
-  tmp_pw=$(mktemp)
-  chmod 600 "$tmp_pw"
-  trap 'rm -f "$tmp_pw"' RETURN
+  # Use a global name so the RETURN trap can still rm the file after the function returns (locals are gone then).
+  _bw_tmp_pw=$(mktemp)
+  chmod 600 "$_bw_tmp_pw"
+  trap 'rm -f "$_bw_tmp_pw"' RETURN
   read -rs -p "$TIGER Master password: " pw
   echo
-  printf '%s' "$pw" > "$tmp_pw"
+  printf '%s' "$pw" > "$_bw_tmp_pw"
   unset pw
 
   local session_key
@@ -306,7 +306,7 @@ run_bitwarden_unlock_interactive(){
     guard_actual=$(resolve_container_name "$guard_name" 2>/dev/null)
     guard_actual=${guard_actual:-$guard_name}
     ensure_guard_bitwarden >/dev/null 2>&1 || true
-    docker cp "$tmp_pw" "$guard_actual:/tmp/bw-pw" 2>/dev/null || true
+    docker cp "$_bw_tmp_pw" "$guard_actual:/tmp/bw-pw" 2>/dev/null || true
     session_key=$(docker exec "$guard_actual" sh -lc '
       export BITWARDENCLI_APPDATA_DIR=/home/node/.openclaw/bitwarden-cli
       . /home/node/.openclaw/secrets/bitwarden.env
@@ -317,7 +317,7 @@ run_bitwarden_unlock_interactive(){
   else
     session_key=$(docker run -i --rm \
       -v "$state_dir:/home/node/.openclaw:rw" \
-      -v "$tmp_pw:/tmp/bw-pw:ro" \
+      -v "$_bw_tmp_pw:/tmp/bw-pw:ro" \
       -e BITWARDENCLI_APPDATA_DIR="$BW_CLI_DATA_DIR_GUARD" \
       node:20-alpine sh -c 'npm install -g @bitwarden/cli >/dev/null 2>&1 && . /home/node/.openclaw/secrets/bitwarden.env && bw config server "$BW_SERVER" && bw unlock --raw --passwordfile /tmp/bw-pw' 2>/dev/null) || true
   fi
@@ -350,8 +350,10 @@ step_bitwarden_secrets(){
         return
       fi
       run_bitwarden_unlock_interactive "$(dirname "$secrets_dir")"
-      chown -R 1000:1000 "$bw_data_dir" 2>/dev/null || true
-      ok "Bitwarden unlocked"
+      if [ -f "$secrets_dir/$BW_SESSION_FILE_NAME" ]; then
+        chown -R 1000:1000 "$bw_data_dir" 2>/dev/null || true
+        ok "Bitwarden unlocked"
+      fi
       return
     fi
     warn "Existing login missing or expired — you will log in again below"
