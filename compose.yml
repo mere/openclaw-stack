@@ -1,3 +1,5 @@
+# When running docker compose, use --env-file (e.g. /etc/openclaw/stack.env) so
+# OPENCLAW_GATEWAY_TOKEN and OPENCLAW_GUARD_GATEWAY_TOKEN are set; otherwise you'll see warnings.
 services:
   browser:
     image: lscr.io/linuxserver/webtop:ubuntu-xfce
@@ -64,7 +66,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     init: true
     restart: unless-stopped
-    command: ["node","dist/index.js","gateway","--bind","loopback","--port","18790","--allow-unconfigured"]
+    command: ["/opt/op-and-chloe/scripts/guard-entrypoint.sh", "node", "dist/index.js", "gateway", "--bind", "loopback", "--port", "18790", "--allow-unconfigured"]
 
 networks:
   openclaw_net:

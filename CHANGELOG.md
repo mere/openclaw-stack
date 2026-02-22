@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Common Changelog](https://common-changelog.org).
 
+## [0.2.21] - 2026-02-22
+
+### Fixed
+
+- **Bitwarden in guard: Op now sees vault unlocked.** Root cause: setup verified unlock by running a one-off shell that loaded `BW_SESSION` from `bw-session`; Op’s commands run in processes that never had `BW_SESSION` (only in a file). Fix at source: guard loads the session into the process environment at startup via **scripts/guard-entrypoint.sh** (sets `BITWARDENCLI_APPDATA_DIR`, sources `bitwarden.env`, exports `BW_SESSION` from `bw-session` when present, then execs the real command). Compose guard `command` now runs through this entrypoint so the Node process and all children (including Op) inherit the session; plain `bw status` works without a wrapper.
+
+[0.2.21]: https://github.com/mere/op-and-chloe/compare/v0.2.20...v0.2.21
+
 ## [0.2.20] - 2026-02-22
 
 ### Added
