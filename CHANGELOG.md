@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Common Changelog](https://common-changelog.org).
 
+## [0.2.22] - 2026-02-22
+
+### Added
+
+- **.cursor/rules/critical-rules.md:** Project rules for agents (no hacks/workarounds, fix at source, simplify, passwordless credentials, tidy up, update docs).
+
+### Changed
+
+- **restart.sh:** Optional service name to restart a single service (e.g. `restart.sh openclaw-guard`). Uses `COMPOSE_FILE` for compose file path; with no argument, still stops and starts the full stack.
+
+[0.2.22]: https://github.com/mere/op-and-chloe/compare/v0.2.21...v0.2.22
+
 ## [0.2.21] - 2026-02-22
 
 ### Fixed
