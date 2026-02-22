@@ -242,7 +242,7 @@ call "cd /opt/op-and-chloe && git pull && ./start.sh" --reason "Update stack" --
 
 ## Security model
 
-- **Passwordless setup:** No secrets or passwords are stored in files on the host. Bitwarden login and unlock are done interactively in setup step 6; only the Bitwarden server URL (`BW_SERVER`) is saved in `bitwarden.env`. The guard uses Bitwarden to fetch secrets at runtime; nothing is written to disk.
+- **No master password on disk:** Your Bitwarden master password is never written to the host. In setup step 6 you log in and unlock once; only the Bitwarden server URL (`BW_SERVER`) and the session key from unlock are saved (in `bitwarden.env` and `guard-state/secrets/bw-session`). The guard uses that session so it can run Bitwarden CLI in any process; re-run step 6 if the vault is locked later.
 - Chloe has no direct password access.
 - Credentialed operations are proxied via Op-approved commands.
 - Bridge mount separation:

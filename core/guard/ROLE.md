@@ -73,11 +73,10 @@ sequenceDiagram
   G-->>W: sanitized result (no raw secret)
 ```
 
-**Bitwarden (passwordless setup; no secrets or passwords in files):**
+**Bitwarden (no master password stored):**
 
-- This is a **passwordless setup**: no secrets or passwords are stored in files on the host. The Bitwarden env file at **`/home/node/.openclaw/secrets/bitwarden.env`** (host: **`/var/lib/openclaw/guard-state/secrets/bitwarden.env`**) holds only **`BW_SERVER`**; no passwords or API keys are stored there.
-- Login and unlock are done interactively in setup step 6; the user’s password is never written to disk. The Bitwarden CLI keeps its own session state in **`/home/node/.openclaw/bitwarden-cli`** (host: `guard-state/bitwarden-cli`). Source `bitwarden.env` and set **`BITWARDENCLI_APPDATA_DIR=/home/node/.openclaw/bitwarden-cli`** before running `bw`.
-- Re-run setup step 6 to log in and unlock if the vault is locked (e.g. after a restart).
+- The Bitwarden env file at **`/home/node/.openclaw/secrets/bitwarden.env`** holds only **`BW_SERVER`**. Your **master password is never written to disk**. Setup step 6 unlocks the vault using your password once and saves only the **session key** to **`/home/node/.openclaw/secrets/bw-session`** so the guard can run `bw` in any process (e.g. email setup). Scripts that need Bitwarden use `BW_SESSION` from that file when the vault is locked.
+- Source `bitwarden.env` and set **`BITWARDENCLI_APPDATA_DIR=/home/node/.openclaw/bitwarden-cli`** before running `bw`. Re-run setup step 6 to unlock again if the vault is locked or the session has expired.
 
 ---
 

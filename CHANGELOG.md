@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Common Changelog](https://common-changelog.org).
 
+## [0.2.15] - 2026-02-22
+
+### Changed
+
+- **Bitwarden: persist session key so guard can use `bw` in any process.** Step 6 no longer runs interactive `bw unlock` in the container; it prompts for the master password on the host, passes it via a temp file (deleted immediately) into `bw unlock --raw --passwordfile`, and writes only the **session key** to `guard-state/secrets/bw-session`. The master password is never stored. `check_bitwarden_unlocked_in_guard` and `check_done bitwarden` load `BW_SESSION` from that file when present.
+- **guard-email-setup.py:** Use `bw-session` file when the vault is locked (replacing `bw-master-password`). If missing or expired, fail with instructions to re-run setup step 6.
+- **Docs:** README, SECURITY.md, core/guard/ROLE.md updated to state that no master password is stored and that only the session key is saved in `bw-session`.
+
+[0.2.15]: https://github.com/mere/op-and-chloe/compare/v0.2.14...v0.2.15
+
 ## [0.2.14] - 2026-02-22
 
 ### Changed

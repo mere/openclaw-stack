@@ -7,7 +7,7 @@ import sys
 
 BW_ENV = pathlib.Path('/home/node/.openclaw/secrets/bitwarden.env')
 BW_CLI_DATA_DIR = pathlib.Path('/home/node/.openclaw/bitwarden-cli')
-BW_MASTER_PASSWORD_FILE = pathlib.Path('/home/node/.openclaw/secrets/bw-master-password')
+BW_SESSION_FILE = pathlib.Path('/home/node/.openclaw/secrets/bw-session')
 BW_ITEM_NAME = os.environ.get('BW_EMAIL_ITEM', 'icloud')
 CONF_DIR = pathlib.Path('/home/node/.config/himalaya')
 PASS_DIR = pathlib.Path('/home/node/.openclaw/secrets')
@@ -41,15 +41,17 @@ def ensure_bw_unlocked(env):
     if '"status":"unauthenticated"' in st:
         fail('bitwarden_not_logged_in: Run the setup Bitwarden step and log in with `bw login`, or re-run setup.')
     if '"status":"unlocked"' not in st:
-        if BW_MASTER_PASSWORD_FILE.exists():
-            env['BW_SESSION'] = run(
-                ['bw', 'unlock', '--raw', '--passwordfile', str(BW_MASTER_PASSWORD_FILE)],
-                env,
-            ).strip()
+        if BW_SESSION_FILE.exists():
+            env['BW_SESSION'] = BW_SESSION_FILE.read_text().strip()
+            # Re-check; session may have expired
+            st = run(['bw', 'status'], env)
+            if '"status":"unlocked"' not in st:
+                fail(
+                    'bitwarden_session_expired: Re-run setup step 6 to unlock the vault and refresh the session.'
+                )
         else:
             fail(
-                'bitwarden_locked: Run `bw unlock` in the guard container, or create '
-                f'{BW_MASTER_PASSWORD_FILE} (one line = master password, chmod 600) for unattended unlock.'
+                'bitwarden_locked: Re-run setup step 6 to unlock the vault (no session file found).'
             )
 
 

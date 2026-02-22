@@ -272,6 +272,7 @@ check_bitwarden_unlocked_in_guard(){
   if docker exec "$guard_actual" sh -lc '
     export BITWARDENCLI_APPDATA_DIR=/home/node/.openclaw/bitwarden-cli
     . /home/node/.openclaw/secrets/bitwarden.env
+    [ -f /home/node/.openclaw/secrets/bw-session ] && export BW_SESSION=$(cat /home/node/.openclaw/secrets/bw-session)
     bw config server "$BW_SERVER" >/dev/null 2>&1 || true
     s=$(bw status 2>/dev/null || true)
     echo "$s" | grep -q "\"status\":\"unlocked\""
@@ -281,28 +282,53 @@ check_bitwarden_unlocked_in_guard(){
   return 2
 }
 
-# Run interactive bw unlock (no password stored; Bitwarden CLI keeps a session in its data dir). Use after login.
+# Unlock the vault and persist the session key so the guard can use bw in other processes.
+# Password is read once and passed via a temp file that is removed immediately; only the session key is written to guard-state.
+BW_SESSION_FILE_NAME="bw-session"
+
 run_bitwarden_unlock_interactive(){
   local state_dir="$1"
   local secrets_dir="$state_dir/secrets"
+  local session_file="$secrets_dir/$BW_SESSION_FILE_NAME"
+  say "Unlock the vault. Enter your master password (used only for this unlock; it is not stored)."
+  local tmp_pw
+  tmp_pw=$(mktemp)
+  chmod 600 "$tmp_pw"
+  trap 'rm -f "$tmp_pw"' RETURN
+  read -rs -p "$TIGER Master password: " pw
+  echo
+  printf '%s' "$pw" > "$tmp_pw"
+  unset pw
+
+  local session_key
   if container_running "$guard_name"; then
     local guard_actual
     guard_actual=$(resolve_container_name "$guard_name" 2>/dev/null)
     guard_actual=${guard_actual:-$guard_name}
     ensure_guard_bitwarden >/dev/null 2>&1 || true
-    say "Unlock the vault (enter your master password; it is not stored)."
-    docker exec -it "$guard_actual" sh -lc '
+    docker cp "$tmp_pw" "$guard_actual:/tmp/bw-pw" 2>/dev/null || true
+    session_key=$(docker exec "$guard_actual" sh -lc '
       export BITWARDENCLI_APPDATA_DIR=/home/node/.openclaw/bitwarden-cli
       . /home/node/.openclaw/secrets/bitwarden.env
       bw config server "$BW_SERVER" >/dev/null 2>&1 || true
-      bw unlock
-    '
+      bw unlock --raw --passwordfile /tmp/bw-pw
+    ' 2>/dev/null) || true
+    docker exec "$guard_actual" rm -f /tmp/bw-pw 2>/dev/null || true
   else
-    say "Unlock the vault (enter your master password; it is not stored)."
-    docker run -it --rm \
+    session_key=$(docker run -i --rm \
       -v "$state_dir:/home/node/.openclaw:rw" \
+      -v "$tmp_pw:/tmp/bw-pw:ro" \
       -e BITWARDENCLI_APPDATA_DIR="$BW_CLI_DATA_DIR_GUARD" \
-      node:20-alpine sh -c 'npm install -g @bitwarden/cli >/dev/null 2>&1 && . /home/node/.openclaw/secrets/bitwarden.env && bw config server "$BW_SERVER" && bw unlock'
+      node:20-alpine sh -c 'npm install -g @bitwarden/cli >/dev/null 2>&1 && . /home/node/.openclaw/secrets/bitwarden.env && bw config server "$BW_SERVER" && bw unlock --raw --passwordfile /tmp/bw-pw' 2>/dev/null) || true
+  fi
+
+  if [ -n "$session_key" ]; then
+    echo -n "$session_key" > "$session_file"
+    chmod 600 "$session_file"
+    chown 1000:1000 "$session_file" 2>/dev/null || true
+    ok "Session key saved so the guard can use Bitwarden (re-run this step if the vault is locked later)."
+  else
+    warn "Unlock failed or session could not be captured; try again or run step 6 again."
   fi
 }
 
@@ -332,8 +358,8 @@ step_bitwarden_secrets(){
     echo
   fi
 
-  say "Configure Bitwarden for guard (passwordless setup: no secrets or passwords stored in files)"
-  say "We use Bitwarden to share credentials safely with OpenClaw. You log in and unlock interactively in this step. No passwords or secrets are stored on the host; only BW_SERVER is saved in bitwarden.env."
+  say "Configure Bitwarden for guard (no master password stored)"
+  say "We use Bitwarden to share credentials safely with OpenClaw. You log in and unlock in this step. Only BW_SERVER and the session key from unlock are saved on the host; your master password is never written to disk."
   say "Create a free account on https://vault.bitwarden.com or https://vault.bitwarden.eu — whichever is closer to you."
 
   local cur_server=""
@@ -362,7 +388,7 @@ EOF
   chown 1000:1000 "$secrets_file" 2>/dev/null || true
   ok "Saved $secrets_file (server URL only; no passwords or credentials stored)"
 
-  say "Log in and unlock here (email, master password, 2FA if enabled). No passwords are written to disk."
+  say "Log in and unlock here (email, master password, 2FA if enabled). Your password is not stored; only the session key is saved so the guard can use Bitwarden."
   do_bw_login(){
     export BITWARDENCLI_APPDATA_DIR="$bw_data_dir"
     bw logout 2>/dev/null || true
@@ -696,6 +722,7 @@ check_done(){
         . /home/node/.openclaw/secrets/bitwarden.env
         [ -n "$BW_SERVER" ]
         export BITWARDENCLI_APPDATA_DIR="/home/node/.openclaw/bitwarden-cli"
+        [ -f /home/node/.openclaw/secrets/bw-session ] && export BW_SESSION=$(cat /home/node/.openclaw/secrets/bw-session)
         bw config server "$BW_SERVER" >/dev/null 2>&1
         bw status >/tmp/bw-status.json 2>/dev/null || exit 1
         grep -q '"status":"unauthenticated"' /tmp/bw-status.json && exit 1

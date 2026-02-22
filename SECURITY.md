@@ -1,6 +1,6 @@
 # Security
 
-This stack is designed as a **passwordless setup**: **no secrets or passwords are stored in files on the host.** Bitwarden login and unlock are done interactively in setup step 6; only the Bitwarden server URL (`BW_SERVER`) is stored in `bitwarden.env`. Credentials live in Bitwarden (cloud or self-hosted); the guard fetches them at runtime and never writes them to disk.
+This stack does **not store your Bitwarden master password** on the host. Setup step 6 asks for it once to unlock the vault and then saves only the **session key** (in `guard-state/secrets/bw-session`) so the guard can run Bitwarden CLI in any process. Only `BW_SERVER` is in `bitwarden.env`. Credentials live in Bitwarden; the guard fetches them at runtime using the session key.
 
 ## Reporting a vulnerability
 
