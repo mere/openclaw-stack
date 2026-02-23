@@ -394,6 +394,7 @@ EOF
   ok "Saved $secrets_file (server URL only; no passwords or credentials stored)"
 
   say "Log in and unlock here (email, master password, 2FA if enabled). Your password is not stored; only the session key is saved so Chloe can use Bitwarden."
+  say "Getting config... (please wait for the login prompt)"
   do_bw_login(){
     export BITWARDENCLI_APPDATA_DIR="$bw_data_dir"
     bw logout 2>/dev/null || true
@@ -1287,6 +1288,16 @@ menu_once(){
   printf "  %2d. %-24s | %s\n" 17 "help / useful cmds" "$(step_status 17)"
   printf "  %2d. %-24s | %s\n" 18 "restart all services" "$(step_status 18)"
   echo
+  if check_done tailscale; then
+    menu_tsdns=$(tailscale_dns)
+    if [ -n "$menu_tsdns" ]; then
+      echo "Dashboards:"
+      echo "  🐕 Guard:  https://${menu_tsdns}:444/"
+      echo "  🐯 Worker: https://${menu_tsdns}/"
+      echo "  🖥️ Webtop: https://${menu_tsdns}:445/"
+      echo
+    fi
+  fi
   read -r -p "$TIGER Select step [1-18] or 0 to exit: " pick
   case "$pick" in
     0) say "Exiting setup wizard. See you soon."; return 1 ;;

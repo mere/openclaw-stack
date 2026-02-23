@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Common Changelog](https://common-changelog.org).
 
+## [0.4.3] - 2026-02-23
+
+### Added
+
+- **Setup wizard main menu:** Dashboard URLs (Guard, Worker, Webtop) are shown in the main box when Tailscale is configured. URLs are displayed without the auth token; use step 11 (configure Dashboards) for full URLs with token.
+
+[0.4.3]: https://github.com/mere/op-and-chloe/compare/v0.4.2...v0.4.3
+
 ## [0.4.2] - 2026-02-22
 
 ### Fixed
