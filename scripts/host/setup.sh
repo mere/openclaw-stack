@@ -82,7 +82,7 @@ step_status(){
     12) configured_label guard ;;
     13) configured_label worker ;;
     14) check_seed_done && echo "✅ Seeded" || echo "⚪ Not seeded" ;;
-    15) guard_admin_mode_enabled && echo "⚠️ Enabled (full VPS access—disable when not needed)" || echo "⚪ Disabled" ;;
+    15) guard_admin_mode_enabled && echo "⚠️ Enabled (gives guard full VPS access — disable when not needed)" || echo "⚪ Disabled" ;;
     16) echo "" ;;
     17) echo "" ;;
     18) echo "" ;;
@@ -579,13 +579,32 @@ EOF
 # Run before starting guard/worker (steps 7–8) so containers see ROLE.md on first start,
 # and before configuring them (steps 10–11) so onboarding uses the latest core.
 sync_core_workspaces(){
+  if [ -f "$ENV_FILE" ]; then
+    set -a
+    # shellcheck source=/dev/null
+    . "$ENV_FILE" 2>/dev/null || true
+    set +a
+  fi
   bash "$STACK_DIR/scripts/host/sync-workspaces.sh" >/dev/null 2>&1 || true
+  fix_workspace_ownership
 }
 
 # Ensure repo files are writable by the runtime user (avoid root-owned drift)
 fix_repo_ownership(){
   local repo="${STACK_DIR:-/opt/op-and-chloe}"
   chown -R 1000:1000 "$repo" 2>/dev/null || true
+}
+
+# Ensure workspace dirs are writable by the container (uid 1000). Fixes EACCES on AGENTS.md etc.
+fix_workspace_ownership(){
+  local wws gws
+  if [ -f "$ENV_FILE" ]; then
+    wws=$(grep -E '^OPENCLAW_WORKSPACE_DIR=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '"' | head -1)
+    gws=$(grep -E '^OPENCLAW_GUARD_WORKSPACE_DIR=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '"' | head -1)
+  fi
+  wws="${wws:-/var/lib/openclaw/chloe/workspace}"
+  gws="${gws:-/var/lib/openclaw/guard/workspace}"
+  chown -R 1000:1000 "$wws" "$gws" 2>/dev/null || true
 }
 
 ensure_repo_writable_for_guard(){
