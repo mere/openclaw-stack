@@ -59,10 +59,10 @@ cd op-and-chloe
 sudo ./setup.sh
 ```
 
+That's it!
 <p align="center">
   <img src="assets/highfive.png" alt="OpenClaw Setup Wizard" height="300">
 </p>
-That's it!
 It takes about 20 minutes to follow the steps and your `AI personal assistant` is ready! ✨
 
 ## How to update

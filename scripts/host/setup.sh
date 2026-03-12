@@ -27,20 +27,20 @@ sep(){ echo "──────────────────────�
 guard_name="${INSTANCE}-openclaw-guard"
 worker_name="${INSTANCE}-openclaw-gateway"
 browser_name="${INSTANCE}-browser"
-worker_cfg="/var/lib/openclaw/state/openclaw.json"
-guard_cfg="/var/lib/openclaw/guard-state/openclaw.json"
+worker_cfg="/var/lib/openclaw/chloe/state/openclaw.json"
+guard_cfg="/var/lib/openclaw/guard/state/openclaw.json"
 
 welcome(){
   echo "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
   echo "┃ 🐯 OpenClaw Setup Wizard                                   ┃"
   echo "┃ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ┃"
   echo "┃ Setup includes:                                            ┃"
-  echo "┃   🖥️ Webtop browser (Chromium) for persistent logins       ┃"
+  echo "┃   🖥️ Webtop browser (Chromium) for persistent logins        ┃"
   echo "┃   🐕 Op (guard) — admin with SSH access                    ┃"
   echo "┃   🐯 Chloe (worker) — day-to-day, create all agents here   ┃"
   echo "┃   🔐 Tailscale for private network access                  ┃"
   echo "┃   🔑 Bitwarden (passwordless: no secrets in files)         ┃"
-  echo "┃   ❤️ Healthcheck + watchdog validation                     ┃"
+  echo "┃   ❤️ Healthcheck + watchdog validation                      ┃"
   echo "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"
 }
 
@@ -78,7 +78,7 @@ step_status(){
     8) container_running "$guard_name" && echo "✅ Currently running" || echo "⚪ Not running" ;;
     9) container_running "$worker_name" && echo "✅ Currently running" || echo "⚪ Not running" ;;
     10) container_running "$browser_name" && echo "✅ Currently running" || echo "⚪ Not running" ;;
-    11) if [ -n "${PAIRING_COMPLETED-}" ] || [ -f "${OPENCLAW_STATE_DIR:-/var/lib/openclaw}/.pairing_completed" ]; then echo "✅ Pairing completed"; else echo "⚪ Pending pairing"; fi ;;
+    11) if [ -n "${PAIRING_COMPLETED-}" ] || [ -f "${OPENCLAW_STATE_DIR:-/var/lib/openclaw/chloe/state}/.pairing_completed" ]; then echo "✅ Pairing completed"; else echo "⚪ Pending pairing"; fi ;;
     12) configured_label guard ;;
     13) configured_label worker ;;
     14) check_seed_done && echo "✅ Seeded" || echo "⚪ Not seeded" ;;
@@ -93,8 +93,8 @@ step_status(){
 # True if both workspaces have .seed_hash matching current core/ (ROLE.md + skills) content
 # (seeded = hash of core/<profile> equals workspace/.seed_hash written at last sync)
 check_seed_done(){
-  local gws="${OPENCLAW_GUARD_WORKSPACE_DIR:-/var/lib/openclaw/guard-workspace}"
-  local wws="${OPENCLAW_WORKSPACE_DIR:-/var/lib/openclaw/workspace}"
+  local gws="${OPENCLAW_GUARD_WORKSPACE_DIR:-/var/lib/openclaw/guard/workspace}"
+  local wws="${OPENCLAW_WORKSPACE_DIR:-/var/lib/openclaw/chloe/workspace}"
   local want want_g want_w have_g have_w
   want_g=$(python3 "$STACK_DIR/scripts/host/seed-hash.py" get "$STACK_DIR" guard 2>/dev/null)
   want_w=$(python3 "$STACK_DIR/scripts/host/seed-hash.py" get "$STACK_DIR" worker 2>/dev/null)
@@ -139,8 +139,8 @@ sync_gateway_tokens_to_config(){
   WORKER_TKN="$wt" GUARD_TKN="$gt" python3 - <<'PY'
 import json, pathlib, os
 wt, gt = os.environ.get("WORKER_TKN", ""), os.environ.get("GUARD_TKN", "")
-worker_cfg = pathlib.Path("/var/lib/openclaw/state/openclaw.json")
-guard_cfg = pathlib.Path("/var/lib/openclaw/guard-state/openclaw.json")
+worker_cfg = pathlib.Path("/var/lib/openclaw/chloe/state/openclaw.json")
+guard_cfg = pathlib.Path("/var/lib/openclaw/guard/state/openclaw.json")
 if wt and worker_cfg.exists():
     d = json.loads(worker_cfg.read_text())
     d.setdefault("gateway", {}).setdefault("auth", {})["token"] = wt
@@ -150,13 +150,13 @@ if gt and guard_cfg.exists():
     d.setdefault("gateway", {}).setdefault("auth", {})["token"] = gt
     guard_cfg.write_text(json.dumps(d, indent=2) + "\n")
 PY
-  chown 1000:1000 /var/lib/openclaw/state/openclaw.json /var/lib/openclaw/guard-state/openclaw.json 2>/dev/null || true
+  chown 1000:1000 /var/lib/openclaw/chloe/state/openclaw.json /var/lib/openclaw/guard/state/openclaw.json 2>/dev/null || true
 }
 
 enable_tokenless_tailscale_auth(){
   python3 - <<'PY2'
 import json, pathlib
-paths=[pathlib.Path('/var/lib/openclaw/state/openclaw.json'), pathlib.Path('/var/lib/openclaw/guard-state/openclaw.json')]
+paths=[pathlib.Path('/var/lib/openclaw/chloe/state/openclaw.json'), pathlib.Path('/var/lib/openclaw/guard/state/openclaw.json')]
 for p in paths:
     if not p.exists() or p.stat().st_size==0:
         continue
@@ -167,7 +167,7 @@ for p in paths:
     g['trustedProxies']=['127.0.0.1','::1','172.31.0.1']
     p.write_text(json.dumps(d,indent=2)+"\n")
 PY2
-  chown 1000:1000 /var/lib/openclaw/state/openclaw.json /var/lib/openclaw/guard-state/openclaw.json 2>/dev/null || true
+  chown 1000:1000 /var/lib/openclaw/chloe/state/openclaw.json /var/lib/openclaw/guard/state/openclaw.json 2>/dev/null || true
 }
 
 apply_tailscale_bind(){ :; }
@@ -176,7 +176,7 @@ apply_tailscale_bind(){ :; }
 ensure_inline_buttons(){
   python3 - <<'PY2'
 import json, pathlib
-paths=[pathlib.Path('/var/lib/openclaw/state/openclaw.json'), pathlib.Path('/var/lib/openclaw/guard-state/openclaw.json')]
+paths=[pathlib.Path('/var/lib/openclaw/chloe/state/openclaw.json'), pathlib.Path('/var/lib/openclaw/guard/state/openclaw.json')]
 for p in paths:
     if not p.exists() or p.stat().st_size==0:
         continue
@@ -186,7 +186,7 @@ for p in paths:
     caps['inlineButtons']='all'
     p.write_text(json.dumps(d,indent=2)+"\n")
 PY2
-  chown 1000:1000 /var/lib/openclaw/state/openclaw.json /var/lib/openclaw/guard-state/openclaw.json 2>/dev/null || true
+  chown 1000:1000 /var/lib/openclaw/chloe/state/openclaw.json /var/lib/openclaw/guard/state/openclaw.json 2>/dev/null || true
 }
 
 ensure_browser_profile(){
@@ -205,8 +205,8 @@ ensure_browser_profile(){
   BIP="$bip" python3 - <<'PY2'
 import json, os, pathlib
 bip = os.environ.get("BIP", "172.31.0.10")
-worker=pathlib.Path('/var/lib/openclaw/state/openclaw.json')
-guard=pathlib.Path('/var/lib/openclaw/guard-state/openclaw.json')
+worker=pathlib.Path('/var/lib/openclaw/chloe/state/openclaw.json')
+guard=pathlib.Path('/var/lib/openclaw/guard/state/openclaw.json')
 if worker.exists() and worker.stat().st_size>0:
     d=json.loads(worker.read_text())
     b=d.setdefault('browser',{})
@@ -222,12 +222,12 @@ if guard.exists() and guard.stat().st_size>0:
     d.setdefault('browser',{})['enabled']=False
     guard.write_text(json.dumps(d,indent=2)+"\n")
 PY2
-  chown 1000:1000 /var/lib/openclaw/state/openclaw.json /var/lib/openclaw/guard-state/openclaw.json 2>/dev/null || true
+  chown 1000:1000 /var/lib/openclaw/chloe/state/openclaw.json /var/lib/openclaw/guard/state/openclaw.json 2>/dev/null || true
 }
 
 
 # Bitwarden lives in worker state (Chloe); no bridge.
-STATE_DIR="${OPENCLAW_STATE_DIR:-/var/lib/openclaw/state}"
+STATE_DIR="${OPENCLAW_STATE_DIR:-/var/lib/openclaw/chloe/state}"
 BW_CLI_DATA_DIR_HOST="$STATE_DIR/bitwarden-cli"
 BW_CLI_DATA_DIR_WORKER="/home/node/.openclaw/bitwarden-cli"
 
@@ -444,9 +444,9 @@ guard_admin_mode_enabled(){
   grep -q '/var/lib/openclaw:/mnt/openclaw-data' "$STACK_DIR/compose.yml"
 }
 
-# SSH key for Op to connect back to host (Admin Mode). Stored in guard-state, mounted into container when admin mode on.
+# SSH key for Op to connect back to host (Admin Mode). Stored in guard/state, mounted into container when admin mode on.
 ensure_guard_ssh_to_host(){
-  local ssh_dir="/var/lib/openclaw/guard-state/ssh"
+  local ssh_dir="/var/lib/openclaw/guard/state/ssh"
   local key_file="$ssh_dir/id_ed25519"
   local auth_keys="/root/.ssh/authorized_keys"
   mkdir -p "$ssh_dir"
@@ -475,16 +475,16 @@ set_guard_admin_mode(){
       sed -i '/OPENCLAW_GUARD_WORKSPACE_DIR.*workspace/a\
       - /var/lib/openclaw:/mnt/openclaw-data\
       - /etc/openclaw:/mnt/etc-openclaw\
-      - /var/lib/openclaw/guard-state/ssh:/home/node/.ssh:ro' "$c"
-    elif ! grep -q '/var/lib/openclaw/guard-state/ssh:/home/node/.ssh' "$c"; then
+      - /var/lib/openclaw/guard/state/ssh:/home/node/.ssh:ro' "$c"
+    elif ! grep -q '/var/lib/openclaw/guard/state/ssh:/home/node/.ssh' "$c"; then
       sed -i '\# /etc/openclaw:/mnt/etc-openclaw#a\
-      - /var/lib/openclaw/guard-state/ssh:/home/node/.ssh:ro' "$c"
+      - /var/lib/openclaw/guard/state/ssh:/home/node/.ssh:ro' "$c"
     fi
     ok "Guard admin mode enabled (full host data/config mounted; Op can SSH to host as root@localhost)"
   else
     sed -i '\# /var/lib/openclaw:/mnt/openclaw-data#d' "$c"
     sed -i '\# /etc/openclaw:/mnt/etc-openclaw#d' "$c"
-    sed -i '\# /var/lib/openclaw/guard-state/ssh:/home/node/.ssh#d' "$c"
+    sed -i '\# /var/lib/openclaw/guard/state/ssh:/home/node/.ssh#d' "$c"
     ok "Guard admin mode disabled (minimal mounts; Op cannot SSH to host)"
   fi
   cd "$STACK_DIR"
@@ -518,7 +518,7 @@ step_guard_admin_mode(){
 
 
 ensure_guard_approval_instructions(){
-  local gws="/var/lib/openclaw/guard-workspace"
+  local gws="/var/lib/openclaw/guard/workspace"
   mkdir -p "$gws"
   cat > "$gws/APPROVALS.md" <<'EOF'
 # Exec Approvals (OpenClaw)
@@ -535,7 +535,7 @@ EOF
 
 
 
-# Injects core/guard/*.md and core/worker/*.md into guard-workspace and workspace.
+# Injects core/guard/*.md and core/worker/*.md into guard/workspace and chloe/workspace.
 # Run before starting guard/worker (steps 7–8) so containers see ROLE.md on first start,
 # and before configuring them (steps 10–11) so onboarding uses the latest core.
 sync_core_workspaces(){
@@ -689,7 +689,7 @@ step_volume_root(){
   echo "$chosen_path" > "$VOLUME_ROOT_FILE"
   OPENCLAW_VOLUME_ROOT=$chosen_path
   ok "OpenClaw data will use: $OPENCLAW_VOLUME_ROOT"
-  say "Run step 4 (environment) next to create dirs and symlinks there."
+  say "Run step 3 (docker) next to install Docker and Compose."
 }
 
 step_preflight(){
@@ -725,7 +725,7 @@ step_env(){
   if [ -n "${OPENCLAW_VOLUME_ROOT:-}" ]; then
     local etc_dest="$OPENCLAW_VOLUME_ROOT/openclaw/etc/openclaw"
     local lib_dest="$OPENCLAW_VOLUME_ROOT/openclaw/var/lib/openclaw"
-    mkdir -p "$etc_dest" "$lib_dest"/{state,workspace,browser,guard-state,guard-workspace}
+    mkdir -p "$etc_dest" "$lib_dest"/{chloe/state,chloe/workspace,guard/state,guard/workspace,browser}
     chown -R 1000:1000 "$lib_dest"
     if [ ! -L /etc/openclaw ] && [ -e /etc/openclaw ] && [ "$(readlink -f /etc/openclaw 2>/dev/null)" != "$(readlink -f "$etc_dest" 2>/dev/null)" ]; then
       warn "/etc/openclaw already exists and is not a symlink; skipping symlink (data stays under /etc/openclaw)"
@@ -739,8 +739,8 @@ step_env(){
     fi
     ok "Created dirs under $OPENCLAW_VOLUME_ROOT and linked /etc/openclaw, /var/lib/openclaw"
   else
-    mkdir -p /etc/openclaw /var/lib/openclaw/{state,workspace,browser,guard-state,guard-workspace}
-    chown -R 1000:1000 /var/lib/openclaw/state /var/lib/openclaw/workspace /var/lib/openclaw/browser /var/lib/openclaw/guard-state /var/lib/openclaw/workspace
+    mkdir -p /etc/openclaw /var/lib/openclaw/{chloe/state,chloe/workspace,guard/state,guard/workspace,browser}
+    chown -R 1000:1000 /var/lib/openclaw/chloe /var/lib/openclaw/guard /var/lib/openclaw/browser
   fi
   if [ ! -f "$ENV_FILE" ]; then
     cp "$STACK_DIR/config/env.example" "$ENV_FILE"
@@ -754,10 +754,10 @@ step_env(){
   echo
   echo "Created:"
   echo "  /etc/openclaw/"
-  echo "  /var/lib/openclaw/guard-state"
-  echo "  /var/lib/openclaw/guard-workspace"
-  echo "  /var/lib/openclaw/state"
-  echo "  /var/lib/openclaw/workspace"
+  echo "  /var/lib/openclaw/guard/state"
+  echo "  /var/lib/openclaw/guard/workspace"
+  echo "  /var/lib/openclaw/chloe/state"
+  echo "  /var/lib/openclaw/chloe/workspace"
   echo "  /var/lib/openclaw/browser"
   echo "  $ENV_FILE"
 }
@@ -971,7 +971,7 @@ pairing_done_for_output(){
 # Run guard/worker devices list and set PAIRING_COMPLETED=1 only when both have pairing completed.
 # Also write/remove a marker file so the main menu can show "✅ Pairing completed" without running docker (status persists across menu redraws and restarts).
 # Use docker exec -i (no -t) so we get plain output when run from script; openclaw-guard/openclaw-worker use -it and can fail without a TTY.
-PAIRING_STATUS_FILE="${OPENCLAW_STATE_DIR:-/var/lib/openclaw}/.pairing_completed"
+PAIRING_STATUS_FILE="${OPENCLAW_STATE_DIR:-/var/lib/openclaw/chloe/state}/.pairing_completed"
 update_pairing_status(){
   if ! container_running "$guard_name" || ! container_running "$worker_name"; then
     unset PAIRING_COMPLETED
@@ -1202,8 +1202,8 @@ step_help_useful_commands(){
   say "Help and useful commands"
   echo
   echo "Roles:"
-  echo "  cat /var/lib/openclaw/guard-workspace/ROLE.md"
-  echo "  cat /var/lib/openclaw/workspace/ROLE.md"
+  echo "  cat /var/lib/openclaw/guard/workspace/ROLE.md"
+  echo "  cat /var/lib/openclaw/chloe/workspace/ROLE.md"
   echo "  Refresh after git pull or editing core/: sudo ./scripts/host/sync-workspaces.sh"
   echo
   echo "Devices:"
@@ -1294,7 +1294,7 @@ menu_once(){
       echo "Dashboards:"
       echo "  🐕 Guard:  https://${menu_tsdns}:444/"
       echo "  🐯 Worker: https://${menu_tsdns}/"
-      echo "  🖥️ Webtop: https://${menu_tsdns}:445/"
+      echo "  🖥️  Webtop: https://${menu_tsdns}:445/"
       echo
     fi
   fi

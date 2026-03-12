@@ -17,8 +17,8 @@ SYNC_PROFILE="${SYNC_PROFILE:-}"
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 STACK_DIR=$(cd "$SCRIPT_DIR/../.." && pwd)
 
-WORKER_WS=${WORKER_WORKSPACE_DIR:-/var/lib/openclaw/workspace}
-GUARD_WS=${GUARD_WORKSPACE_DIR:-/var/lib/openclaw/guard-workspace}
+WORKER_WS=${OPENCLAW_WORKSPACE_DIR:-${WORKER_WORKSPACE_DIR:-/var/lib/openclaw/chloe/workspace}}
+GUARD_WS=${OPENCLAW_GUARD_WORKSPACE_DIR:-${GUARD_WORKSPACE_DIR:-/var/lib/openclaw/guard/workspace}}
 
 for arg in "$@"; do
   case "$arg" in

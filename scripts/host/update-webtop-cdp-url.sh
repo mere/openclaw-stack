@@ -3,7 +3,7 @@ set -euo pipefail
 
 STACK_DIR=${STACK_DIR:-/opt/op-and-chloe}
 ENV_FILE=${ENV_FILE:-/etc/openclaw/stack.env}
-STATE_JSON=${STATE_JSON:-/var/lib/openclaw/state/openclaw.json}
+STATE_JSON=${STATE_JSON:-/var/lib/openclaw/chloe/state/openclaw.json}
 CDP_PORT=${CDP_PORT:-9223}
 PROFILE_NAME=${PROFILE_NAME:-vps-chromium}
 
@@ -56,7 +56,7 @@ p.write_text(json.dumps(j, indent=2) + "\n")
 print("Updated", p)
 PY
 
-chown -R 1000:1000 /var/lib/openclaw/state
+chown -R 1000:1000 /var/lib/openclaw/chloe/state
 
 cd "$STACK_DIR"
 docker compose --env-file "${ENV_FILE}" -f compose.yml restart openclaw-gateway
