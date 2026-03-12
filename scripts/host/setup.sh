@@ -1164,10 +1164,15 @@ step_auth_tokens(){
     worker_pending=()
     while IFS= read -r id; do [ -n "$id" ] && guard_pending+=("$id"); done < <(pending_request_ids "$guard_devices")
     while IFS= read -r id; do [ -n "$id" ] && worker_pending+=("$id"); done < <(pending_request_ids "$worker_devices")
-    # Build menu: 1 = Rotate, 2 = Refresh, 3..N = Approve (one per pending), 0 = Return
+    # Build menu: 1 = Rotate, 2 = Refresh, 3 = Approve all (if any pending), 4..N = Approve (one per pending), 0 = Return
     options=("🔄 Rotate gateway tokens (only use this if you get token mismatch error)" "🔄 Refresh Pairing status")
     option_type=("rotate" "refresh")
     option_id=("" "")
+    if [ ${#guard_pending[@]} -gt 0 ] || [ ${#worker_pending[@]} -gt 0 ]; then
+      options+=("🤝 Approve all pending")
+      option_type+=("approve_all")
+      option_id+=("")
+    fi
     for id in "${guard_pending[@]}"; do
       short_id="${id:0:8}"
       options+=("🤝 Approve pairing request for Guard — $short_id"); option_type+=("approve_guard"); option_id+=("$id")
@@ -1202,6 +1207,26 @@ step_auth_tokens(){
         refresh)
           update_pairing_status || true
           ok "Refreshing pairing status..."
+          ;;
+        approve_all)
+          approved=0
+          for id in "${guard_pending[@]}"; do
+            if docker exec -i "$guard_actual" ./openclaw.mjs devices approve "$id" 2>&1; then
+              ok "Approved Guard pairing $id"
+              ((approved++)) || true
+            else
+              warn "Approve failed for Guard $id"
+            fi
+          done
+          for id in "${worker_pending[@]}"; do
+            if docker exec -i "$worker_actual" ./openclaw.mjs devices approve "$id" 2>&1; then
+              ok "Approved Worker pairing $id"
+              ((approved++)) || true
+            else
+              warn "Approve failed for Worker $id"
+            fi
+          done
+          [ "$approved" -gt 0 ] && ok "Approved $approved pairing(s) total"
           ;;
         approve_guard)
           docker exec -i "$guard_actual" ./openclaw.mjs devices approve "${option_id[$idx]}" 2>&1 && ok "Approved Guard pairing ${option_id[$idx]}" || warn "Approve failed (device list may have changed)"
