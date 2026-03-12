@@ -34,7 +34,8 @@ services:
       TERM: xterm-256color
       OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
       NPM_CONFIG_PREFIX: /home/node/.openclaw/npm-global
-      PATH: /opt/op-and-chloe/scripts/worker:/opt/op-and-chloe/scripts:/home/node/.openclaw/npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      PNPM_HOME: /home/node/.local/share/pnpm
+      PATH: /opt/op-and-chloe/scripts/worker:/opt/op-and-chloe/scripts:/home/node/.local/share/pnpm:/home/node/.openclaw/npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     volumes:
       - ${OPENCLAW_STATE_DIR:-/var/lib/openclaw/chloe/state}:/home/node/.openclaw
       - ${OPENCLAW_WORKSPACE_DIR:-/var/lib/openclaw/chloe/workspace}:/home/node/.openclaw/workspace
@@ -58,7 +59,8 @@ services:
       TERM: xterm-256color
       OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GUARD_GATEWAY_TOKEN}
       NPM_CONFIG_PREFIX: /home/node/.openclaw/npm-global
-      PATH: /opt/op-and-chloe/scripts/guard:/opt/op-and-chloe/scripts:/home/node/.openclaw/npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      PNPM_HOME: /home/node/.local/share/pnpm
+      PATH: /opt/op-and-chloe/scripts/guard:/opt/op-and-chloe/scripts:/home/node/.local/share/pnpm:/home/node/.openclaw/npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     volumes:
       - ${OPENCLAW_GUARD_STATE_DIR:-/var/lib/openclaw/guard/state}:/home/node/.openclaw
       - ${OPENCLAW_GUARD_WORKSPACE_DIR:-/var/lib/openclaw/guard/workspace}:/home/node/.openclaw/workspace
