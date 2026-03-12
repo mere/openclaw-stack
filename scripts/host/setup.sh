@@ -172,29 +172,42 @@ PY2
 
 # Set gateway.controlUi.allowedOrigins so Control UI works when accessed via Tailscale (non-loopback origin).
 # Call with Tailscale DNS name (e.g. from tailscale_dns). Restart guard/worker after for changes to take effect.
+# Uses paths from ENV_FILE (OPENCLAW_STATE_DIR, OPENCLAW_GUARD_STATE_DIR) when available.
 ensure_control_ui_allowed_origins(){
   local tsdns="${1:-$(tailscale_dns)}"
   [ -z "$tsdns" ] || [ "$tsdns" = "unavailable" ] && return 0
-  TSDNS="$tsdns" python3 - <<'PY2'
+  local worker_state guard_state
+  if [ -f "$ENV_FILE" ]; then
+    worker_state=$(grep -E '^OPENCLAW_STATE_DIR=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '"' | head -1)
+    guard_state=$(grep -E '^OPENCLAW_GUARD_STATE_DIR=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '"' | head -1)
+  fi
+  worker_state="${worker_state:-/var/lib/openclaw/chloe/state}"
+  guard_state="${guard_state:-/var/lib/openclaw/guard/state}"
+  TSDNS="$tsdns" WORKER_CFG="${worker_state}/openclaw.json" GUARD_CFG="${guard_state}/openclaw.json" python3 - <<'PY2'
 import json, pathlib, os
 tsdns = os.environ.get("TSDNS", "").strip()
+worker_cfg = pathlib.Path(os.environ.get("WORKER_CFG", "/var/lib/openclaw/chloe/state/openclaw.json"))
+guard_cfg = pathlib.Path(os.environ.get("GUARD_CFG", "/var/lib/openclaw/guard/state/openclaw.json"))
 if not tsdns or tsdns == "unavailable":
     raise SystemExit(0)
-worker_cfg = pathlib.Path("/var/lib/openclaw/chloe/state/openclaw.json")
-guard_cfg = pathlib.Path("/var/lib/openclaw/guard/state/openclaw.json")
 # Worker: https://host (port 443), Guard: https://host:444. Also allow localhost for SSH tunnel access.
 worker_origins = ["https://" + tsdns, "http://127.0.0.1:18789", "http://localhost:18789"]
 guard_origins = ["https://" + tsdns + ":444", "http://127.0.0.1:18790", "http://localhost:18790"]
 for cfg, origins in [(worker_cfg, worker_origins), (guard_cfg, guard_origins)]:
-    if not cfg.exists() or cfg.stat().st_size == 0:
-        continue
-    d = json.loads(cfg.read_text())
+    d = {}
+    if cfg.exists() and cfg.stat().st_size > 0:
+        d = json.loads(cfg.read_text())
+    else:
+        cfg.parent.mkdir(parents=True, exist_ok=True)
     g = d.setdefault("gateway", {})
+    g["trustedProxies"] = ["127.0.0.1", "::1", "172.31.0.1"]
+    g.setdefault("auth", {})["allowTailscale"] = True
     cu = g.setdefault("controlUi", {})
     cu["allowedOrigins"] = list(dict.fromkeys((cu.get("allowedOrigins") or []) + origins))
     cfg.write_text(json.dumps(d, indent=2) + "\n")
 PY2
-  chown 1000:1000 /var/lib/openclaw/chloe/state/openclaw.json /var/lib/openclaw/guard/state/openclaw.json 2>/dev/null || true
+  mkdir -p "$worker_state/devices" "$guard_state/devices"
+  chown -R 1000:1000 "$worker_state" "$guard_state" 2>/dev/null || true
 }
 
 apply_tailscale_bind(){ :; }
@@ -752,7 +765,7 @@ step_env(){
   if [ -n "${OPENCLAW_VOLUME_ROOT:-}" ]; then
     local etc_dest="$OPENCLAW_VOLUME_ROOT/openclaw/etc/openclaw"
     local lib_dest="$OPENCLAW_VOLUME_ROOT/openclaw/var/lib/openclaw"
-    mkdir -p "$etc_dest" "$lib_dest"/{chloe/state,chloe/workspace,guard/state,guard/workspace,browser}
+    mkdir -p "$etc_dest" "$lib_dest"/{chloe/state,chloe/state/devices,chloe/workspace,guard/state,guard/state/devices,guard/workspace,browser}
     chown -R 1000:1000 "$lib_dest"
     if [ ! -L /etc/openclaw ] && [ -e /etc/openclaw ] && [ "$(readlink -f /etc/openclaw 2>/dev/null)" != "$(readlink -f "$etc_dest" 2>/dev/null)" ]; then
       warn "/etc/openclaw already exists and is not a symlink; skipping symlink (data stays under /etc/openclaw)"
@@ -766,7 +779,7 @@ step_env(){
     fi
     ok "Created dirs under $OPENCLAW_VOLUME_ROOT and linked /etc/openclaw, /var/lib/openclaw"
   else
-    mkdir -p /etc/openclaw /var/lib/openclaw/{chloe/state,chloe/workspace,guard/state,guard/workspace,browser}
+    mkdir -p /etc/openclaw /var/lib/openclaw/{chloe/state,chloe/state/devices,chloe/workspace,guard/state,guard/state/devices,guard/workspace,browser}
     chown -R 1000:1000 /var/lib/openclaw/chloe /var/lib/openclaw/guard /var/lib/openclaw/browser
   fi
   if [ ! -f "$ENV_FILE" ]; then
