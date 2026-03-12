@@ -170,6 +170,33 @@ PY2
   chown 1000:1000 /var/lib/openclaw/chloe/state/openclaw.json /var/lib/openclaw/guard/state/openclaw.json 2>/dev/null || true
 }
 
+# Set gateway.controlUi.allowedOrigins so Control UI works when accessed via Tailscale (non-loopback origin).
+# Call with Tailscale DNS name (e.g. from tailscale_dns). Restart guard/worker after for changes to take effect.
+ensure_control_ui_allowed_origins(){
+  local tsdns="${1:-$(tailscale_dns)}"
+  [ -z "$tsdns" ] || [ "$tsdns" = "unavailable" ] && return 0
+  TSDNS="$tsdns" python3 - <<'PY2'
+import json, pathlib, os
+tsdns = os.environ.get("TSDNS", "").strip()
+if not tsdns or tsdns == "unavailable":
+    raise SystemExit(0)
+worker_cfg = pathlib.Path("/var/lib/openclaw/chloe/state/openclaw.json")
+guard_cfg = pathlib.Path("/var/lib/openclaw/guard/state/openclaw.json")
+# Worker: https://host (port 443), Guard: https://host:444. Also allow localhost for SSH tunnel access.
+worker_origins = ["https://" + tsdns, "http://127.0.0.1:18789", "http://localhost:18789"]
+guard_origins = ["https://" + tsdns + ":444", "http://127.0.0.1:18790", "http://localhost:18790"]
+for cfg, origins in [(worker_cfg, worker_origins), (guard_cfg, guard_origins)]:
+    if not cfg.exists() or cfg.stat().st_size == 0:
+        continue
+    d = json.loads(cfg.read_text())
+    g = d.setdefault("gateway", {})
+    cu = g.setdefault("controlUi", {})
+    cu["allowedOrigins"] = list(dict.fromkeys((cu.get("allowedOrigins") or []) + origins))
+    cfg.write_text(json.dumps(d, indent=2) + "\n")
+PY2
+  chown 1000:1000 /var/lib/openclaw/chloe/state/openclaw.json /var/lib/openclaw/guard/state/openclaw.json 2>/dev/null || true
+}
+
 apply_tailscale_bind(){ :; }
 
 
@@ -791,6 +818,7 @@ step_tailscale(){
     ok "Tailnet IP: ${tsip}"
     apply_tailscale_serve && ok "Configured HTTPS Tailscale dashboard endpoints"
     enable_tokenless_tailscale_auth && ok "Applied Tailscale auth compatibility settings"
+    ensure_control_ui_allowed_origins && ok "Control UI allowed origins set for Tailscale"
     return
   fi
   read -r -p "$TIGER Install Tailscale now? [Y/n]: " ans
@@ -809,6 +837,7 @@ step_tailscale(){
   if check_done tailscale; then
     apply_tailscale_serve && ok "Configured HTTPS Tailscale dashboard endpoints"
     enable_tokenless_tailscale_auth && ok "Applied Tailscale auth compatibility settings"
+    ensure_control_ui_allowed_origins && ok "Control UI allowed origins set for Tailscale"
   else
     say "After tailscale up succeeds, run option 7 again to configure HTTPS endpoints."
   fi
@@ -1029,6 +1058,7 @@ PY
 
 step_auth_tokens(){
   local rot=""
+  local _origins_applied=false
   while true; do
     update_pairing_status || true
     say "Configure Dashboards"
@@ -1048,6 +1078,12 @@ step_auth_tokens(){
     if check_done tailscale; then
       TSDNS=$(tailscale_dns)
       TSDNS=${TSDNS:-unavailable}
+      ensure_control_ui_allowed_origins "$TSDNS"
+      if { container_running "$guard_name" || container_running "$worker_name"; } && [ "$_origins_applied" != "true" ]; then
+        cd "$STACK_DIR"
+        docker compose --env-file "$ENV_FILE" -f compose.yml restart openclaw-guard openclaw-gateway 2>/dev/null || true
+        _origins_applied=true
+      fi
       echo "Dashboards (Tailscale HTTPS):"
       if [ -n "$guard_token" ]; then
         echo "  Guard:  https://${TSDNS}:444/#token=${guard_token}"
